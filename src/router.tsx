@@ -11,11 +11,19 @@ import { QuotationsPage } from "@/features/sales/quotations-page";
 import { ConvertPage } from "@/features/sales/convert-page";
 import { CustomerPage } from "@/features/sales/customer-page";
 import { InvoicesPage } from "@/features/sales/invoices-page";
+import { EditionsPage } from "@/features/sales/editions-page";
+import { LeadsPage } from "@/features/sales/leads-page";
+import { SalesSettingsPage } from "@/features/sales/settings-page";
+import { QuoteRequestsPage } from "@/features/sales/quote-requests-page";
 
 /** Screens built here; everything else in the menu is still a placeholder. */
 const READY: Record<string, React.ReactNode> = {
   "/sales/quotations": <QuotationsPage />,
   "/sales/invoices": <InvoicesPage />,
+  "/sales/quote-requests": <QuoteRequestsPage />,
+  "/sales/leads": <LeadsPage />,
+  "/sales/editions": <EditionsPage />,
+  "/sales/settings": <SalesSettingsPage />,
 };
 
 /**
