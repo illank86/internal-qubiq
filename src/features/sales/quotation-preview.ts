@@ -47,8 +47,9 @@ export type PreviewInput = {
 /**
  * The quotation as it would print, from what is on screen — nothing saved.
  * Lines are built the way private.price_quotation_groups() builds them: per
- * group the edition, then one-off modules (each × servers), then percentage
- * modules on the group's one-off total.
+ * group the edition's modules (labelled with the edition — it has no line or
+ * price of its own), then other one-off modules (each × servers), then
+ * percentage modules on the group's one-off total.
  */
 export async function renderQuotationPreview(catalog: SalesCatalog, input: PreviewInput): Promise<Blob> {
   const money = { rate: input.rate, decimals: input.decimals, currency: input.currency, taxRate: input.taxRate };
@@ -61,13 +62,20 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
   const groups = totals.priced.map(({ group, edition, oneOff, subtotal }, index) => {
     const id = `group-${index}`;
     const picked = new Set(group.moduleIds);
-    if (edition) {
-      const unit = convert(edition.base_price);
-      items.push({ id: `${id}-edition`, group_id: id, description: `QUBIQ ${edition.name} licence`, detail: "Perpetual licence", quantity: group.quantity, unit_price: unit, amount: unit * group.quantity });
-    }
-    for (const module of catalog.modules.filter((item) => picked.has(item.id) && !item.percent)) {
+    const inEdition = new Set(edition?.moduleIds ?? []);
+    const oneOffModules = catalog.modules.filter((item) => picked.has(item.id) && !item.percent);
+    // The edition's own modules first, then anything added on top.
+    for (const module of [...oneOffModules.filter((item) => inEdition.has(item.id)), ...oneOffModules.filter((item) => !inEdition.has(item.id))]) {
       const unit = convert(module.price);
-      items.push({ id: `${id}-${module.id}`, group_id: id, description: module.name, detail: module.category, quantity: group.quantity, unit_price: unit, amount: unit * group.quantity });
+      items.push({
+        id: `${id}-${module.id}`,
+        group_id: id,
+        description: module.name,
+        detail: edition && inEdition.has(module.id) ? `${edition.name} edition` : module.category,
+        quantity: group.quantity,
+        unit_price: unit,
+        amount: unit * group.quantity,
+      });
     }
     for (const module of catalog.modules.filter((item) => picked.has(item.id) && item.percent)) {
       const amount = round((oneOff * (module.percent ?? 0)) / 100);

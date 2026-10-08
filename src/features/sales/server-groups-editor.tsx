@@ -24,6 +24,9 @@ export function ServerGroupsEditor({
   money: (amount: number) => string;
 }) {
   const categories = [...modules.reduce((map, item) => map.set(item.category, [...(map.get(item.category) ?? []), item]), new Map<string, BuilderModule[]>())];
+  // An edition costs what its modules cost.
+  const editionTotal = (edition: BuilderEdition) =>
+    modules.filter((item) => edition.moduleIds.includes(item.id) && !item.percent).reduce((sum, item) => sum + item.price, 0);
   const update = (key: string, next: Partial<GroupDraft>) => onChange(groups.map((group) => (group.key === key ? { ...group, ...next } : group)));
 
   return (
@@ -89,13 +92,13 @@ export function ServerGroupsEditor({
             </Typography.Text>
             <Radio.Group value={group.editionId} onChange={(event) => chooseEdition(event.target.value)} style={{ width: "100%", margin: "8px 0 16px" }}>
               <Row gutter={[8, 8]}>
-                {[...editions, { id: "", name: "No edition — modules only", base_price: 0, currency: baseCurrency, moduleIds: [] }].map((item) => (
+                {[...editions, { id: "", name: "No edition — modules only", currency: baseCurrency, moduleIds: [] }].map((item) => (
                   <Col key={item.id || "none"} xs={24} sm={12} xl={8}>
                     <Radio value={item.id}>
                       {item.name}
                       {item.id ? (
                         <Typography.Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
-                          {formatMoney(item.base_price, item.currency)}
+                          {formatMoney(editionTotal(item), item.currency)}
                         </Typography.Text>
                       ) : null}
                     </Radio>

@@ -102,7 +102,6 @@ type TabProps = {
 type EditionValues = {
   name: string;
   slug: string;
-  base_price: number;
   currency: string;
   custom: boolean;
   module_ids: string[];
@@ -118,8 +117,8 @@ function EditionsTab({ data, loading, run, busy }: TabProps) {
   const [editing, setEditing] = useState<Edition | "new" | null>(null);
   const moduleById = useMemo(() => new Map((data?.modules ?? []).map((module) => [module.id, module])), [data]);
 
+  // An edition has no price of its own: it costs what its modules cost.
   const total = (edition: Edition) =>
-    Number(edition.base_price) +
     edition.modules.reduce((sum, link) => {
       const module = moduleById.get(link.module_id);
       return sum + (module && !module.percent_of_licence ? Number(module.price) : 0);
@@ -145,12 +144,16 @@ function EditionsTab({ data, loading, run, busy }: TabProps) {
       ),
     },
     { title: "Modules", key: "modules", render: (_, edition) => (edition.allows_module_selection ? <Tag>Customer picks</Tag> : edition.modules.length) },
-    { title: "Base price", key: "base", align: "right", render: (_, edition) => formatMoney(edition.base_price, edition.currency) },
     {
       title: "Total",
       key: "total",
       align: "right",
-      render: (_, edition) => <Typography.Text strong>{(edition.allows_module_selection ? "From " : "") + formatMoney(total(edition), edition.currency)}</Typography.Text>,
+      render: (_, edition) =>
+        edition.allows_module_selection ? (
+          <Typography.Text type="secondary">Sum of the modules picked</Typography.Text>
+        ) : (
+          <Typography.Text strong>{formatMoney(total(edition), edition.currency)}</Typography.Text>
+        ),
     },
     { title: "Visible", dataIndex: "is_visible", render: (value: boolean) => (value ? <Tag color="success">Visible</Tag> : <Tag>Hidden</Tag>) },
     {
@@ -191,14 +194,13 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
   const [form] = Form.useForm<EditionValues>();
   const custom = Form.useWatch("custom", form);
   const picked = Form.useWatch("module_ids", form) ?? [];
-  const basePrice = Form.useWatch("base_price", form) ?? 0;
   const currency = Form.useWatch("currency", form) ?? "USD";
   const oneOff = data.modules.filter((module) => !module.percent_of_licence && !module.is_recurring);
   const categories = data.categories
     .map((category) => ({ category, modules: oneOff.filter((module) => module.category_id === category.id) }))
     .concat([{ category: { id: "", name: "Other" } as Category, modules: oneOff.filter((module) => !module.category_id) }])
     .filter((group) => group.modules.length > 0);
-  const total = Number(basePrice) + (custom ? 0 : oneOff.filter((module) => picked.includes(module.id)).reduce((sum, module) => sum + Number(module.price), 0));
+  const total = custom ? 0 : oneOff.filter((module) => picked.includes(module.id)).reduce((sum, module) => sum + Number(module.price), 0);
 
   const save = (values: EditionValues) =>
     run(
@@ -208,7 +210,8 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
           p_edition_id: edition?.id as string,
           p_name: values.name.trim(),
           p_slug: values.slug.trim(),
-          p_base_price: Number(values.base_price) || 0,
+          // Editions have no price of their own (the database insists on 0).
+          p_base_price: 0,
           p_currency: (values.currency || "USD").toUpperCase(),
           p_module_ids: values.custom ? [] : values.module_ids,
           p_custom: values.custom,
@@ -245,7 +248,6 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
         initialValues={{
           name: edition?.name ?? "",
           slug: edition?.slug ?? "",
-          base_price: Number(edition?.base_price ?? 0),
           currency: edition?.currency ?? "USD",
           custom: edition?.allows_module_selection ?? false,
           module_ids: edition?.modules.map((link) => link.module_id) ?? [],
@@ -271,12 +273,7 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
               <Input />
             </Form.Item>
           </Col>
-          <Col xs={16} sm={12}>
-            <Form.Item label="Platform base price" name="base_price">
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col xs={8} sm={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Currency" name="currency" rules={[{ pattern: /^[A-Za-z]{3}$/, message: "e.g. USD" }]}>
               <Input maxLength={3} style={{ textTransform: "uppercase" }} />
             </Form.Item>
@@ -310,7 +307,17 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
             </Checkbox.Group>
           </Form.Item>
         )}
-        <Alert type="info" showIcon title={`${custom ? "From" : "Total"} ${formatMoney(total, String(currency).toUpperCase() || "USD")}`} description="Base price plus the one-off modules ticked. Maintenance and yearly modules are offered on every edition." style={{ marginBottom: 16 }} />
+        <Alert
+          type="info"
+          showIcon
+          title={custom ? "Priced by the modules the customer picks" : `Total ${formatMoney(total, String(currency).toUpperCase() || "USD")}`}
+          description={
+            custom
+              ? "On the pricing page, Custom is the only edition where modules can be chosen."
+              : "An edition has no price of its own: it is the sum of the modules ticked. On the pricing page these modules come with it and nothing else can be added — for other modules, customers choose Custom. Maintenance is offered on every edition."
+          }
+          style={{ marginBottom: 16 }}
+        />
         <Form.Item label="Tagline" name="tagline" rules={[{ max: 200 }]}>
           <Input />
         </Form.Item>

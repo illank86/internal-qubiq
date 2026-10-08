@@ -7,7 +7,8 @@ import { formatMoney } from "@/lib/invoices";
  * member, so RLS decides what comes back.
  */
 
-export type BuilderEdition = { id: string; name: string; base_price: number; currency: string; moduleIds: string[] };
+/** A named group of modules; it has no price of its own. */
+export type BuilderEdition = { id: string; name: string; currency: string; moduleIds: string[] };
 export type BuilderModule = { id: string; name: string; category: string; price: number; percent: number | null; recurring: boolean };
 export type SalesPerson = { id: string; name: string; title: string; email: string; phone: string };
 
@@ -28,7 +29,7 @@ export type SalesCatalog = {
 
 export async function loadSalesCatalog(): Promise<SalesCatalog> {
   const [{ data: editions }, { data: modules }, { data: links }, { data: settings }, { data: staff }, { data: site }] = await Promise.all([
-    supabase.from("license_editions").select("id, name, base_price, currency").order("sort_order"),
+    supabase.from("license_editions").select("id, name, currency").order("sort_order"),
     supabase
       .from("license_modules")
       .select("id, name, price, percent_of_licence, is_recurring, sort_order, category:license_module_categories(name, sort_order)")
@@ -49,7 +50,6 @@ export async function loadSalesCatalog(): Promise<SalesCatalog> {
     editions: (editions ?? []).map((edition) => ({
       id: edition.id,
       name: edition.name,
-      base_price: Number(edition.base_price ?? 0),
       currency: edition.currency ?? "USD",
       moduleIds: editionModules.get(edition.id) ?? [],
     })),
@@ -117,9 +117,8 @@ export function priceGroups(groups: GroupDraft[], editions: BuilderEdition[], mo
   const priced = groups.map((group) => {
     const edition = editions.find((item) => item.id === group.editionId);
     const picked = new Set(group.moduleIds);
-    const unitOneOff =
-      convert(edition?.base_price ?? 0) +
-      modules.filter((item) => picked.has(item.id) && !item.percent).reduce((sum, item) => sum + convert(item.price), 0);
+    // The edition is a group of modules with no price of its own.
+    const unitOneOff = modules.filter((item) => picked.has(item.id) && !item.percent).reduce((sum, item) => sum + convert(item.price), 0);
     const oneOff = unitOneOff * group.quantity;
     const percent = modules
       .filter((item) => picked.has(item.id) && item.percent)
