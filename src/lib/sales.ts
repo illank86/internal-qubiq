@@ -132,22 +132,6 @@ export function priceGroups(groups: GroupDraft[], editions: BuilderEdition[], mo
   return { priced, subtotal, tax, total: subtotal + tax, money: (amount: number) => formatMoney(amount, money.currency, money.decimals) };
 }
 
-/** Opens a generated PDF in a new tab (the tab is opened first, so pop-up blockers allow it). */
-export async function openPdf(make: () => Promise<Blob>, title: string) {
-  const tab = window.open("", "_blank");
-  if (tab) tab.document.title = `${title} — preparing…`;
-  try {
-    const blob = await make();
-    const url = URL.createObjectURL(blob);
-    if (tab) tab.location.href = url;
-    else window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch (error) {
-    tab?.close();
-    throw error;
-  }
-}
-
 /** A database error as something to show: our own checks' messages, or a generic line. */
 export function errorText(error: { code?: string; message?: string } | null | undefined, fallback: string) {
   if (!error) return fallback;

@@ -22,6 +22,7 @@ import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { isExpired, quotationState, type Quotation } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
+import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { quotationPdf, sendQuotation, setQuotationStatus } from "./api";
 import { useAction } from "./use-action";
 
@@ -217,6 +218,7 @@ function RowActions({
   busy: string | null;
 }) {
   const navigate = useNavigate();
+  const viewPdf = usePdfViewer();
   const open = row.status === "draft" || row.status === "sent";
   const expired = isExpired(row);
   const invoice = row.invoices.find((candidate) => candidate.status !== "void");
@@ -281,8 +283,8 @@ function RowActions({
   return (
     <Flex gap={4} justify="flex-end" align="center" wrap={false}>
       {primary}
-      <Tooltip title="Open PDF">
-        <Button size="small" type="text" icon={<FilePdfOutlined />} loading={busy === k("pdf")} onClick={() => run(k("pdf"), () => quotationPdf(row.id))} />
+      <Tooltip title="View PDF">
+        <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(quotationPdf(row.id, row.number))} aria-label="View PDF" />
       </Tooltip>
       {open ? (
         <Tooltip title="Edit">

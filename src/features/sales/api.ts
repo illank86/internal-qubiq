@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { renderQuotationPdf } from "@/lib/quotation-pdf";
-import { openPdf } from "@/lib/sales";
+import type { PdfRequest } from "@/components/pdf-viewer-context";
 
 /**
  * Sales writes, all through the database: RLS and the functions' own checks
@@ -44,26 +44,42 @@ export async function sendQuotation(id: string) {
   fail(error);
 }
 
-export async function quotationPdf(id: string) {
-  const [{ data: quotation, error }, { data: items }, { data: groups }] = await Promise.all([
-    supabase.from("quotations").select("*").eq("id", id).maybeSingle(),
-    supabase.from("quotation_items").select("*").eq("quotation_id", id).order("position"),
-    supabase.from("quotation_groups").select("id, label, quantity, subtotal").eq("quotation_id", id).order("position"),
-  ]);
-  fail(error);
-  if (!quotation) throw new Error("Quotation not found");
-  await openPdf(() => renderQuotationPdf(quotation, items ?? [], groups ?? []), quotation.number ?? "Quotation");
+const safeName = (value: string) => value.replace(/[^\w.-]/g, "_");
+
+/** A quotation for the PDF viewer: rendered in the browser from the same code as the website's. */
+export function quotationPdf(id: string, number: string | null): PdfRequest {
+  return {
+    title: `Quotation ${number ?? ""}`.trim(),
+    fileName: safeName(`${number ?? "quotation"}.pdf`),
+    make: async () => {
+      const [{ data: quotation, error }, { data: items }, { data: groups }] = await Promise.all([
+        supabase.from("quotations").select("*").eq("id", id).maybeSingle(),
+        supabase.from("quotation_items").select("*").eq("quotation_id", id).order("position"),
+        supabase.from("quotation_groups").select("id, label, quantity, subtotal").eq("quotation_id", id).order("position"),
+      ]);
+      fail(error);
+      if (!quotation) throw new Error("Quotation not found");
+      return renderQuotationPdf(quotation, items ?? [], groups ?? []);
+    },
+  };
 }
 
-export async function invoicePdf(id: string) {
-  const [{ data: invoice, error }, { data: items }, { data: groups }] = await Promise.all([
-    supabase.from("invoices").select("*").eq("id", id).maybeSingle(),
-    supabase.from("invoice_items").select("*").eq("invoice_id", id).order("position"),
-    supabase.from("invoice_groups").select("id, label, quantity, subtotal").eq("invoice_id", id).order("position"),
-  ]);
-  fail(error);
-  if (!invoice) throw new Error("Invoice not found");
-  await openPdf(() => renderInvoicePdf(invoice, items ?? [], groups ?? []), invoice.number ?? "Invoice");
+/** An invoice for the PDF viewer. */
+export function invoicePdf(id: string, number: string | null): PdfRequest {
+  return {
+    title: `Invoice ${number ?? ""}`.trim(),
+    fileName: safeName(`${number ?? "invoice"}.pdf`),
+    make: async () => {
+      const [{ data: invoice, error }, { data: items }, { data: groups }] = await Promise.all([
+        supabase.from("invoices").select("*").eq("id", id).maybeSingle(),
+        supabase.from("invoice_items").select("*").eq("invoice_id", id).order("position"),
+        supabase.from("invoice_groups").select("id, label, quantity, subtotal").eq("invoice_id", id).order("position"),
+      ]);
+      fail(error);
+      if (!invoice) throw new Error("Invoice not found");
+      return renderInvoicePdf(invoice, items ?? [], groups ?? []);
+    },
+  };
 }
 
 export type InvoiceStatus = "paid" | "unpaid" | "void";

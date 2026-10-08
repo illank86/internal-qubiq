@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router";
 import { AuthProvider } from "@/auth/auth-provider";
+import { PdfViewerProvider } from "@/components/pdf-viewer";
 import { router } from "@/router";
 import { ThemeProvider } from "@/theme-provider";
 import "./index.css";
@@ -20,7 +21,9 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <PdfViewerProvider>
+            <RouterProvider router={router} />
+          </PdfViewerProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

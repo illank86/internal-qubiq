@@ -8,6 +8,7 @@ import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney, isOverdue, type Invoice } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
+import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { invoicePdf, quotationPdf, setInvoiceStatus } from "./api";
 import { useAction } from "./use-action";
 
@@ -28,6 +29,7 @@ export function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Row | null>(null);
   const { run, busy } = useAction([["invoices"], ["quotations"]]);
+  const viewPdf = usePdfViewer();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["invoices"],
@@ -107,7 +109,7 @@ export function InvoicesPage() {
         const k = (name: string) => `${name}:${row.id}`;
         const more: MenuProps["items"] = [
           ...(row.quotation_id
-            ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`, onClick: () => run(k("qpdf"), () => quotationPdf(row.quotation_id!)) }]
+            ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`, onClick: () => viewPdf(quotationPdf(row.quotation_id!, row.quotation_number)) }]
             : []),
           ...(row.quotation_id && !row.owner_id
             ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
@@ -133,8 +135,8 @@ export function InvoicesPage() {
                 Restore
               </Button>
             ) : null}
-            <Tooltip title="Download PDF">
-              <Button size="small" type="text" icon={<FilePdfOutlined />} loading={busy === k("pdf")} onClick={() => run(k("pdf"), () => invoicePdf(row.id))} />
+            <Tooltip title="View PDF">
+              <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(row.id, row.number))} aria-label="View PDF" />
             </Tooltip>
             {row.status === "unpaid" ? (
               <Tooltip title="Edit">
