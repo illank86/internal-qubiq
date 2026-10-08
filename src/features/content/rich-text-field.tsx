@@ -17,8 +17,37 @@ import {
   UndoOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
+import { siteAsset } from "@/lib/env";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown-html";
 import { MediaPicker } from "./media-picker";
+
+/**
+ * Images keep the path they were saved with — the website's own files are
+ * site paths ("/illustrations/…") — but are drawn from the website, where
+ * those paths load. Only the picture on screen changes, never the Markdown.
+ */
+const SiteImage = Image.extend({
+  addNodeView() {
+    return ({ node }) => {
+      const image = document.createElement("img");
+      const draw = (attrs: Record<string, unknown>) => {
+        image.src = siteAsset(String(attrs.src ?? "")) ?? "";
+        image.alt = String(attrs.alt ?? "");
+        if (attrs.title) image.title = String(attrs.title);
+        else image.removeAttribute("title");
+      };
+      draw(node.attrs);
+      return {
+        dom: image,
+        update: (next) => {
+          if (next.type !== node.type) return false;
+          draw(next.attrs);
+          return true;
+        },
+      };
+    };
+  },
+});
 
 /**
  * A WYSIWYG editor that stores Markdown — the same format the website's
@@ -34,7 +63,7 @@ export function RichTextField({ value, onChange, rows = 12 }: { value?: string |
   const written = useRef<string | null>(value ?? null);
 
   const editor = useEditor({
-    extensions: [StarterKit.configure({ link: { openOnClick: false } }), Image, TableKit],
+    extensions: [StarterKit.configure({ link: { openOnClick: false } }), SiteImage, TableKit],
     content: markdownToHtml(value ?? ""),
     immediatelyRender: true,
     editorProps: { attributes: { class: "qubiq-rich-text" } },
