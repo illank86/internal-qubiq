@@ -23,6 +23,7 @@ import {
   type DocumentLine,
   type SellerBlock,
   type DocumentSignoff,
+  sellerForCurrency,
 } from "@/lib/pdf-theme";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { quotationState, type Quotation, type QuotationTone } from "@/lib/quotations";
@@ -92,7 +93,8 @@ function QuotationDocument({
   qr: string;
   signoff: DocumentSignoff | null;
 }) {
-  const seller = (quotation.seller ?? {}) as SellerBlock;
+  // In IDR, named as in Indonesia (PT. …).
+  const seller = sellerForCurrency((quotation.seller ?? {}) as SellerBlock, quotation.currency);
   const currency = quotation.currency || "USD";
   const money = (amount: number | string | null | undefined) => formatMoney(amount, currency, quotation.decimal_places ?? 2);
   const state = quotationState(quotation);

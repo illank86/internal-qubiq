@@ -957,6 +957,8 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
+          local_company_name: string | null
+          payment_methods: Json
           bank_details: string | null
           decimal_places: number
           footer_note: string | null
@@ -974,6 +976,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          local_company_name?: string | null
+          payment_methods?: Json
           bank_details?: string | null
           decimal_places?: number
           footer_note?: string | null
@@ -991,6 +995,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          local_company_name?: string | null
+          payment_methods?: Json
           bank_details?: string | null
           decimal_places?: number
           footer_note?: string | null

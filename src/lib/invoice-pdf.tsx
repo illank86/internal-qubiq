@@ -19,6 +19,10 @@ import {
   type DocumentGroup,
   SignatureBlock,
   type DocumentSignoff,
+  INK,
+  PaymentMethodCards,
+  methodsFor,
+  sellerForCurrency,
 } from "@/lib/pdf-theme";
 import {
   INVOICE_STATUS_LABEL,
@@ -61,16 +65,15 @@ function InvoiceDocument({
   groups: DocumentGroup[];
   signoff: DocumentSignoff | null;
 }) {
-  const seller = (invoice.seller ?? {}) as InvoiceSeller;
+  // In IDR, named as in Indonesia (PT. …).
+  const seller = sellerForCurrency((invoice.seller ?? {}) as InvoiceSeller, invoice.currency);
+  const methods = methodsFor(seller.payment_methods, invoice.currency);
   const currency = invoice.currency || "USD";
   const money = (amount: number | string | null | undefined) => formatMoney(amount, currency, invoice.decimal_places ?? 2);
   const voided = invoice.status === "void";
   // A void invoice shows what it was for, struck through, never as a sum due.
   const dueText = money(invoice.total);
   const voidStyle = voided ? { color: MUTED, textDecoration: "line-through" as const } : {};
-  // A page holds roughly 3,000 characters of payment text in bank cards;
-  // beyond that, keeping the section whole would push it off the page.
-  const paymentFitsOnAPage = (seller.bank_details ?? "").length < 2500;
   const overdue = isOverdue(invoice);
   const statusText = overdue ? "PAYMENT OVERDUE" : INVOICE_STATUS_LABEL[invoice.status];
   const licensee = invoice.licensee_name || invoice.bill_to_name;
@@ -154,38 +157,75 @@ function InvoiceDocument({
         />
 
         {!settled ? (
-          // Payment details, and beside them the signature (bottom right) when
-          // there is one. Kept whole: if it does not fit below the totals it
-          // moves to the next page entirely. Only payment text too long for any
-          // page may break, and then between rows of bank cards, never inside one.
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 18, marginTop: 26 }} wrap={!paymentFitsOnAPage}>
-          <View style={[styles.section, { marginTop: 0, flex: 1 }]} wrap={!paymentFitsOnAPage}>
-            <View style={styles.sectionHead} wrap={false} minPresenceAhead={60}>
-              <Text style={[styles.label, { marginBottom: 0 }]}>How to pay</Text>
-              <Text style={styles.sectionAside}>
-                Due {formatInvoiceDate(invoice.due_date)}
-                {termsDays > 0 ? ` (${termsDays} days)` : ""} · Reference: {invoice.number}
+          <Text style={{ marginTop: 14, color: MUTED }}>
+            How to pay is on the next page. Please quote {invoice.number} as the payment reference.
+          </Text>
+        ) : null}
+
+        {/* Signed (approved), by hand, or with a space for materai. */}
+        {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} /> : null}
+
+        <PageFooter seller={seller} />
+      </Page>
+
+      {/* How to pay: a page of its own, with room for every way to pay. */}
+      {!settled ? (
+        <Page size="A4" style={styles.page}>
+          <PageChrome continuedLabel={`Invoice ${invoice.number ?? ""}`} />
+          <Text style={[styles.label, { marginTop: 14 }]}>How to pay</Text>
+          <Text style={{ fontSize: 20, fontFamily: "Helvetica-Bold", color: INK }}>Payment for invoice {invoice.number}</Text>
+
+          <View style={[styles.facts, { marginTop: 16 }]}>
+            <View style={[styles.fact, { flex: 1.45 }]}>
+              <Text style={styles.factLabel}>Amount due</Text>
+              <Text style={[styles.factDue, { fontSize: fit(dueText, 12, FACT_DUE_WIDTH) }]}>{dueText}</Text>
+            </View>
+            <View style={[styles.fact, styles.factDivider]}>
+              <Text style={styles.factLabel}>Due date</Text>
+              <Text style={styles.factValue}>
+                {formatInvoiceDate(invoice.due_date)}
+                {termsDays > 0 ? ` (${termsDays} days)` : ""}
               </Text>
             </View>
-            {seller.bank_details ? (
+            <View style={[styles.fact, styles.factDivider]}>
+              <Text style={styles.factLabel}>Payment reference</Text>
+              <Text style={styles.factValue}>{invoice.number}</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 22 }}>
+            {methods.length > 0 ? (
+              <>
+                {seller.bank_details ? (
+                  // The free-text note in Sales settings, above the methods.
+                  <View style={{ marginBottom: 14 }}>
+                    <PdfPaymentColumns source={seller.bank_details} linkColor={BRAND} muted={LINE} cardStyle={{}} />
+                  </View>
+                ) : null}
+                <PaymentMethodCards methods={methods} currency={currency} />
+              </>
+            ) : seller.bank_details ? (
+              // Before ways to pay were set up: the free text, as cards.
               <PdfPaymentColumns source={seller.bank_details} linkColor={BRAND} muted={LINE} cardStyle={styles.card} />
             ) : (
               <Text>Please contact us for payment details.</Text>
             )}
-            <Text style={styles.sectionNote}>
-              Please quote {invoice.number} as the payment reference
-              {seller.email ? `. Questions about this invoice: ${seller.email}` : ""}.
-            </Text>
           </View>
-          {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} inline /> : null}
-          </View>
-        ) : signed ? (
-          // Paid or void: no payment details, the signature on its own.
-          <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} />
-        ) : null}
 
-        <PageFooter seller={seller} />
-      </Page>
+          <View style={[styles.card, { marginTop: 22, flexDirection: "row", gap: 10 }]} wrap={false}>
+            <View style={{ width: 3, backgroundColor: BRAND, borderRadius: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: INK, fontFamily: "Helvetica-Bold" }}>Please quote {invoice.number} as the payment reference.</Text>
+              <Text style={{ color: MUTED, marginTop: 3 }}>
+                Pay the full amount of {dueText} by {formatInvoiceDate(invoice.due_date)}. Any transfer charges are paid by the sender.
+                {seller.email ? ` Questions about this invoice: ${seller.email}.` : ""}
+              </Text>
+            </View>
+          </View>
+
+          <PageFooter seller={seller} />
+        </Page>
+      ) : null}
     </Document>
   );
 }

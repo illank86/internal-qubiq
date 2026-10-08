@@ -8,6 +8,7 @@ import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
+import { PaymentMethodsField } from "./payment-methods-field";
 import { SignatureCard } from "./signature-card";
 
 type Settings = Database["public"]["Tables"]["invoice_settings"]["Row"];
@@ -90,6 +91,16 @@ export function SalesSettingsPage() {
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={12}>
+                      <Form.Item
+                        label="Company name in Indonesia"
+                        name="local_company_name"
+                        extra='Printed on documents in IDR. Empty: "PT. " and the company name from Site settings.'
+                        rules={[{ max: 160 }]}
+                      >
+                        <Input placeholder="PT. QUBIQ Teknologi Indonesia" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
                       <Form.Item label="Our tax ID (NPWP / VAT number)" name="tax_id" extra="Printed with our address.">
                         <Input />
                       </Form.Item>
@@ -125,11 +136,20 @@ export function SalesSettingsPage() {
                     </Col>
                     <Col span={24}>
                       <Form.Item
-                        label="How to pay"
-                        name="bank_details"
-                        extra="Printed on unpaid invoices. Several banks? Separate them with a horizontal line or start each with a heading, and they print side by side."
+                        label="Ways to pay"
+                        name="payment_methods"
+                        extra="Printed on the How to pay page of every unpaid invoice — its own page, a card per way to pay. Give a way to pay a currency to show it only on invoices in that currency."
                       >
-                        <RichTextField rows={8} />
+                        <PaymentMethodsField />
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Form.Item
+                        label="Payment note"
+                        name="bank_details"
+                        extra="Optional. Printed above the ways to pay — e.g. who pays bank charges. With no ways to pay set up, this is printed instead."
+                      >
+                        <RichTextField rows={4} />
                       </Form.Item>
                     </Col>
                   </Row>

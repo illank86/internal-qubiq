@@ -1,5 +1,5 @@
 
-import { Font, Image, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Font, Image, Link, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { INVOICE_LOGO_DATA_URI, INVOICE_LOGO_HEIGHT, INVOICE_LOGO_WIDTH } from "@/lib/invoice-logo";
 
 /**
@@ -129,7 +129,117 @@ export type SellerBlock = {
   website?: string | null;
   bank_details?: string | null;
   footer_note?: string | null;
+  /** The legal name on documents in IDR; empty: "PT. " and company_name. */
+  local_company_name?: string | null;
+  payment_methods?: PaymentMethod[] | null;
 };
+
+/** One way to pay, as set in Sales settings (invoice_settings.payment_methods). */
+export type PaymentMethod = {
+  kind: "bank" | "qris" | "ewallet" | "card" | "paypal" | "other" | string;
+  title?: string | null;
+  /** Shown only on invoices in this currency; empty: on every invoice. */
+  currency?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
+  bank_name?: string | null;
+  branch?: string | null;
+  swift?: string | null;
+  link?: string | null;
+  qr_image?: string | null;
+  notes?: string | null;
+};
+
+export const PAYMENT_KIND_LABEL: Record<string, string> = {
+  bank: "Bank transfer",
+  qris: "QRIS",
+  ewallet: "E-wallet",
+  card: "Card",
+  paypal: "PayPal",
+  other: "Other",
+};
+
+/**
+ * The seller as a document in `currency` names it: in IDR, the Indonesian
+ * legal name (Sales settings), or "PT. " and the company name.
+ */
+export function sellerForCurrency<T extends SellerBlock>(seller: T, currency: string | null | undefined): T {
+  if ((currency ?? "").toUpperCase() !== "IDR") return seller;
+  const name = seller.company_name ?? "QUBIQ";
+  const local = seller.local_company_name?.trim() || (/^PT(\.|\s)/i.test(name) ? name : `PT. ${name}`);
+  // Always "PT. " — a dot, then a space — however it was typed ("PT.QUBIQ", "PT QUBIQ").
+  return { ...seller, company_name: local.replace(/^PT(\.\s*|\s+)/i, "PT. ") };
+}
+
+/** The methods for an invoice in `currency`: its own currency's, else all of them. */
+export function methodsFor(methods: PaymentMethod[] | null | undefined, currency: string | null | undefined) {
+  const all = (methods ?? []).filter((method) => method && (method.title || method.account_number || method.link || method.qr_image));
+  const mine = all.filter((method) => !method.currency || method.currency.toUpperCase() === (currency ?? "").toUpperCase());
+  return mine.length > 0 ? mine : all;
+}
+
+function MethodRow({ label, value, strong = false }: { label: string; value: string | null | undefined; strong?: boolean }) {
+  if (!value) return null;
+  return (
+    <View style={{ marginTop: 6 }}>
+      <Text style={{ fontSize: 6.8, color: MUTED, letterSpacing: 0.7, textTransform: "uppercase" }}>{label}</Text>
+      <Text style={strong ? { fontSize: 12.5, fontFamily: "Helvetica-Bold", color: INK, letterSpacing: 0.6, marginTop: 1 } : { fontSize: 9.5, color: INK, marginTop: 1 }}>{value}</Text>
+    </View>
+  );
+}
+
+/** One card per way to pay, two to a row; a card never splits across pages. */
+export function PaymentMethodCards({ methods, currency }: { methods: PaymentMethod[]; currency: string }) {
+  const rows: PaymentMethod[][] = [];
+  for (let index = 0; index < methods.length; index += 2) rows.push(methods.slice(index, index + 2));
+  return (
+    <View>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={{ flexDirection: "row", gap: 12, marginTop: rowIndex > 0 ? 12 : 0 }} wrap={false}>
+          {row.map((method, index) => {
+            const kind = PAYMENT_KIND_LABEL[method.kind] ?? "Other";
+            const numberLabel =
+              method.kind === "ewallet" ? "Number" : method.kind === "paypal" ? "PayPal account" : method.kind === "bank" ? "Account number" : "Account";
+            return (
+              <View key={index} style={{ flex: 1, borderWidth: 0.6, borderColor: LINE, borderRadius: 7, overflow: "hidden" }}>
+                <View style={{ backgroundColor: PANEL, paddingVertical: 7, paddingHorizontal: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 0.6, borderColor: LINE }}>
+                  <Text style={{ fontSize: 7, color: BRAND, fontFamily: "Helvetica-Bold", letterSpacing: 0.9, textTransform: "uppercase" }}>{kind}</Text>
+                  {method.currency || currency ? (
+                    <Text style={{ fontSize: 7, color: MUTED, fontFamily: "Helvetica-Bold", letterSpacing: 0.6 }}>{(method.currency || "").toUpperCase()}</Text>
+                  ) : null}
+                </View>
+                <View style={{ padding: 12, flexDirection: "row", gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    {method.title ? <Text style={{ fontSize: 11.5, fontFamily: "Helvetica-Bold", color: INK }}>{method.title}</Text> : null}
+                    <MethodRow label="Bank" value={method.bank_name} />
+                    <MethodRow label="Account name" value={method.account_name} />
+                    <MethodRow label={numberLabel} value={method.account_number} strong />
+                    <MethodRow label="Branch" value={method.branch} />
+                    <MethodRow label="SWIFT / BIC" value={method.swift} />
+                    {method.link ? (
+                      <View style={{ marginTop: 6 }}>
+                        <Text style={{ fontSize: 6.8, color: MUTED, letterSpacing: 0.7, textTransform: "uppercase" }}>Pay online</Text>
+                        <Link src={method.link} style={{ fontSize: 9.5, color: BRAND, marginTop: 1 }}>
+                          {method.link.replace(/^https?:\/\//, "")}
+                        </Link>
+                      </View>
+                    ) : null}
+                    {method.notes ? <Text style={{ fontSize: 8.5, color: MUTED, marginTop: 8, lineHeight: 1.4 }}>{method.notes}</Text> : null}
+                  </View>
+                  {method.qr_image ? (
+                    // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
+                    <Image src={method.qr_image} style={{ width: 96, height: 96, objectFit: "contain" }} />
+                  ) : null}
+                </View>
+              </View>
+            );
+          })}
+          {row.length === 1 && methods.length > 1 ? <View style={{ flex: 1 }} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /**
  * The font size at which `text` fits on one line in `width` points, capped at
@@ -508,15 +618,15 @@ export function SignatureBlock({
     <View wrap={false} style={inline ? { width: 190 } : { marginTop: 22, alignSelf: "flex-end", width: 220 }}>
       {dated ? <Text style={{ color: INK }}>{dated}</Text> : null}
       <Text style={{ color: INK, fontFamily: "Helvetica-Bold", marginTop: 1 }}>{company}</Text>
-      <View style={{ height: 52, marginTop: 2, justifyContent: "flex-end" }}>
+      <View style={{ height: 78, marginTop: 4, justifyContent: "flex-end" }}>
         {materai === "physical" ? (
           <View
             style={{
               position: "absolute",
               left: 0,
-              top: 3,
-              width: 56,
-              height: 40,
+              top: 10,
+              width: 58,
+              height: 46,
               borderWidth: 0.8,
               borderStyle: "dashed",
               borderColor: MUTED,
@@ -530,12 +640,12 @@ export function SignatureBlock({
         ) : null}
         {signoff?.image ? (
           // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
-          <Image src={signoff.image} style={{ height: 48, width: 140, objectFit: "contain", marginLeft: stamp ? 30 : 0 }} />
+          <Image src={signoff.image} style={{ height: 66, width: 160, objectFit: "contain", marginLeft: stamp ? 30 : 0 }} />
         ) : signoff?.pending ? (
           <View
             style={{
-              height: 44,
-              width: 140,
+              height: 60,
+              width: 150,
               marginLeft: stamp ? 30 : 0,
               borderWidth: 0.8,
               borderStyle: "dashed",

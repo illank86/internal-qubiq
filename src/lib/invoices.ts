@@ -3,6 +3,7 @@
  */
 
 import type { Database } from "@/lib/database.types";
+import type { PaymentMethod } from "@/lib/pdf-theme";
 
 export type Invoice = Database["public"]["Tables"]["invoices"]["Row"];
 export type InvoiceItem = Database["public"]["Tables"]["invoice_items"]["Row"];
@@ -18,6 +19,9 @@ export type InvoiceSeller = {
   website?: string | null;
   bank_details?: string | null;
   footer_note?: string | null;
+  /** The legal name on documents in IDR (Sales settings). */
+  local_company_name?: string | null;
+  payment_methods?: PaymentMethod[] | null;
 };
 
 /** What the customer reads: "PAYMENT REQUIRED" rather than an enum value. */
