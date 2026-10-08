@@ -68,11 +68,14 @@ export function Captcha({ onToken, resetKey }: { onToken: (token: string) => voi
           },
           "expired-callback": () => report.current(""),
           "error-callback": (code: string) => {
+            console.warn("[turnstile] error", code);
             report.current("");
             setFailed(
               String(code).startsWith("1102")
-                ? "The security check is not set up for this address. Add it to the Turnstile widget's hostnames in Cloudflare."
-                : "The security check could not load. Reload the page and try again.",
+                ? `The security check is not set up for this address (error ${code}). Add it to the Turnstile widget's hostnames in Cloudflare.`
+                : String(code).startsWith("1101")
+                  ? `The security check's site key was refused (error ${code}).`
+                  : `The security check could not load (error ${code}). Reload the page and try again.`,
             );
             return true;
           },

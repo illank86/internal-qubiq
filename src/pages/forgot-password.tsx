@@ -38,7 +38,7 @@ export function ForgotPasswordPage() {
       ) : (
         <Form<{ email: string }> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
           <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
-            <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
+            <Input prefix={<MailOutlined style={{ marginInlineEnd: 8, opacity: 0.6 }} />} autoComplete="username" size="large" />
           </Form.Item>
           <Captcha onToken={setCaptchaToken} />
           <Button type="primary" htmlType="submit" size="large" block loading={pending} disabled={CAPTCHA_REQUIRED && !captchaToken}>

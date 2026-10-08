@@ -56,10 +56,10 @@ export function LoginPage() {
         {notice ? <Alert type="info" showIcon title={notice} style={{ marginBottom: 16 }} /> : null}
         {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
         <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
-          <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
+          <Input prefix={<MailOutlined style={{ marginInlineEnd: 8, opacity: 0.6 }} />} autoComplete="username" size="large" />
         </Form.Item>
         <Form.Item label="Password" name="password" rules={[{ required: true, message: "Enter your password" }]}>
-          <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
+          <Input.Password prefix={<LockOutlined style={{ marginInlineEnd: 8, opacity: 0.6 }} />} autoComplete="current-password" size="large" />
         </Form.Item>
         <Captcha onToken={setCaptchaToken} resetKey={attempt} />
         {/* Without a token Supabase refuses the sign-in, so wait for the check. */}
