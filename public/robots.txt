@@ -1,0 +1,8 @@
+# QUBIQ Admin is the QUBIQ team's private app; nothing here belongs in search.
+#
+# Every page answers with "X-Robots-Tag: noindex, nofollow" and a robots meta
+# tag. Crawling is deliberately NOT blocked here: a search engine only obeys
+# noindex on a page it may fetch, and a blocked address can still be listed
+# (as a bare link) when another site links to it.
+User-agent: *
+Allow: /
