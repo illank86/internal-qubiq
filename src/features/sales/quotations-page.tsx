@@ -87,9 +87,10 @@ export function QuotationsPage() {
     {
       title: "Quotation",
       key: "number",
+      width: 170,
       render: (_, row) => (
         <Flex vertical>
-          <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13 }}>{row.number ?? "—"}</Typography.Text>
+          <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{row.number ?? "—"}</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.request ? (
               `From ${row.request.reference}`

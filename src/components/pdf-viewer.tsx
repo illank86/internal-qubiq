@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Flex, Grid, Modal, Space, Spin, Tooltip, Typography } from "antd";
-import { DownloadOutlined, ExportOutlined, PrinterOutlined, SendOutlined } from "@ant-design/icons";
+import { DownloadOutlined, ExportOutlined, SendOutlined } from "@ant-design/icons";
 import { PdfViewerContext, type PdfRequest } from "./pdf-viewer-context";
 
 type Shown = { title: string; fileName: string; url: string | null; error: string | null; action?: PdfRequest["action"]; note?: string };
 
 /**
  * The internal app's PDF viewer: quotations and invoices open here first,
- * rendered in the browser, with Download, Print and Open in a new tab — not
+ * rendered in the browser, with Download and Open in a new tab (printing is
+ * in the browser's own viewer toolbar) — not
  * as a download. Customers' PDF links on the website are unchanged.
  *
  * The page is the browser's own PDF viewer in a frame, so search, zoom and
@@ -49,15 +50,6 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
     if (!url) return;
     return () => URL.revokeObjectURL(url);
   }, [url]);
-
-  const print = () => {
-    try {
-      frame.current?.contentWindow?.focus();
-      frame.current?.contentWindow?.print();
-    } catch {
-      if (url) window.open(url, "_blank", "noopener");
-    }
-  };
 
   return (
     <PdfViewerContext.Provider value={open}>
@@ -105,11 +97,6 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
               <Button type={shown?.action ? "default" : "primary"} icon={<DownloadOutlined />} href={url ?? undefined} download={shown?.fileName} disabled={!url}>
                 Download
               </Button>
-              {!small ? (
-                <Tooltip title="Print">
-                  <Button icon={<PrinterOutlined />} onClick={print} disabled={!url} aria-label="Print" />
-                </Tooltip>
-              ) : null}
               <Tooltip title="Open in a new tab">
                 <Button icon={<ExportOutlined />} href={url ?? undefined} target="_blank" rel="noopener" disabled={!url} aria-label="Open in a new tab" />
               </Tooltip>

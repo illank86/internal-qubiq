@@ -57,7 +57,7 @@ export function QuoteRequestsPage() {
     });
 
   const columns: TableColumnsType<QuoteRequest> = [
-    { title: "Ref", dataIndex: "reference", render: (value: string) => <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13 }}>{value}</Typography.Text> },
+    { title: "Ref", dataIndex: "reference", width: 150, render: (value: string) => <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{value}</Typography.Text> },
     {
       title: "From",
       key: "from",
