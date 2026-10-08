@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RichTextField } from "@/features/content/rich-text-field";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Col, Form, Input, InputNumber, Result, Row, Skeleton, Tabs } from "antd";
@@ -125,9 +126,9 @@ export function SalesSettingsPage() {
                       <Form.Item
                         label="How to pay"
                         name="bank_details"
-                        extra="Markdown, printed on unpaid invoices. Several banks? Separate them with a horizontal line (---) or start each with a heading, and they print side by side."
+                        extra="Printed on unpaid invoices. Several banks? Separate them with a horizontal line or start each with a heading, and they print side by side."
                       >
-                        <Input.TextArea rows={8} />
+                        <RichTextField rows={8} />
                       </Form.Item>
                     </Col>
                   </Row>
@@ -160,8 +161,8 @@ export function SalesSettingsPage() {
                       </Form.Item>
                     </Col>
                     <Col span={24}>
-                      <Form.Item label="Default terms & conditions" name="quote_terms" extra="Markdown. Printed on every new quotation, and editable on each one.">
-                        <Input.TextArea rows={10} />
+                      <Form.Item label="Default terms & conditions" name="quote_terms" extra="Printed on every new quotation, and editable on each one.">
+                        <RichTextField rows={10} />
                       </Form.Item>
                     </Col>
                   </Row>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { RichTextField } from "@/features/content/rich-text-field";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
@@ -192,8 +193,8 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
                   <Form.Item label="One-line summary" name="summary">
                     <Input.TextArea rows={2} />
                   </Form.Item>
-                  <Form.Item label="Profile" name="description" extra="Markdown.">
-                    <Input.TextArea rows={8} />
+                  <Form.Item label="Profile" name="description">
+                    <RichTextField rows={8} />
                   </Form.Item>
                   <Form.Item label="Logo URL" name="logo_url">
                     <Input />

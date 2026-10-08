@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RichTextField } from "@/features/content/rich-text-field";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Affix, Alert, App, AutoComplete, Button, Card, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
@@ -360,8 +361,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                     label: "Terms, closing and sign-off (defaults from Sales settings)",
                     children: (
                       <>
-                        <Form.Item label="Terms and conditions" name="terms" extra="Markdown: **bold**, *italic*, lists." rules={[{ max: 6000 }]}>
-                          <Input.TextArea rows={8} />
+                        <Form.Item label="Terms and conditions" name="terms" rules={[{ max: 6000 }]}>
+                          <RichTextField rows={8} />
                         </Form.Item>
                         <Form.Item label="Closing paragraph" name="closing" extra="{company} {name} {email} {phone} are filled in. Empty for none." rules={[{ max: 2000 }]}>
                           <Input.TextArea rows={3} />

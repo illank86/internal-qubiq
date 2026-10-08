@@ -7,6 +7,7 @@ import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { MarkdownView } from "@/features/content/markdown-view";
 import { useAction } from "@/features/sales/use-action";
 
 type Report = Database["public"]["Tables"]["bug_reports"]["Row"];
@@ -158,11 +159,15 @@ function ReportDrawer({ id, onClose }: { id: string; onClose: () => void }) {
             {report.allow_contact ? <Tag>May be contacted</Tag> : <Tag>No contact</Tag>}
           </Flex>
           <Typography.Title level={5}>What happened</Typography.Title>
-          <Typography.Paragraph style={{ whiteSpace: "pre-wrap" }}>{report.description}</Typography.Paragraph>
+          <div style={{ marginBottom: 16 }}>
+            <MarkdownView markdown={report.description} />
+          </div>
           {report.steps_to_reproduce ? (
             <>
               <Typography.Title level={5}>Steps to reproduce</Typography.Title>
-              <Typography.Paragraph style={{ whiteSpace: "pre-wrap" }}>{report.steps_to_reproduce}</Typography.Paragraph>
+              <div style={{ marginBottom: 16 }}>
+                <MarkdownView markdown={report.steps_to_reproduce} />
+              </div>
             </>
           ) : null}
           {report.expected_result || report.actual_result ? (
