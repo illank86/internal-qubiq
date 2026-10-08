@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Alert, Button, Form, Input } from "antd";
 import { MailOutlined } from "@ant-design/icons";
+import { Captcha } from "@/components/captcha";
 import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -12,10 +13,14 @@ import { supabase } from "@/lib/supabase";
 export function ForgotPasswordPage() {
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const submit = async ({ email }: { email: string }) => {
     setPending(true);
-    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/set-password` });
+    await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/set-password`,
+      captchaToken: captchaToken || undefined,
+    });
     setPending(false);
     setSent(true);
   };
@@ -34,6 +39,7 @@ export function ForgotPasswordPage() {
           <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
             <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
           </Form.Item>
+          <Captcha onToken={setCaptchaToken} />
           <Button type="primary" htmlType="submit" size="large" block loading={pending}>
             Send reset link
           </Button>

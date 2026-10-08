@@ -1,4 +1,5 @@
 import { Card, Flex, Spin, Typography } from "antd";
+import { QubiqMark, QubiqWordmark } from "./brand";
 
 /** The QUBIQ mark and name, used in the sidebar and on sign-in screens. */
 export function Brand({ compact = false }: { compact?: boolean }) {
@@ -14,20 +15,34 @@ export function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** The QUBIQ logo, drawn in the current text colour so it suits light and dark. */
+export function Logo({ height = 40 }: { height?: number }) {
+  return (
+    <Flex align="center" gap={height * 0.2} aria-label="QUBIQ" role="img">
+      <QubiqMark style={{ height: height * 1.43, width: "auto" }} />
+      <QubiqWordmark style={{ height, width: "auto" }} />
+    </Flex>
+  );
+}
+
 /** The frame every signed-out screen shares: sign in, forgot, set password. */
-export function AuthCard({ title, intro, children }: { title: string; intro: React.ReactNode; children: React.ReactNode }) {
+export function AuthCard({ title, intro, children }: { title?: string; intro: React.ReactNode; children: React.ReactNode }) {
   return (
     <Flex align="center" justify="center" style={{ minHeight: "100dvh", padding: "48px 16px" }}>
-      <Flex vertical gap={24} style={{ width: "100%", maxWidth: 420 }}>
-        <Flex vertical align="center" gap={12} style={{ textAlign: "center" }}>
-          <Brand />
+      <Flex vertical gap={28} style={{ width: "100%", maxWidth: 400 }}>
+        <Flex vertical align="center" gap={16} style={{ textAlign: "center" }}>
+          <Typography.Text style={{ lineHeight: 0 }}>
+            <Logo height={30} />
+          </Typography.Text>
           <div>
-            <Typography.Title level={3} style={{ margin: 0 }}>
-              {title}
-            </Typography.Title>
-            <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0" }}>
+            {title ? (
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                {title}
+              </Typography.Title>
+            ) : null}
+            <Typography.Text type="secondary" style={{ display: "block", marginTop: title ? 6 : 0 }}>
               {intro}
-            </Typography.Paragraph>
+            </Typography.Text>
           </div>
         </Flex>
         <Card>{children}</Card>
