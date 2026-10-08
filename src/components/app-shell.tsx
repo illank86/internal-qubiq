@@ -6,6 +6,7 @@ import { DashboardOutlined, DownOutlined, LogoutOutlined, MenuOutlined, MoonOutl
 import { useAuth, useCan, useStaff } from "@/auth/use-auth";
 import { Brand, FullPageSpinner } from "@/components/ui";
 import { NAV } from "@/nav";
+import { NotificationBell } from "@/features/dashboard/notification-bell";
 import { useThemeMode } from "@/theme-mode";
 
 /** Signed-in pages only; staff only (the auth provider signs anyone else out). */
@@ -184,6 +185,7 @@ function AppShell() {
             </>
           ) : null}
           <Flex align="center" gap={12} style={{ marginLeft: "auto" }}>
+            <NotificationBell />
             <Dropdown menu={{ items: account }} trigger={["click"]} placement="bottomRight">
               <Button type="text" style={{ height: 48, paddingInline: 8 }} aria-label="Account menu">
                 <Flex align="center" gap={10}>
