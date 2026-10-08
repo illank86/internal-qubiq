@@ -2424,6 +2424,8 @@ export type Database = {
       }
       quotations: {
         Row: {
+          licensee_address: string | null
+          licensee_name: string | null
           signed_copy_path: string | null
           signed_copy_uploaded_by: string | null
           signed_copy_uploaded_at: string | null
@@ -2490,6 +2492,8 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          licensee_address?: string | null
+          licensee_name?: string | null
           signed_copy_path?: string | null
           signed_copy_uploaded_by?: string | null
           signed_copy_uploaded_at?: string | null
@@ -2556,6 +2560,8 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          licensee_address?: string | null
+          licensee_name?: string | null
           signed_copy_path?: string | null
           signed_copy_uploaded_by?: string | null
           signed_copy_uploaded_at?: string | null
@@ -2654,6 +2660,8 @@ export type Database = {
       }
       quote_requests: {
         Row: {
+          licensee_address: string | null
+          licensee_name: string | null
           company: string | null
           contact_email: string
           contact_name: string
@@ -2678,6 +2686,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          licensee_address?: string | null
+          licensee_name?: string | null
           company?: string | null
           contact_email: string
           contact_name: string
@@ -2702,6 +2712,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          licensee_address?: string | null
+          licensee_name?: string | null
           company?: string | null
           contact_email?: string
           contact_name?: string
@@ -3526,6 +3538,8 @@ export type Database = {
           p_is_custom?: boolean
           p_job_title?: string
           p_licence_total?: number
+          p_licensee_address?: string
+          p_licensee_name?: string
           p_maintenance_total?: number
           p_message?: string
           p_modules?: Json
@@ -3543,6 +3557,8 @@ export type Database = {
           p_bill_to_name: string
           p_due_date?: string
           p_invoice_id: string
+          p_licensee_address?: string
+          p_licensee_name?: string
           p_notes?: string
           p_notify?: boolean
           p_refresh_seller?: boolean

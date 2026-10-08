@@ -45,6 +45,7 @@ export type PreviewInput = {
   signoff: string;
   /** Digital (the company signature once approved) or signed by hand (an empty space). */
   signatureMode?: "digital" | "wet";
+  licensee?: { name: string; address: string };
 };
 
 /**
@@ -127,6 +128,8 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     phone: input.contact.phone || null,
     country: input.contact.country || null,
     address: input.contact.address || null,
+    licensee_name: input.licensee?.name.trim() || null,
+    licensee_address: input.licensee?.address.trim() || null,
     sales_name: input.sales.name || null,
     sales_title: input.sales.title || null,
     sales_email: input.sales.email || null,

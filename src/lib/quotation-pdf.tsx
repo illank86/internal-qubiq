@@ -139,6 +139,13 @@ function QuotationDocument({
             {quotation.country ? <Text>{quotation.country}</Text> : null}
             {quotation.contact_email ? <Text>{quotation.contact_email}</Text> : null}
             {quotation.phone ? <Text>{quotation.phone}</Text> : null}
+            {quotation.licensee_name ? (
+              <>
+                <Text style={[styles.label, { marginTop: 8 }]}>Licence issued to</Text>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>{quotation.licensee_name}</Text>
+                <Lines text={quotation.licensee_address} />
+              </>
+            ) : null}
           </View>
           <View style={styles.party}>
             <Text style={styles.label}>Your contact</Text>

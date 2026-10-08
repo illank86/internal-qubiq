@@ -402,6 +402,8 @@ type DetailValues = {
   materai: Materai;
   signature_mode: SignatureMode;
   bill_to_address: string;
+  licensee_name: string;
+  licensee_address: string;
   due_date: string;
   tax_rate: number;
   notes: string;
@@ -485,6 +487,8 @@ function InvoiceDetailsDrawer({
       p_bill_to_company: values.bill_to_company ?? "",
       p_bill_to_email: values.bill_to_email || undefined,
       p_bill_to_address: values.bill_to_address ?? "",
+      p_licensee_name: values.licensee_name,
+      p_licensee_address: values.licensee_address ?? "",
       p_notes: values.notes ?? "",
       p_due_date: values.due_date,
       p_tax_rate: Number(values.tax_rate) || 0,
@@ -554,6 +558,8 @@ function InvoiceDetailsDrawer({
                   materai: (invoice.materai as Materai) ?? "none",
                   signature_mode: (invoice.signature_mode as SignatureMode) ?? "digital",
                   bill_to_address: invoice.bill_to_address ?? "",
+                  licensee_name: invoice.licensee_name || invoice.bill_to_name,
+                  licensee_address: invoice.licensee_address ?? "",
                   due_date: invoice.due_date,
                   tax_rate: Number(invoice.tax_rate),
                   notes: invoice.notes ?? "",
@@ -592,6 +598,23 @@ function InvoiceDetailsDrawer({
                 <Form.Item label="Billing address" name="bill_to_address" rules={[{ max: 500 }]}>
                   <Input.TextArea rows={3} />
                 </Form.Item>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label="Licence issued to"
+                      name="licensee_name"
+                      rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
+                      extra="The end user — the same as who pays, unless a reseller or head office pays."
+                    >
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Licensee address" name="licensee_address" rules={[{ max: 500 }]}>
+                      <Input.TextArea rows={2} />
+                    </Form.Item>
+                  </Col>
+                </Row>
                 <Row gutter={16}>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Due date" name="due_date" rules={[{ required: true, message: "Choose a due date" }]}>
@@ -665,6 +688,15 @@ function InvoiceDetailsDrawer({
                   { key: "email", label: "Billing email", children: invoice.bill_to_email ?? "—" },
                   { key: "cc", label: "CC", children: invoice.cc_emails?.length ? invoice.cc_emails.join(", ") : "—" },
                   { key: "address", label: "Billing address", children: <span style={{ whiteSpace: "pre-line" }}>{invoice.bill_to_address || "—"}</span> },
+                  {
+                    key: "licensee",
+                    label: "Licence issued to",
+                    children: (
+                      <span style={{ whiteSpace: "pre-line" }}>
+                        {[invoice.licensee_name || invoice.bill_to_name, invoice.licensee_address].filter(Boolean).join("\n")}
+                      </span>
+                    ),
+                  },
                   { key: "issued", label: "Issued", children: formatInvoiceDate(invoice.issue_date) },
                   { key: "due", label: "Due", children: formatInvoiceDate(invoice.due_date) },
                   { key: "signature", label: "Signature", children: invoice.signature_mode === "wet" ? "Signed by hand" : "Digital" },

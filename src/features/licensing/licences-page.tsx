@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { App, Button, Dropdown, Flex, Input, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
-import { DownloadOutlined, FileAddOutlined, KeyOutlined, MoreOutlined, StopOutlined, UploadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, FileAddOutlined, KeyOutlined, MoreOutlined, StopOutlined, UploadOutlined, WarningOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { formatInvoiceDate, isOverdue } from "@/lib/invoices";
@@ -13,7 +13,15 @@ import { useAction } from "@/features/sales/use-action";
 type License = Database["public"]["Tables"]["licenses"]["Row"] & {
   owner: { full_name: string | null; email: string | null; company: string | null } | null;
 };
-type InvoiceRow = { id: string; number: string | null; license_id: string | null; status: "unpaid" | "paid" | "void"; due_date: string };
+type InvoiceRow = {
+  id: string;
+  number: string | null;
+  license_id: string | null;
+  status: "unpaid" | "paid" | "void";
+  due_date: string;
+  licensee_name: string | null;
+  groups: { quotation_group_id: string | null }[];
+};
 type OrderLine = { id: string; label: string; quantity: number; quotation: { number: string | null; customer_id: string | null; status: string; valid_until: string } | null };
 type Filter = "all" | "pending" | "issued" | "revoked";
 type Stage = "requested" | "awaiting_payment" | "payment_overdue" | "preparing" | "active" | "revoked";
@@ -38,6 +46,12 @@ function stageOf(license: License, invoices: InvoiceRow[]): Stage {
   if (license.status === "issued") return "active";
   return live.some((invoice) => invoice.status === "paid") ? "preparing" : "requested";
 }
+
+/** Same name, give or take case, spacing and punctuation ("PT. Abc" = "pt abc"). */
+const sameName = (a: string, b: string) => {
+  const key = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return key(a) === key(b);
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 const isLive = (quotation: NonNullable<OrderLine["quotation"]>) => quotation.status === "accepted" || (quotation.status === "sent" && quotation.valid_until >= today());
@@ -75,16 +89,26 @@ export function LicencesPage() {
       const rows = (licences ?? []) as unknown as License[];
       const owners = [...new Set(rows.map((row) => row.owner_id))];
       const [{ data: invoices }, { data: lines }] = await Promise.all([
-        supabase.from("invoices").select("id, number, license_id, status, due_date"),
+        supabase.from("invoices").select("id, number, license_id, status, due_date, licensee_name, groups:invoice_groups(quotation_group_id)"),
         owners.length
           ? supabase.from("quotation_groups").select("id, label, quantity, quotation:quotations!inner(number, customer_id, status, valid_until)").in("quotation.customer_id", owners).order("position")
           : Promise.resolve({ data: [] }),
       ]);
-      return { rows, invoices: (invoices ?? []) as InvoiceRow[], lines: (lines ?? []) as unknown as OrderLine[] };
+      return { rows, invoices: (invoices ?? []) as unknown as InvoiceRow[], lines: (lines ?? []) as unknown as OrderLine[] };
     },
   });
 
-  const invoicesFor = (row: License) => (data?.invoices ?? []).filter((invoice) => invoice.id === row.invoice_id || invoice.license_id === row.id);
+  // Linked directly, or through the order line the licence was requested on.
+  const invoicesFor = (row: License) =>
+    (data?.invoices ?? []).filter(
+      (invoice) =>
+        invoice.id === row.invoice_id ||
+        invoice.license_id === row.id ||
+        (row.quotation_group_id !== null && invoice.groups.some((group) => group.quotation_group_id === row.quotation_group_id)),
+    );
+  // The invoice names someone else as the licensee: one of them is wrong.
+  const nameMismatch = (row: License) =>
+    invoicesFor(row).find((invoice) => invoice.status !== "void" && invoice.licensee_name && !sameName(invoice.licensee_name, row.label));
   const lineById = useMemo(() => new Map((data?.lines ?? []).map((line) => [line.id, line])), [data]);
   const used = (lineId: string) => (data?.rows ?? []).filter((row) => row.quotation_group_id === lineId && row.status !== "revoked").length;
 
@@ -127,6 +151,18 @@ export function LicencesPage() {
           <Tooltip title={row.customer_address ?? undefined}>
             <Typography.Text strong>{row.label}</Typography.Text>
           </Tooltip>
+          {(() => {
+            const other = nameMismatch(row);
+            return other ? (
+              <Tooltip
+                title={`Invoice ${other.number ?? ""} is for “${other.licensee_name}”. Correct the invoice's “Licensed to” (Invoices → open it), or check the licence name before issuing.`}
+              >
+                <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                  <WarningOutlined /> Invoice says “{other.licensee_name}”
+                </Typography.Text>
+              </Tooltip>
+            ) : null;
+          })()}
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.owner?.full_name ?? "unknown"}
             {row.owner?.company ? ` · ${row.owner.company}` : ""}

@@ -101,6 +101,18 @@ export function QuotationDrawer({
                   ),
                 },
                 { key: "email", label: "Email", children: quotation.contact_email || "—" },
+                {
+                  key: "licensee",
+                  label: "Licensed to",
+                  children: quotation.licensee_name ? (
+                    <>
+                      <Typography.Text strong>{quotation.licensee_name}</Typography.Text>
+                      {quotation.licensee_address ? <div style={{ whiteSpace: "pre-line" }}>{quotation.licensee_address}</div> : null}
+                    </>
+                  ) : (
+                    <Typography.Text type="secondary">The customer ({quotation.company || quotation.contact_name})</Typography.Text>
+                  ),
+                },
                 { key: "cc", label: "CC", children: quotation.cc_emails?.length ? quotation.cc_emails.join(", ") : "—" },
                 { key: "phone", label: "Phone", children: quotation.phone || "—" },
                 {

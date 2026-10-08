@@ -20,6 +20,8 @@ export type QuotationDraft = {
   contact: { name: string; email: string; company: string; jobTitle: string; phone: string; country: string; address: string };
   /** Also emailed, as CC, when the quotation is sent. */
   cc: string[];
+  /** The end user the licence is issued to, when not the customer's company (a reseller's client, a plant). */
+  licensee: { name: string; address: string };
   /** digital: the company signature once approved; wet: an empty space to sign by hand. */
   signatureMode: "digital" | "wet";
   sales: { profileId: string; name: string; title: string; email: string; phone: string };
@@ -92,6 +94,7 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
       address: license?.customer_address ?? "",
     },
     cc: [],
+    licensee: { name: request?.licensee_name ?? "", address: request?.licensee_address ?? "" },
     signatureMode: "digital",
     sales: person
       ? { profileId: person.id, name: person.name, title: person.title, email: person.email || catalog.salesDesk.email, phone: person.phone || catalog.salesDesk.phone }
@@ -146,6 +149,7 @@ export async function savedQuotationDraft(id: string): Promise<QuotationDraft | 
       address: quotation.address ?? "",
     },
     cc: quotation.cc_emails ?? [],
+    licensee: { name: quotation.licensee_name ?? "", address: quotation.licensee_address ?? "" },
     signatureMode: quotation.signature_mode === "wet" ? "wet" : "digital",
     sales: {
       profileId: quotation.sales_profile_id ?? "",

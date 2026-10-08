@@ -67,6 +67,11 @@ export function QuoteRequestsPage() {
       render: (_, row) => (
         <Flex vertical>
           <span>{row.company || row.contact_name}</span>
+          {row.licensee_name ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              For {row.licensee_name}
+            </Typography.Text>
+          ) : null}
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {row.contact_email}
           </Typography.Text>
@@ -208,6 +213,12 @@ function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest 
           <Typography.Text copyable>{request.contact_email}</Typography.Text>
         </Descriptions.Item>
         {request.company ? <Descriptions.Item label="Company">{request.company}</Descriptions.Item> : null}
+        {request.licensee_name ? (
+          <Descriptions.Item label="Licensed to (end user)">
+            {request.licensee_name}
+            {request.licensee_address ? <div style={{ whiteSpace: "pre-line", color: "var(--ant-color-text-secondary)" }}>{request.licensee_address}</div> : null}
+          </Descriptions.Item>
+        ) : null}
         {request.job_title ? <Descriptions.Item label="Role">{request.job_title}</Descriptions.Item> : null}
         {request.phone ? <Descriptions.Item label="Phone">{request.phone}</Descriptions.Item> : null}
         {request.country ? <Descriptions.Item label="Country">{request.country}</Descriptions.Item> : null}

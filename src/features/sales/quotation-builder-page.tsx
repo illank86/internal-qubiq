@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Affix, Alert, App, AutoComplete, Button, Card, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
+import { Affix, Alert, App, AutoComplete, Button, Card, Checkbox, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
 import { DownloadOutlined, EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
@@ -36,6 +36,9 @@ type Values = {
   phone: string;
   country: string;
   address: string;
+  for_end_user: boolean;
+  licensee_name: string;
+  licensee_address: string;
   sales_profile_id: string;
   sales_name: string;
   sales_title: string;
@@ -94,6 +97,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const decimals = Form.useWatch("decimals", form) ?? draft.decimals;
   const taxRate = Form.useWatch("tax_rate", form) ?? draft.taxRate;
   const contactEmail = Form.useWatch("contact_email", form);
+  const forEndUser = Form.useWatch("for_end_user", form) ?? draft.licensee.name !== "";
   // Signed by hand: an approver downloads it to sign; it goes out as the signed copy.
   const toSign = (Form.useWatch("signature_mode", form) ?? draft.signatureMode) === "wet";
   const sendLabel = isApprover ? (toSign ? "Save & download to sign" : draft.sent ? "Save & send again" : "Save & send to customer") : "Save & request approval";
@@ -142,6 +146,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     closing: values.closing ?? "",
     signoff: values.signoff ?? "",
     signatureMode: values.signature_mode ?? "digital",
+    licensee: values.for_end_user ? { name: values.licensee_name ?? "", address: values.licensee_address ?? "" } : undefined,
   });
 
   const preview = (action?: { values: Values }) => {
@@ -227,7 +232,13 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     // Saved before sending, so the email (sent after commit) has the CC list.
     const { error: ccError } = await supabase
       .from("quotations")
-      .update({ cc_emails: normaliseEmails(values.cc_emails), signature_mode: values.signature_mode })
+      .update({
+        cc_emails: normaliseEmails(values.cc_emails),
+        signature_mode: values.signature_mode,
+        // Empty: the licence is the customer's own.
+        licensee_name: values.for_end_user ? opt(values.licensee_name) ?? null : null,
+        licensee_address: values.for_end_user && opt(values.licensee_name) ? opt(values.licensee_address) ?? null : null,
+      })
       .eq("id", quotationId);
     if (ccError) {
       setSaving(null);
@@ -273,6 +284,9 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     phone: draft.contact.phone,
     country: draft.contact.country,
     address: draft.contact.address,
+    for_end_user: Boolean(draft.licensee.name),
+    licensee_name: draft.licensee.name,
+    licensee_address: draft.licensee.address,
     sales_profile_id: draft.sales.profileId,
     sales_name: draft.sales.name,
     sales_title: draft.sales.title,
@@ -373,6 +387,28 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 <Form.Item label="Address" name="address" rules={[{ max: 500 }]}>
                   <Input.TextArea rows={2} placeholder={"Street\nCity, postcode"} />
                 </Form.Item>
+                <Form.Item name="for_end_user" valuePropName="checked" style={{ marginBottom: forEndUser ? 12 : 16 }}>
+                  <Checkbox>Licence is for another company — a reseller's or integrator's client, or another site</Checkbox>
+                </Form.Item>
+                {forEndUser ? (
+                  <Row gutter={16} style={{ marginBottom: 4 }}>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        label="Licensed to (end user)"
+                        name="licensee_name"
+                        rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
+                        extra="Printed on the quotation and the invoice as who the licence is issued to."
+                      >
+                        <Input placeholder="Company or plant name" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="End user address" name="licensee_address" rules={[{ max: 500 }]}>
+                        <Input.TextArea rows={2} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                ) : null}
                 <Form.Item label="Internal note" name="internal_note" extra="Only the team sees this — never on the quotation or in emails." rules={[{ max: 4000 }]} style={{ marginBottom: 0 }}>
                   <Input.TextArea rows={2} />
                 </Form.Item>
