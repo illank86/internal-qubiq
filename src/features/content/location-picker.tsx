@@ -87,6 +87,7 @@ export function LocationPicker({
   // The map, once.
   useEffect(() => {
     let cancelled = false;
+    let observer: ResizeObserver | null = null;
     void (async () => {
       const L = await import("leaflet");
       if (cancelled || !container.current || map.current) return;
@@ -99,10 +100,16 @@ export function LocationPicker({
       if (hasPoint) instance.setView([latitude!, longitude!], 13);
       else instance.setView(WORLD_VIEW, 2);
       map.current = instance;
+      // Opened inside a drawer or modal, the box is still animating (or zero
+      // wide) when the map measures it, and no tiles load: re-measure whenever
+      // the box changes size.
+      observer = new ResizeObserver(() => instance.invalidateSize());
+      observer.observe(container.current);
       setReady(true);
     })();
     return () => {
       cancelled = true;
+      observer?.disconnect();
       map.current?.remove();
       map.current = null;
       marker.current = null;

@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Alert, App, Avatar, Button, Card, Col, Flex, Form, Input, Row, Typography } from "antd";
-import { LockOutlined, SaveOutlined } from "@ant-design/icons";
+import { Alert, App, Avatar, Button, Card, Col, Flex, Form, Input, Row, Typography, Upload } from "antd";
+import { CameraOutlined, DeleteOutlined, LockOutlined, SaveOutlined } from "@ant-design/icons";
 import { useAuth, useStaff } from "@/auth/use-auth";
 import { NEW_PASSWORD_RULES, PASSWORD_HINT } from "@/auth/password-rules";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/avif", "image/gif"];
 
 type ProfileValues = { full_name: string; job_title: string; phone: string; company: string };
 type PasswordValues = { current: string; password: string; confirm: string };
@@ -22,6 +25,7 @@ export function ProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const name = staff.profile?.full_name || staff.email;
 
   const saveProfile = async (values: ProfileValues) => {
@@ -39,6 +43,47 @@ export function ProfilePage() {
     if (error) return void message.error("Your profile could not be saved.");
     await refresh();
     message.success("Profile saved.");
+  };
+
+  const setAvatar = async (avatarUrl: string | null) => {
+    const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", staff.id);
+    if (error) throw error;
+    await refresh();
+  };
+
+  /**
+   * The website's `avatars` bucket: storage RLS keeps each account to a folder
+   * named after its user id. The random name busts any cached older picture.
+   * Saved straight away, like the website's header picks it up.
+   */
+  const uploadAvatar = async (file: File) => {
+    if (!AVATAR_TYPES.includes(file.type)) return void message.error("Pick a PNG, JPEG, WebP, AVIF or GIF.");
+    if (file.size > MAX_AVATAR_BYTES) return void message.error("That image is over 5 MB.");
+    setSavingAvatar(true);
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "png";
+      const path = `${staff.id}/${crypto.randomUUID().slice(0, 8)}.${extension}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { cacheControl: "31536000", contentType: file.type, upsert: true });
+      if (error) throw error;
+      await setAvatar(supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl);
+      message.success("Picture updated.");
+    } catch {
+      message.error("Your picture could not be uploaded.");
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    setSavingAvatar(true);
+    try {
+      await setAvatar(null);
+      message.success("Picture removed.");
+    } catch {
+      message.error("Your picture could not be removed.");
+    } finally {
+      setSavingAvatar(false);
+    }
   };
 
   /**
@@ -83,16 +128,41 @@ export function ProfilePage() {
         <Col xs={24} lg={14}>
           <Card title="Profile">
             <Flex align="center" gap={16} style={{ marginBottom: 24 }}>
-              <Avatar size={64} src={staff.profile?.avatar_url ?? undefined} style={{ fontSize: 24 }}>
+              <Avatar size={80} src={staff.profile?.avatar_url ?? undefined} style={{ fontSize: 24 }}>
                 {name[0]?.toUpperCase()}
               </Avatar>
-              <div>
-                <Typography.Text strong style={{ fontSize: 16 }}>
-                  {name}
+              <Flex vertical gap={8}>
+                <div>
+                  <Typography.Text strong style={{ fontSize: 16 }}>
+                    {name}
+                  </Typography.Text>
+                  <br />
+                  <Typography.Text type="secondary">{staff.email}</Typography.Text>
+                </div>
+                <Flex gap={8} wrap>
+                  <Upload
+                    accept={AVATAR_TYPES.join(",")}
+                    showUploadList={false}
+                    disabled={savingAvatar}
+                    beforeUpload={(file) => {
+                      void uploadAvatar(file);
+                      return false;
+                    }}
+                  >
+                    <Button size="small" icon={<CameraOutlined />} loading={savingAvatar}>
+                      {staff.profile?.avatar_url ? "Change picture" : "Upload picture"}
+                    </Button>
+                  </Upload>
+                  {staff.profile?.avatar_url ? (
+                    <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={savingAvatar} onClick={() => void removeAvatar()}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </Flex>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  PNG, JPEG, WebP, AVIF or GIF, up to 5 MB.
                 </Typography.Text>
-                <br />
-                <Typography.Text type="secondary">{staff.email}</Typography.Text>
-              </div>
+              </Flex>
             </Flex>
             <Form<ProfileValues>
               form={profileForm}

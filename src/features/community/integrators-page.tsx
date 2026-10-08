@@ -145,7 +145,7 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
         <Flex gap={8}>
           {integrator.status === "approved" && integrator.slug ? (
             <Button icon={<ExportOutlined />} href={`${env.siteUrl}/integrators/${integrator.slug}`} target="_blank" rel="noreferrer">
-              View on goqubiq.com
+              View site
             </Button>
           ) : null}
           {integrator.status === "pending" ? (
