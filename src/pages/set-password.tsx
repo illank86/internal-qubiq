@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { Alert, Button, Form, Input, Spin, Typography } from "antd";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { useAuth } from "@/auth/use-auth";
-import { AuthCard, Button, Field, Input, Notice } from "@/components/ui";
+import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
 const LINK_TYPES: EmailOtpType[] = ["invite", "recovery"];
+
+type Values = { password: string; confirm: string };
 
 /**
  * Where the invitation and reset-password emails land:
@@ -26,30 +29,23 @@ export function SetPasswordPage() {
   const validLink = Boolean(tokenHash && type && LINK_TYPES.includes(type));
   const [verifying, setVerifying] = useState(validLink);
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A link works once: never verify it twice (React runs effects twice in development).
+  const verified = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!validLink || !tokenHash || !type) return;
-    let active = true;
+    if (!validLink || !tokenHash || !type || verified.current === tokenHash) return;
+    verified.current = tokenHash;
     supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error: verifyError }) => {
-      if (!active) return;
       if (verifyError) setLinkError("This link has expired or was already used. Ask for a new one.");
       // Drop the one-time token from the address bar and history.
       window.history.replaceState(null, "", "/set-password");
       setVerifying(false);
     });
-    return () => {
-      active = false;
-    };
   }, [validLink, tokenHash, type]);
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (password.length < 10) return setError("Use at least 10 characters.");
-    if (password !== confirm) return setError("The two passwords do not match.");
+  const submit = async ({ password }: Values) => {
     setPending(true);
     setError(null);
     const { error: updateError } = await supabase.auth.updateUser({ password });
@@ -58,40 +54,61 @@ export function SetPasswordPage() {
     navigate("/", { replace: true });
   };
 
-  const signedIn = state.status === "ready";
-
   return (
     <AuthCard
       title={invite ? "Welcome to QUBIQ" : "Choose a new password"}
       intro={invite ? "Set a password to finish setting up your team account." : "Pick something you do not use anywhere else."}
     >
       {verifying || state.status === "loading" ? (
-        <p className="text-sm text-muted-foreground">Checking your link…</p>
-      ) : linkError || !signedIn ? (
-        <div className="flex flex-col gap-5">
-          <Notice tone="error">
-            {linkError ?? (state.status === "signed-out" && state.notice ? state.notice : "Open the link from your email to set a password.")}
-          </Notice>
-          <Link to="/forgot-password" className="text-center text-sm text-muted-foreground hover:text-foreground">
-            Send a new reset link
-          </Link>
+        <div style={{ textAlign: "center", padding: 16 }}>
+          <Spin />
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
+            Checking your link…
+          </Typography.Paragraph>
         </div>
+      ) : linkError || state.status !== "ready" ? (
+        <>
+          <Alert
+            type="error"
+            showIcon
+            title={linkError ?? (state.status === "signed-out" && state.notice ? state.notice : "Open the link from your email to set a password.")}
+          />
+          <div style={{ marginTop: 16, textAlign: "center" }}>
+            <Link to="/forgot-password">Send a new reset link</Link>
+          </div>
+        </>
       ) : (
-        <form onSubmit={submit} className="flex flex-col gap-5">
-          <p className="text-sm text-muted-foreground">
-            Signed in as <span className="font-medium text-foreground">{state.staff.email}</span>
-          </p>
-          {error ? <Notice tone="error">{error}</Notice> : null}
-          <Field label="New password" htmlFor="password" hint="At least 10 characters.">
-            <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </Field>
-          <Field label="Repeat it" htmlFor="confirm">
-            <Input id="confirm" type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
-          </Field>
-          <Button type="submit" pending={pending} disabled={!password || !confirm}>
+        <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
+          <Typography.Paragraph type="secondary">
+            Signed in as <Typography.Text strong>{state.staff.email}</Typography.Text>
+          </Typography.Paragraph>
+          {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
+          <Form.Item
+            label="New password"
+            name="password"
+            extra="At least 10 characters."
+            rules={[{ required: true, min: 10, message: "Use at least 10 characters" }]}
+          >
+            <Input.Password autoComplete="new-password" size="large" />
+          </Form.Item>
+          <Form.Item
+            label="Repeat it"
+            name="confirm"
+            dependencies={["password"]}
+            rules={[
+              { required: true, message: "Repeat the password" },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  !value || getFieldValue("password") === value ? Promise.resolve() : Promise.reject(new Error("The two passwords do not match")),
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" size="large" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" size="large" block loading={pending}>
             {invite ? "Set password and continue" : "Save password"}
           </Button>
-        </form>
+        </Form>
       )}
     </AuthCard>
   );

@@ -9,8 +9,8 @@ links). This app replaces the website's `/admin`, one area at a time.
 
 ## How it works
 
-- **React SPA** — Vite, React 19, React Router, TanStack Query, Tailwind 4,
-  with the website's design tokens.
+- **React SPA** — Vite, React 19, React Router, TanStack Query and
+  **Ant Design 6** (themed with the QUBIQ orange and Geist; light and dark).
 - **Same Supabase project as the website.** Only the publishable key ships
   here; every read and write is checked by row-level security and the
   permission checks inside the database functions, exactly as in `/admin`.

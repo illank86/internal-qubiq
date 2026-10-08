@@ -3228,6 +3228,10 @@ export type Database = {
       }
       increment_post_views: { Args: { post_slug: string }; Returns: undefined }
       invoice_by_token: { Args: { p_token: string }; Returns: Json }
+      issue_license: {
+        Args: { p_file_name: string; p_file_size: number; p_license_id: string }
+        Returns: undefined
+      }
       purge_download_ips: { Args: { p_days?: number }; Returns: number }
       quotation_by_token: { Args: { p_token: string }; Returns: Json }
       quotation_claim_preview: { Args: { p_token: string }; Returns: Json }
@@ -3277,8 +3281,10 @@ export type Database = {
           p_decimals?: number
           p_exchange_rate?: number
           p_groups: Json
+          p_internal_note?: string
           p_introduction?: string
           p_job_title?: string
+          p_license_id?: string
           p_phone?: string
           p_quotation_id: string
           p_quote_request_id: string
@@ -3288,6 +3294,7 @@ export type Database = {
           p_sales_profile_id?: string
           p_sales_title?: string
           p_signoff?: string
+          p_source?: string
           p_tax_rate?: number
           p_terms?: string
           p_valid_until?: string

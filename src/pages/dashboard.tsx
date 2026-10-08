@@ -1,6 +1,7 @@
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
+import { Card, Col, Empty, Row, Statistic, Typography } from "antd";
+import { BugOutlined, ContactsOutlined, FileDoneOutlined, InboxOutlined, KeyOutlined, TransactionOutlined } from "@ant-design/icons";
 import { useCan, useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
@@ -10,6 +11,7 @@ type Tile = {
   label: string;
   hint: string;
   to: string;
+  icon: React.ReactNode;
   permission: AppPermission;
   count: () => PromiseLike<{ count: number | null }>;
 };
@@ -24,6 +26,7 @@ const TILES: Tile[] = [
     label: "New quote requests",
     hint: "From the pricing page",
     to: "/sales/quote-requests",
+    icon: <InboxOutlined />,
     permission: "leads.manage",
     count: () => supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "new"),
   },
@@ -31,6 +34,7 @@ const TILES: Tile[] = [
     label: "Quotations awaiting reply",
     hint: "Sent, not yet answered",
     to: "/sales/quotations",
+    icon: <FileDoneOutlined />,
     permission: "leads.manage",
     count: () => supabase.from("quotations").select("id", { count: "exact", head: true }).eq("status", "sent"),
   },
@@ -38,6 +42,7 @@ const TILES: Tile[] = [
     label: "Unpaid invoices",
     hint: "Waiting for payment",
     to: "/sales/invoices",
+    icon: <TransactionOutlined />,
     permission: "licenses.manage",
     count: () => supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "unpaid"),
   },
@@ -45,6 +50,7 @@ const TILES: Tile[] = [
     label: "Licence requests",
     hint: "Fingerprints waiting for a .qlf",
     to: "/licensing/licences",
+    icon: <KeyOutlined />,
     permission: "licenses.manage",
     count: () => supabase.from("licenses").select("id", { count: "exact", head: true }).eq("status", "pending"),
   },
@@ -52,6 +58,7 @@ const TILES: Tile[] = [
     label: "New bug reports",
     hint: "Not triaged yet",
     to: "/community/bug-reports",
+    icon: <BugOutlined />,
     permission: "content.manage",
     count: () => supabase.from("bug_reports").select("id", { count: "exact", head: true }).eq("status", "new"),
   },
@@ -59,28 +66,25 @@ const TILES: Tile[] = [
     label: "New leads",
     hint: "Contact-form enquiries",
     to: "/sales/leads",
+    icon: <ContactsOutlined />,
     permission: "leads.manage",
     count: () => supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "new"),
   },
 ];
 
 function CountTile({ tile }: { tile: Tile }) {
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dashboard", tile.label],
     queryFn: async () => (await tile.count()).count ?? 0,
   });
   return (
-    <Link
-      to={tile.to}
-      className="group flex flex-col gap-1 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary/40"
-    >
-      <span className="text-sm text-muted-foreground">{tile.label}</span>
-      <span className="text-3xl font-semibold tabular-nums">{isLoading ? "…" : isError ? "—" : data}</span>
-      <span className="flex items-center justify-between text-xs text-muted-foreground">
+    <Card hoverable onClick={() => navigate(tile.to)} style={{ height: "100%" }}>
+      <Statistic title={tile.label} value={isError ? "—" : (data ?? 0)} loading={isLoading} prefix={tile.icon} />
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         {tile.hint}
-        <ArrowRight aria-hidden className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
-      </span>
-    </Link>
+      </Typography.Text>
+    </Card>
   );
 }
 
@@ -94,13 +98,15 @@ export function DashboardPage() {
     <>
       <PageTitle title={name ? `Hello, ${name}` : "Dashboard"} description="What needs attention across sales, licensing and support." />
       {tiles.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Row gutter={[16, 16]}>
           {tiles.map((tile) => (
-            <CountTile key={tile.label} tile={tile} />
+            <Col key={tile.label} xs={24} sm={12} xl={8}>
+              <CountTile tile={tile} />
+            </Col>
           ))}
-        </div>
+        </Row>
       ) : (
-        <p className="text-sm text-muted-foreground">Your role has no queues to watch. Use the menu to get to your work.</p>
+        <Empty description="Your role has no queues to watch. Use the menu to get to your work." />
       )}
     </>
   );

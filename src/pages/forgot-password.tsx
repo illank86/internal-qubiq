@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { AuthCard, Button, Field, Input, Notice } from "@/components/ui";
+import { Alert, Button, Form, Input } from "antd";
+import { MailOutlined } from "@ant-design/icons";
+import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -8,12 +10,10 @@ import { supabase } from "@/lib/supabase";
  * address has an account, so this page tells nobody who works here.
  */
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const submit = async ({ email }: { email: string }) => {
     setPending(true);
     await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/set-password` });
     setPending(false);
@@ -23,24 +23,24 @@ export function ForgotPasswordPage() {
   return (
     <AuthCard title="Reset your password" intro="We will email you a link to choose a new one.">
       {sent ? (
-        <div className="flex flex-col gap-5">
-          <Notice tone="success">If that address has an account, a reset link is on its way. It works once, for an hour.</Notice>
-          <Link to="/login" className="text-center text-sm text-muted-foreground hover:text-foreground">
-            Back to sign in
-          </Link>
-        </div>
+        <>
+          <Alert type="success" showIcon title="If that address has an account, a reset link is on its way. It works once, for an hour." />
+          <div style={{ marginTop: 16, textAlign: "center" }}>
+            <Link to="/login">Back to sign in</Link>
+          </div>
+        </>
       ) : (
-        <form onSubmit={submit} className="flex flex-col gap-5">
-          <Field label="Email" htmlFor="email">
-            <Input id="email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} />
-          </Field>
-          <Button type="submit" pending={pending} disabled={!email}>
+        <Form<{ email: string }> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
+          <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
+            <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" size="large" block loading={pending}>
             Send reset link
           </Button>
-          <Link to="/login" className="text-center text-sm text-muted-foreground hover:text-foreground">
-            Back to sign in
-          </Link>
-        </form>
+          <div style={{ marginTop: 16, textAlign: "center" }}>
+            <Link to="/login">Back to sign in</Link>
+          </div>
+        </Form>
       )}
     </AuthCard>
   );

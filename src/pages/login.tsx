@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation } from "react-router";
-import { LogIn } from "lucide-react";
+import { Alert, Button, Form, Input } from "antd";
+import { LockOutlined, LoginOutlined, MailOutlined } from "@ant-design/icons";
 import { useAuth } from "@/auth/use-auth";
-import { AuthCard, Button, Field, Input, Notice } from "@/components/ui";
+import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+
+type Values = { email: string; password: string };
 
 /**
  * Staff sign-in. There is no "create account" here: staff are invited from
@@ -12,16 +15,13 @@ import { supabase } from "@/lib/supabase";
 export function LoginPage() {
   const { state } = useAuth();
   const location = useLocation();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const from = (location.state as { from?: string } | null)?.from ?? "/";
   if (state.status === "ready") return <Navigate to={from} replace />;
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const submit = async ({ email, password }: Values) => {
     setPending(true);
     setError(null);
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -40,30 +40,22 @@ export function LoginPage() {
 
   return (
     <AuthCard title="Sign in" intro="The QUBIQ team's internal app: sales, licensing, content and more.">
-      <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
-        {notice ? <Notice>{notice}</Notice> : null}
-        {error ? <Notice tone="error">{error}</Notice> : null}
-        <Field label="Email" htmlFor="email">
-          <Input id="email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} />
-        </Field>
-        <Field label="Password" htmlFor="password">
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </Field>
-        <Button type="submit" pending={pending} disabled={!email || !password}>
-          <LogIn aria-hidden />
+      <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
+        {notice ? <Alert type="info" showIcon title={notice} style={{ marginBottom: 16 }} /> : null}
+        {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
+        <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
+          <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
+        </Form.Item>
+        <Form.Item label="Password" name="password" rules={[{ required: true, message: "Enter your password" }]}>
+          <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
+        </Form.Item>
+        <Button type="primary" htmlType="submit" size="large" block loading={pending} icon={<LoginOutlined />}>
           Sign in
         </Button>
-        <Link to="/forgot-password" className="text-center text-sm text-muted-foreground hover:text-foreground">
-          Forgot your password?
-        </Link>
-      </form>
+        <div style={{ marginTop: 16, textAlign: "center" }}>
+          <Link to="/forgot-password">Forgot your password?</Link>
+        </div>
+      </Form>
     </AuthCard>
   );
 }

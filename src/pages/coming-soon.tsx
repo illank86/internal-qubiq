@@ -1,4 +1,6 @@
-import { ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Button, Card, Result } from "antd";
+import { ExportOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { env } from "@/lib/env";
 import type { NavItem } from "@/nav";
@@ -11,29 +13,34 @@ export function ComingSoonPage({ item }: { item: NavItem }) {
   return (
     <>
       <PageTitle title={item.label} description={item.summary} />
-      <div className="max-w-xl rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-sm">
-        <p className="font-medium">Moving here in phase {item.phase}.</p>
-        <p className="mt-2 text-muted-foreground">
-          Until then, use it on the website&rsquo;s admin — same data, same account.
-        </p>
-        <a
-          href={`${env.siteUrl}${item.legacy}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
-        >
-          Open {item.label} on goqubiq.com
-          <ExternalLink aria-hidden className="size-3.5" />
-        </a>
-      </div>
+      <Card>
+        <Result
+          status="info"
+          title={`Moving here in phase ${item.phase}`}
+          subTitle="Until then, use it on the website's admin — same data, same account."
+          extra={
+            <Button type="primary" icon={<ExportOutlined />} href={`${env.siteUrl}${item.legacy}`} target="_blank" rel="noreferrer">
+              Open {item.label} on goqubiq.com
+            </Button>
+          }
+        />
+      </Card>
     </>
   );
 }
 
 export function NotFoundPage() {
+  const navigate = useNavigate();
   return (
-    <>
-      <PageTitle title="Page not found" description="That address is not part of this app." />
-    </>
+    <Result
+      status="404"
+      title="Page not found"
+      subTitle="That address is not part of this app."
+      extra={
+        <Button type="primary" onClick={() => navigate("/")}>
+          Back to the dashboard
+        </Button>
+      }
+    />
   );
 }
