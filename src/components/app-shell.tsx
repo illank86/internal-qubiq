@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
-import { Avatar, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Tag, Typography, theme } from "antd";
+import { Avatar, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Skeleton, Tag, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
 import { DashboardOutlined, LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { useAuth, useCan, useStaff } from "@/auth/use-auth";
@@ -170,7 +170,9 @@ function AppShell() {
           </Flex>
         </Layout.Header>
         <Layout.Content style={{ padding: desktop ? "28px 32px" : "20px 16px" }}>
-          <Outlet />
+          <Suspense fallback={<Skeleton active paragraph={{ rows: 8 }} />}>
+            <Outlet />
+          </Suspense>
         </Layout.Content>
       </Layout>
     </Layout>

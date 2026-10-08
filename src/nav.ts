@@ -75,20 +75,20 @@ export const NAV: NavGroup[] = [
   {
     heading: "Content",
     items: [
-      { path: "/content/pages", label: "Pages", icon: FileTextOutlined, permissions: ["content.manage"], legacy: "/admin/pages", phase: 2, summary: "Website pages and their sections." },
-      { path: "/content/navigation", label: "Navigation", icon: MenuOutlined, permissions: ["content.manage"], legacy: "/admin/navigation_items", phase: 2, summary: "Header and footer menus." },
-      { path: "/content/features", label: "Features", icon: StarOutlined, permissions: ["content.manage"], legacy: "/admin/features", phase: 2, summary: "Features, categories and use cases." },
-      { path: "/content/marketing", label: "Proof & FAQs", icon: ProfileOutlined, permissions: ["content.manage"], legacy: "/admin/testimonials", phase: 2, summary: "Testimonials, logos, stats, FAQs and videos." },
-      { path: "/content/media", label: "Media library", icon: FileImageOutlined, permissions: ["content.manage"], legacy: "/admin/media_assets", phase: 2, summary: "Images and files used across the website." },
-      { path: "/content/releases", label: "Releases", icon: CloudDownloadOutlined, permissions: ["downloads.manage"], legacy: "/admin/releases", phase: 2, summary: "Product releases, download files and system requirements." },
-      { path: "/content/site", label: "Site settings", icon: SettingOutlined, permissions: ["content.manage"], legacy: "/admin/site_settings", phase: 2, summary: "Company details, contact addresses and site-wide settings." },
+      { path: "/content/pages", label: "Pages", icon: FileTextOutlined, permissions: ["content.manage"], legacy: "/admin/pages", phase: 2, ready: true, summary: "Website pages and their sections." },
+      { path: "/content/navigation", label: "Navigation", icon: MenuOutlined, permissions: ["content.manage"], legacy: "/admin/navigation_items", phase: 2, ready: true, summary: "Header and footer menus." },
+      { path: "/content/features", label: "Features", icon: StarOutlined, permissions: ["content.manage"], legacy: "/admin/features", phase: 2, ready: true, summary: "Features, categories and use cases." },
+      { path: "/content/marketing", label: "Proof & FAQs", icon: ProfileOutlined, permissions: ["content.manage"], legacy: "/admin/testimonials", phase: 2, ready: true, summary: "Testimonials, logos, stats, FAQs and videos." },
+      { path: "/content/media", label: "Media library", icon: FileImageOutlined, permissions: ["content.manage"], legacy: "/admin/media_assets", phase: 2, ready: true, summary: "Images and files used across the website." },
+      { path: "/content/releases", label: "Releases", icon: CloudDownloadOutlined, permissions: ["downloads.manage"], legacy: "/admin/releases", phase: 2, ready: true, summary: "Product releases, download files and system requirements." },
+      { path: "/content/site", label: "Site settings", icon: SettingOutlined, permissions: ["content.manage"], legacy: "/admin/site_settings", phase: 2, ready: true, summary: "Company details, contact addresses and site-wide settings." },
     ],
   },
   {
     heading: "Blog",
     items: [
-      { path: "/blog/posts", label: "Posts", icon: BookOutlined, permissions: ["blog.manage"], legacy: "/admin/blog_posts", phase: 2, summary: "Write and publish blog posts." },
-      { path: "/blog/taxonomy", label: "Categories & tags", icon: TagsOutlined, permissions: ["blog.manage"], legacy: "/admin/blog_categories", phase: 2, summary: "How posts are grouped." },
+      { path: "/blog/posts", label: "Posts", icon: BookOutlined, permissions: ["blog.manage"], legacy: "/admin/blog_posts", phase: 2, ready: true, summary: "Write and publish blog posts." },
+      { path: "/blog/taxonomy", label: "Categories & tags", icon: TagsOutlined, permissions: ["blog.manage"], legacy: "/admin/blog_categories", phase: 2, ready: true, summary: "How posts are grouped." },
     ],
   },
   {

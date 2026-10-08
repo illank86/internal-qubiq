@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import { createBrowserRouter } from "react-router";
 import { RequireStaff } from "@/components/app-shell";
 import { ComingSoonPage, NotFoundPage } from "@/pages/coming-soon";
@@ -6,18 +7,28 @@ import { ForgotPasswordPage } from "@/pages/forgot-password";
 import { LoginPage } from "@/pages/login";
 import { SetPasswordPage } from "@/pages/set-password";
 import { NAV_ITEMS } from "@/nav";
-import { QuotationBuilderPage } from "@/features/sales/quotation-builder-page";
-import { QuotationsPage } from "@/features/sales/quotations-page";
-import { ConvertPage } from "@/features/sales/convert-page";
-import { CustomerPage } from "@/features/sales/customer-page";
-import { InvoicesPage } from "@/features/sales/invoices-page";
-import { BugReportsPage } from "@/features/community/bug-reports-page";
-import { IntegratorsPage } from "@/features/community/integrators-page";
-import { LicencesPage } from "@/features/licensing/licences-page";
-import { EditionsPage } from "@/features/sales/editions-page";
-import { LeadsPage } from "@/features/sales/leads-page";
-import { SalesSettingsPage } from "@/features/sales/settings-page";
-import { QuoteRequestsPage } from "@/features/sales/quote-requests-page";
+
+/*
+ * Each screen is its own download, fetched the first time it is opened: the
+ * PDF renderer, the rich-text editor and the Markdown tools never weigh on
+ * the sign-in or the dashboard.
+ */
+const QuotationBuilderPage = lazy(() => import("@/features/sales/quotation-builder-page").then((module) => ({ default: module.QuotationBuilderPage })));
+const QuotationsPage = lazy(() => import("@/features/sales/quotations-page").then((module) => ({ default: module.QuotationsPage })));
+const ConvertPage = lazy(() => import("@/features/sales/convert-page").then((module) => ({ default: module.ConvertPage })));
+const CustomerPage = lazy(() => import("@/features/sales/customer-page").then((module) => ({ default: module.CustomerPage })));
+const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
+const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
+const ContentPage = lazy(() => import("@/features/content/content-page").then((module) => ({ default: module.ContentPage })));
+const MediaLibraryPage = lazy(() => import("@/features/content/media-library-page").then((module) => ({ default: module.MediaLibraryPage })));
+const IntegratorsPage = lazy(() => import("@/features/community/integrators-page").then((module) => ({ default: module.IntegratorsPage })));
+const LicencesPage = lazy(() => import("@/features/licensing/licences-page").then((module) => ({ default: module.LicencesPage })));
+const EditionsPage = lazy(() => import("@/features/sales/editions-page").then((module) => ({ default: module.EditionsPage })));
+const LeadsPage = lazy(() => import("@/features/sales/leads-page").then((module) => ({ default: module.LeadsPage })));
+const SalesSettingsPage = lazy(() => import("@/features/sales/settings-page").then((module) => ({ default: module.SalesSettingsPage })));
+const QuoteRequestsPage = lazy(() => import("@/features/sales/quote-requests-page").then((module) => ({ default: module.QuoteRequestsPage })));
+
+import { CONTENT_SCREENS } from "@/features/content/content-screens";
 
 /** Screens built here; everything else in the menu is still a placeholder. */
 const READY: Record<string, React.ReactNode> = {
@@ -30,6 +41,8 @@ const READY: Record<string, React.ReactNode> = {
   "/licensing/licences": <LicencesPage />,
   "/community/bug-reports": <BugReportsPage />,
   "/community/integrators": <IntegratorsPage />,
+  "/content/media": <MediaLibraryPage />,
+  ...Object.fromEntries(Object.keys(CONTENT_SCREENS).map((path) => [path, <ContentPage key={path} path={path} />])),
 };
 
 /**

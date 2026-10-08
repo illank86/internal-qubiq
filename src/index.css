@@ -31,3 +31,42 @@ html.dark body {
   white-space: nowrap;
   border: 0;
 }
+
+/* The rich-text editor's document. */
+.qubiq-rich-text {
+  outline: none;
+  min-height: 100%;
+  line-height: 1.6;
+}
+.qubiq-rich-text > :first-child {
+  margin-top: 0;
+}
+.qubiq-rich-text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.qubiq-rich-text blockquote {
+  margin: 0 0 1em;
+  padding-left: 12px;
+  border-left: 3px solid #f08a4b;
+  opacity: 0.85;
+}
+.qubiq-rich-text table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+}
+.qubiq-rich-text th,
+.qubiq-rich-text td {
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  padding: 4px 8px;
+  vertical-align: top;
+}
+.qubiq-rich-text code {
+  font-family: "Geist Mono", monospace;
+  font-size: 0.9em;
+  background: rgba(127, 127, 127, 0.12);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
