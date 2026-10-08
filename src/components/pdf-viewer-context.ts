@@ -9,6 +9,8 @@ export type PdfRequest = {
   action?: { label: string; onClick: () => void | Promise<void> };
   /** A line under the title, e.g. "Preview — not saved yet". */
   note?: string;
+  /** Who the action emails, shown above the PDF so it is checked with it. */
+  recipients?: { to: string; cc?: string[] | null };
 };
 
 export const PdfViewerContext = createContext<(request: PdfRequest) => void>(() => {

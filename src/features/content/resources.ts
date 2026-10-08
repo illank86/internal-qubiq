@@ -1769,6 +1769,7 @@ export const RESOURCES: Resource[] = [
       { name: "source_table", label: "Event", type: "text", span: 1 },
       { name: "recipient", label: "Sent to", type: "text", span: 1 },
       { name: "channel", label: "Channel", type: "text", span: 1 },
+      { name: "cc", label: "CC", type: "tags", span: 2, hint: "Also sent to, for quotation and invoice emails." },
       { name: "subject", label: "Subject", type: "text", span: 2 },
       { name: "error", label: "Error", type: "textarea", span: 2 },
     ],

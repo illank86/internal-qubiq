@@ -8,8 +8,10 @@ import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney, isOverdue, type Invoice } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
+import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { invoicePdf, quotationPdf, setInvoiceStatus } from "./api";
+import { CcNote } from "./quotations-page";
 import { useAction } from "./use-action";
 
 type Row = Invoice & { license: { label: string } | null };
@@ -89,6 +91,7 @@ export function InvoicesPage() {
               Awaiting customer account
             </Typography.Text>
           ) : null}
+          <CcNote cc={row.cc_emails} />
         </Flex>
       ),
     },
@@ -128,7 +131,7 @@ export function InvoicesPage() {
         return (
           <Flex gap={4} justify="flex-end" align="center" wrap={false}>
             {row.status === "unpaid" ? (
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busy === k("paid")} onClick={() => run(k("paid"), () => setInvoiceStatus(row.id, "paid"), "Marked paid. The customer has been emailed a receipt.")}>
+              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busy === k("paid")} onClick={() => run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`)}>
                 Mark paid
               </Button>
             ) : row.status === "void" ? (
@@ -192,6 +195,7 @@ type DetailValues = {
   bill_to_name: string;
   bill_to_company: string;
   bill_to_email: string;
+  cc_emails: string[];
   bill_to_address: string;
   due_date: string;
   tax_rate: number;
@@ -212,6 +216,8 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const taxRate = Form.useWatch("tax_rate", form);
+  const billToEmail = Form.useWatch("bill_to_email", form);
+  const ccWatched = Form.useWatch("cc_emails", form);
 
   const { data: groups } = useQuery({
     queryKey: ["invoice-groups", invoice?.id],
@@ -224,10 +230,17 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const scale = 10 ** invoice.decimal_places;
   const rate = Number(taxRate ?? invoice.tax_rate) || 0;
   const tax = Math.round(((Number(invoice.subtotal) * rate) / 100) * scale) / scale;
+  const ccCount = (ccWatched ?? invoice.cc_emails ?? []).length;
 
   const save = async (values: DetailValues) => {
     setPending(true);
     setError(null);
+    // First, so an "invoice changed" email (sent after commit) already has it.
+    const { error: ccError } = await supabase.from("invoices").update({ cc_emails: normaliseEmails(values.cc_emails) }).eq("id", invoice.id);
+    if (ccError) {
+      setPending(false);
+      return setError(errorText(ccError, "The CC list could not be saved. Check the addresses and try again."));
+    }
     const { error: saveError } = await supabase.rpc("update_invoice_details", {
       p_invoice_id: invoice.id,
       p_bill_to_name: values.bill_to_name,
@@ -275,6 +288,7 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
           bill_to_name: invoice.bill_to_name,
           bill_to_company: invoice.bill_to_company ?? "",
           bill_to_email: invoice.bill_to_email ?? "",
+          cc_emails: invoice.cc_emails ?? [],
           bill_to_address: invoice.bill_to_address ?? "",
           due_date: invoice.due_date,
           tax_rate: Number(invoice.tax_rate),
@@ -297,6 +311,17 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
           <Col xs={24} sm={12}>
             <Form.Item label="Billing email" name="bill_to_email" rules={[{ type: "email", message: "Enter a valid email" }]}>
               <Input />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item
+              label="CC"
+              name="cc_emails"
+              dependencies={["bill_to_email"]}
+              extra="Copied on every email about this invoice: the update below, and the payment receipt."
+              rules={ccRules(() => form.getFieldValue("bill_to_email"))}
+            >
+              <EmailListInput exclude={billToEmail} placeholder="Add people to copy, e.g. accounts@customer.com" />
             </Form.Item>
           </Col>
         </Row>
@@ -322,7 +347,7 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
           <Checkbox>Use our current company and payment details</Checkbox>
         </Form.Item>
         <Form.Item name="notify" valuePropName="checked">
-          <Checkbox>Email the customer that the invoice changed</Checkbox>
+          <Checkbox>Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed</Checkbox>
         </Form.Item>
       </Form>
       {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}

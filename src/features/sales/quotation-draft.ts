@@ -18,6 +18,8 @@ export type QuotationDraft = {
   source: "website" | "phone" | "email" | "meeting" | "other";
   internalNote: string;
   contact: { name: string; email: string; company: string; jobTitle: string; phone: string; country: string; address: string };
+  /** Also emailed, as CC, when the quotation is sent. */
+  cc: string[];
   sales: { profileId: string; name: string; title: string; email: string; phone: string };
   introduction: string;
   terms: string;
@@ -87,6 +89,7 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
       country: request?.country ?? "",
       address: license?.customer_address ?? "",
     },
+    cc: [],
     sales: person
       ? { profileId: person.id, name: person.name, title: person.title, email: person.email || catalog.salesDesk.email, phone: person.phone || catalog.salesDesk.phone }
       : { profileId: "", name: "", title: "", email: catalog.salesDesk.email, phone: catalog.salesDesk.phone },
@@ -139,6 +142,7 @@ export async function savedQuotationDraft(id: string): Promise<QuotationDraft | 
       country: quotation.country ?? "",
       address: quotation.address ?? "",
     },
+    cc: quotation.cc_emails ?? [],
     sales: {
       profileId: quotation.sales_profile_id ?? "",
       name: quotation.sales_name ?? "",

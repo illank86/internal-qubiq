@@ -954,6 +954,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          cc_emails: string[]
           base_currency: string | null
           bill_to_address: string | null
           bill_to_company: string | null
@@ -988,6 +989,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
           bill_to_company?: string | null
@@ -1022,6 +1024,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
           bill_to_company?: string | null
@@ -1767,6 +1770,7 @@ export type Database = {
       }
       notification_log: {
         Row: {
+          cc: string[] | null
           audience: string
           channel: string
           created_at: string
@@ -1779,6 +1783,7 @@ export type Database = {
           subject: string | null
         }
         Insert: {
+          cc?: string[] | null
           audience?: string
           channel?: string
           created_at?: string
@@ -1791,6 +1796,7 @@ export type Database = {
           subject?: string | null
         }
         Update: {
+          cc?: string[] | null
           audience?: string
           channel?: string
           created_at?: string
@@ -2295,6 +2301,7 @@ export type Database = {
       }
       quotations: {
         Row: {
+          cc_emails: string[]
           accepted_at: string | null
           accepted_late: boolean
           address: string | null
@@ -2344,6 +2351,7 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
           address?: string | null
@@ -2393,6 +2401,7 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
           address?: string | null
@@ -3192,6 +3201,7 @@ export type Database = {
       claim_quotation: { Args: { p_token: string }; Returns: Json }
       convert_quotation_to_invoice: {
         Args: {
+          p_cc_emails?: string[]
           p_license_id?: string
           p_owner_id?: string
           p_quotation_id: string

@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Flex, Grid, Modal, Space, Spin, Tooltip, Typography } from "antd";
 import { DownloadOutlined, ExportOutlined, SendOutlined } from "@ant-design/icons";
+import { Recipients } from "./email-list-input";
 import { PdfViewerContext, type PdfRequest } from "./pdf-viewer-context";
 
-type Shown = { title: string; fileName: string; url: string | null; error: string | null; action?: PdfRequest["action"]; note?: string };
+type Shown = {
+  title: string;
+  fileName: string;
+  url: string | null;
+  error: string | null;
+  action?: PdfRequest["action"];
+  note?: string;
+  recipients?: PdfRequest["recipients"];
+};
 
 /**
  * The internal app's PDF viewer: quotations and invoices open here first,
@@ -25,7 +34,7 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
 
   const open = useCallback((pdf: PdfRequest) => {
     const id = ++request.current;
-    setShown({ title: pdf.title, fileName: pdf.fileName, url: null, error: null, action: pdf.action, note: pdf.note });
+    setShown({ title: pdf.title, fileName: pdf.fileName, url: null, error: null, action: pdf.action, note: pdf.note, recipients: pdf.recipients });
     pdf
       .make()
       .then((blob) => {
@@ -104,6 +113,11 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
           </Flex>
         }
       >
+        {shown?.recipients ? (
+          <div style={{ padding: "10px 24px", borderBottom: "1px solid rgba(127,127,127,0.15)" }}>
+            <Recipients to={shown.recipients.to} cc={shown.recipients.cc} />
+          </div>
+        ) : null}
         <div style={{ height: small ? "70dvh" : "80vh", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(127,127,127,0.08)" }}>
           {shown?.error ? (
             <Alert type="error" showIcon title={shown.error} />

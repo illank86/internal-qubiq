@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Descriptions, Flex, Result, Skeleton, Typography } from "antd";
+import { Alert, App, Button, Card, Descriptions, Flex, Form, Result, Skeleton, Typography } from "antd";
 import { TransactionOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
+import { EmailListInput, Recipients, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { formatMoney } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +26,7 @@ export function ConvertPage() {
   const [picked, setPicked] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ccForm] = Form.useForm<{ cc: string[] }>();
 
   const { data, isLoading } = useQuery({
     queryKey: ["convert", id],
@@ -53,6 +55,9 @@ export function ConvertPage() {
   const email = (quotation.contact_email ?? "").toLowerCase();
   const suggested = accounts.find((account) => email && account.email.toLowerCase() === email)?.id ?? "";
   const choice = picked ?? suggested;
+  // Who the "invoice ready" email goes to: the account holder, or with no
+  // account yet, the quotation's contact.
+  const recipient = linked?.email ?? (choice ? accounts.find((account) => account.id === choice)?.email : null) ?? quotation.contact_email ?? "";
 
   const title = `Convert ${quotation.number ?? ""} to an invoice`;
   const blocked = invoice
@@ -70,12 +75,19 @@ export function ConvertPage() {
   }
 
   const convert = async () => {
+    let cc: string[];
+    try {
+      cc = normaliseEmails((await ccForm.validateFields()).cc);
+    } catch {
+      return;
+    }
     setPending(true);
     setError(null);
     const { error: convertError } = await supabase.rpc("convert_quotation_to_invoice", {
       p_quotation_id: quotation.id,
       // Linked, or "no account yet": the database uses the quotation's own account (or none).
       ...(linked || !choice ? {} : { p_owner_id: choice }),
+      p_cc_emails: cc,
     });
     setPending(false);
     if (convertError) return setError(errorText(convertError, "The invoice could not be created. Please try again."));
@@ -143,6 +155,31 @@ export function ConvertPage() {
               The quotation&rsquo;s customer account. To invoice someone else, change the quotation&rsquo;s customer account first.
             </Typography.Paragraph>
           ) : null}
+        </Card>
+
+        <Card title="Who is emailed">
+          <Flex vertical gap={16}>
+            {recipient ? (
+              <Recipients to={recipient} />
+            ) : (
+              <Alert type="warning" showIcon title="There is no email address to send the invoice to." />
+            )}
+            <Form form={ccForm} layout="vertical" initialValues={{ cc: quotation.cc_emails ?? [] }} requiredMark={false}>
+              <Form.Item
+                label="CC"
+                name="cc"
+                style={{ marginBottom: 0 }}
+                extra={
+                  quotation.cc_emails?.length
+                    ? "Copied from the quotation. Everyone here also gets the payment-received email, and any update you send."
+                    : "Anyone else who should get the invoice — their accounts or finance team. They also get the payment-received email."
+                }
+                rules={ccRules(() => recipient)}
+              >
+                <EmailListInput exclude={recipient} placeholder="Add people to copy, e.g. accounts@customer.com" />
+              </Form.Item>
+            </Form>
+          </Flex>
         </Card>
 
         {error ? <Alert type="error" showIcon title={error} /> : null}

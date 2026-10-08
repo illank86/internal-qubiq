@@ -10,6 +10,7 @@ import {
   DislikeOutlined,
   EditOutlined,
   FilePdfOutlined,
+  MailOutlined,
   MoreOutlined,
   PlusOutlined,
   RedoOutlined,
@@ -115,6 +116,7 @@ export function QuotationsPage() {
               {row.contact_name}
             </Typography.Text>
           ) : null}
+          <CcNote cc={row.cc_emails} />
           {row.status !== "draft" ? (
             <Link to={`/sales/quotations/${row.id}/customer`} style={{ fontSize: 12 }}>
               {row.customer ? (
@@ -228,7 +230,8 @@ function RowActions({
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...quotationPdf(row.id, row.number),
-      note: `Check it before it goes to ${row.contact_email}.`,
+      note: "Check it, and who it goes to, before sending.",
+      recipients: row.contact_email ? { to: row.contact_email, cc: row.cc_emails } : undefined,
       action: {
         label: again ? "Send again" : "Send to customer",
         onClick: async () => {
@@ -308,5 +311,26 @@ function RowActions({
         <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this quotation"}`} />
       </Dropdown>
     </Flex>
+  );
+}
+
+/** "+2 in CC", with the addresses on hover. */
+export function CcNote({ cc }: { cc: string[] | null | undefined }) {
+  if (!cc?.length) return null;
+  return (
+    <Tooltip
+      title={
+        <>
+          Also emailed (CC):
+          {cc.map((email) => (
+            <div key={email}>{email}</div>
+          ))}
+        </>
+      }
+    >
+      <Typography.Text type="secondary" style={{ fontSize: 12, cursor: "default" }}>
+        <MailOutlined /> +{cc.length} in CC
+      </Typography.Text>
+    </Tooltip>
   );
 }

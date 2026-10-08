@@ -12,6 +12,7 @@ import { newQuotationDraft, savedQuotationDraft, type QuotationDraft } from "./q
 import { ServerGroupsEditor } from "./server-groups-editor";
 import { renderQuotationPreview } from "./quotation-preview";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
+import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
@@ -26,6 +27,7 @@ type Values = {
   internal_note: string;
   contact_name: string;
   contact_email: string;
+  cc_emails: string[];
   company: string;
   job_title: string;
   phone: string;
@@ -87,6 +89,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const rateValue = Form.useWatch("exchange_rate", form) ?? draft.exchangeRate;
   const decimals = Form.useWatch("decimals", form) ?? draft.decimals;
   const taxRate = Form.useWatch("tax_rate", form) ?? draft.taxRate;
+  const contactEmail = Form.useWatch("contact_email", form);
   const firstEdition = catalog.editions.find((edition) => edition.id === groups.find((group) => group.editionId)?.editionId);
   const baseCurrency = firstEdition?.currency ?? catalog.editions[0]?.currency ?? "USD";
   const converting = /^[A-Z]{3}$/.test(currencyText) && currencyText !== baseCurrency;
@@ -138,7 +141,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     viewPdf({
       title: `Quotation ${draft.number ?? "preview"}`,
       fileName: `${draft.number ?? "quotation-preview"}.pdf`,
-      note: action ? `Check it before it goes to ${values.contact_email}.` : "Preview of what is on screen — not saved yet.",
+      note: action ? "Check it, and who it goes to, before sending." : "Preview of what is on screen — not saved yet.",
+      recipients: action ? { to: values.contact_email, cc: normaliseEmails(values.cc_emails) } : undefined,
       make: () => renderQuotationPreview(catalog, previewInput(values)),
       action: action ? { label: "Send to customer", onClick: () => persist(action.values, "send") } : undefined,
     });
@@ -208,6 +212,16 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       setError(errorText(saveError, "The quotation could not be saved. Please try again."));
       return;
     }
+    // Saved before sending, so the email (sent after commit) has the CC list.
+    const { error: ccError } = await supabase
+      .from("quotations")
+      .update({ cc_emails: normaliseEmails(values.cc_emails) })
+      .eq("id", quotationId);
+    if (ccError) {
+      setSaving(null);
+      setError(`Saved, but the CC list was not: ${errorText(ccError, "check the addresses and save again.")}`);
+      return;
+    }
     if (intent === "send") {
       const { error: sendError } = await supabase.rpc("send_quotation", { p_quotation_id: quotationId });
       if (sendError) {
@@ -226,6 +240,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     internal_note: draft.internalNote,
     contact_name: draft.contact.name,
     contact_email: draft.contact.email,
+    cc_emails: draft.cc,
     company: draft.contact.company,
     job_title: draft.contact.jobTitle,
     phone: draft.contact.phone,
@@ -294,6 +309,17 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                   <Col xs={24} md={12}>
                     <Form.Item label="Email" name="contact_email" extra="The quotation is sent here." rules={[{ type: "email", message: "Enter a valid email" }]}>
                       <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24}>
+                    <Form.Item
+                      label="CC"
+                      name="cc_emails"
+                      dependencies={["contact_email"]}
+                      extra="Colleagues of the customer who should get a copy — a manager, purchasing. Paste several at once; up to 10."
+                      rules={ccRules(() => form.getFieldValue("contact_email"))}
+                    >
+                      <EmailListInput exclude={contactEmail} placeholder="Add people to copy on the email" />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12}>
