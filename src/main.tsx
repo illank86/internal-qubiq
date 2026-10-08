@@ -6,7 +6,13 @@ import { AuthProvider } from "@/auth/auth-provider";
 import { PdfViewerProvider } from "@/components/pdf-viewer";
 import { router } from "@/router";
 import { ThemeProvider } from "@/theme-provider";
+import { reloadForUpdate } from "@/components/route-error";
 import "./index.css";
+
+// A deploy replaced the page files this tab was loaded with: reload once for the new build.
+window.addEventListener("vite:preloadError", (event) => {
+  if (reloadForUpdate()) event.preventDefault();
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {

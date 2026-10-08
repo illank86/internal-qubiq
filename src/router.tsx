@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { createBrowserRouter } from "react-router";
+import { RouteError } from "@/components/route-error";
 import { RequireStaff } from "@/components/app-shell";
 import { ComingSoonPage, NotFoundPage } from "@/pages/coming-soon";
 import { DashboardPage } from "@/pages/dashboard";
@@ -62,20 +63,27 @@ const READY: Record<string, React.ReactNode> = {
  * admin render a placeholder that links there.
  */
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
-  { path: "/forgot-password", element: <ForgotPasswordPage /> },
-  { path: "/set-password", element: <SetPasswordPage /> },
   {
-    element: <RequireStaff />,
+    // A failed route (most often a page file from before the last deploy)
+    // shows something useful instead of the framework's developer message.
+    errorElement: <RouteError />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "/account", element: <ProfilePage /> },
-      ...NAV_ITEMS.map((item) => ({ path: item.path, element: READY[item.path] ?? <ComingSoonPage item={item} /> })),
-      { path: "/sales/quotations/new", element: <QuotationBuilderPage /> },
-      { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },
-      { path: "/sales/quotations/:id/convert", element: <ConvertPage /> },
-      { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
-      { path: "*", element: <NotFoundPage /> },
+      { path: "/login", element: <LoginPage /> },
+      { path: "/forgot-password", element: <ForgotPasswordPage /> },
+      { path: "/set-password", element: <SetPasswordPage /> },
+      {
+        element: <RequireStaff />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: "/account", element: <ProfilePage /> },
+          ...NAV_ITEMS.map((item) => ({ path: item.path, element: READY[item.path] ?? <ComingSoonPage item={item} /> })),
+          { path: "/sales/quotations/new", element: <QuotationBuilderPage /> },
+          { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },
+          { path: "/sales/quotations/:id/convert", element: <ConvertPage /> },
+          { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
+          { path: "*", element: <NotFoundPage /> },
+        ],
+      },
     ],
   },
 ]);
