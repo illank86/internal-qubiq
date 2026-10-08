@@ -3,13 +3,15 @@ import { RichTextField } from "@/features/content/rich-text-field";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Affix, Alert, App, AutoComplete, Button, Card, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
-import { SaveOutlined, SendOutlined } from "@ant-design/icons";
+import { EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { loadSalesCatalog, newGroup, priceGroups, errorText, type GroupDraft, type SalesCatalog } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { newQuotationDraft, savedQuotationDraft, type QuotationDraft } from "./quotation-draft";
 import { ServerGroupsEditor } from "./server-groups-editor";
+import { renderQuotationPreview } from "./quotation-preview";
+import { usePdfViewer } from "@/components/pdf-viewer-context";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
@@ -73,6 +75,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<Values>();
+  const viewPdf = usePdfViewer();
   const [groups, setGroups] = useState<GroupDraft[]>(() =>
     draft.groups.length > 0 ? draft.groups.map((group, index) => newGroup(catalog.editions, index, group)) : [newGroup(catalog.editions, 0)],
   );
@@ -101,6 +104,46 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     );
   };
 
+  /** What is on screen, as the PDF would print it — nothing saved. */
+  const previewInput = (values: Values) => ({
+    number: draft.number,
+    sent: draft.sent,
+    groups,
+    currency,
+    baseCurrency,
+    rate,
+    decimals: Number(values.decimals) || 0,
+    taxRate: Number(values.tax_rate) || 0,
+    taxLabel: catalog.taxLabel,
+    issueDate: new Date().toISOString().slice(0, 10),
+    validUntil: values.valid_until,
+    contact: {
+      name: values.contact_name ?? "",
+      email: values.contact_email ?? "",
+      company: values.company ?? "",
+      jobTitle: values.job_title ?? "",
+      phone: values.phone ?? "",
+      country: values.country ?? "",
+      address: values.address ?? "",
+    },
+    sales: { name: values.sales_name ?? "", title: values.sales_title ?? "", email: values.sales_email ?? "", phone: values.sales_phone ?? "" },
+    introduction: values.introduction ?? "",
+    terms: values.terms ?? "",
+    closing: values.closing ?? "",
+    signoff: values.signoff ?? "",
+  });
+
+  const preview = (action?: { values: Values }) => {
+    const values = action?.values ?? (form.getFieldsValue(true) as Values);
+    viewPdf({
+      title: `Quotation ${draft.number ?? "preview"}`,
+      fileName: `${draft.number ?? "quotation-preview"}.pdf`,
+      note: action ? `Check it before it goes to ${values.contact_email}.` : "Preview of what is on screen — not saved yet.",
+      make: () => renderQuotationPreview(catalog, previewInput(values)),
+      action: action ? { label: "Send to customer", onClick: () => persist(action.values, "send") } : undefined,
+    });
+  };
+
   const save = async (intent: "save" | "send") => {
     setError(null);
     let values: Values;
@@ -122,7 +165,13 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       form.setFields([{ name: "contact_email", errors: ["Needed to send the quotation"] }]);
       return;
     }
+    // Sending shows the customer's PDF first; it goes out from there.
+    if (intent === "send") return preview({ values });
+    await persist(values, intent);
+  };
 
+  const persist = async (values: Values, intent: "save" | "send") => {
+    setError(null);
     setSaving(intent);
     const opt = (value: string | undefined) => (value ?? "").trim() || undefined;
     const { data: quotationId, error: saveError } = await supabase.rpc("save_quotation", {
@@ -424,6 +473,9 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 <Flex vertical gap={8} style={{ marginTop: 16 }}>
                   <Button type="primary" block size="large" icon={<SendOutlined />} loading={saving === "send"} onClick={() => save("send")}>
                     {draft.sent ? "Save & send again" : "Save & send to customer"}
+                  </Button>
+                  <Button block icon={<EyeOutlined />} onClick={() => preview()}>
+                    Preview PDF
                   </Button>
                   <Button block icon={<SaveOutlined />} loading={saving === "save"} onClick={() => save("save")}>
                     {draft.sent ? "Save without sending" : "Save draft"}

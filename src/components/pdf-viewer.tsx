@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Flex, Grid, Modal, Space, Spin, Tooltip, Typography } from "antd";
-import { DownloadOutlined, ExportOutlined, PrinterOutlined } from "@ant-design/icons";
+import { DownloadOutlined, ExportOutlined, PrinterOutlined, SendOutlined } from "@ant-design/icons";
 import { PdfViewerContext, type PdfRequest } from "./pdf-viewer-context";
 
-type Shown = { title: string; fileName: string; url: string | null; error: string | null };
+type Shown = { title: string; fileName: string; url: string | null; error: string | null; action?: PdfRequest["action"]; note?: string };
 
 /**
  * The internal app's PDF viewer: quotations and invoices open here first,
@@ -16,6 +16,7 @@ type Shown = { title: string; fileName: string; url: string | null; error: strin
  */
 export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
   const [shown, setShown] = useState<Shown | null>(null);
+  const [acting, setActing] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
   const request = useRef(0);
   const screens = Grid.useBreakpoint();
@@ -23,7 +24,7 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
 
   const open = useCallback((pdf: PdfRequest) => {
     const id = ++request.current;
-    setShown({ title: pdf.title, fileName: pdf.fileName, url: null, error: null });
+    setShown({ title: pdf.title, fileName: pdf.fileName, url: null, error: null, action: pdf.action, note: pdf.note });
     pdf
       .make()
       .then((blob) => {
@@ -71,11 +72,37 @@ export function PdfViewerProvider({ children }: { children: React.ReactNode }) {
         styles={{ body: { padding: 0 } }}
         title={
           <Flex justify="space-between" align="center" gap={12} wrap style={{ paddingRight: 32 }}>
-            <Typography.Text strong ellipsis style={{ maxWidth: small ? "100%" : 420 }}>
-              {shown?.title}
-            </Typography.Text>
+            <Flex vertical style={{ minWidth: 0 }}>
+              <Typography.Text strong ellipsis style={{ maxWidth: small ? "100%" : 420 }}>
+                {shown?.title}
+              </Typography.Text>
+              {shown?.note ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                  {shown.note}
+                </Typography.Text>
+              ) : null}
+            </Flex>
             <Space size={8} wrap>
-              <Button type="primary" icon={<DownloadOutlined />} href={url ?? undefined} download={shown?.fileName} disabled={!url}>
+              {shown?.action ? (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  loading={acting}
+                  disabled={!url}
+                  onClick={async () => {
+                    setActing(true);
+                    try {
+                      await shown.action!.onClick();
+                      close();
+                    } finally {
+                      setActing(false);
+                    }
+                  }}
+                >
+                  {shown.action.label}
+                </Button>
+              ) : null}
+              <Button type={shown?.action ? "default" : "primary"} icon={<DownloadOutlined />} href={url ?? undefined} download={shown?.fileName} disabled={!url}>
                 Download
               </Button>
               {!small ? (

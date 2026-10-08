@@ -223,12 +223,24 @@ function RowActions({
   const expired = isExpired(row);
   const invoice = row.invoices.find((candidate) => candidate.status !== "void");
   const k = (name: string) => `${name}:${row.id}`;
+  // Sending shows the customer's PDF first; it goes out from the preview.
+  const reviewAndSend = (again: boolean) =>
+    viewPdf({
+      ...quotationPdf(row.id, row.number),
+      note: `Check it before it goes to ${row.contact_email}.`,
+      action: {
+        label: again ? "Send again" : "Send to customer",
+        onClick: async () => {
+          await run(k("send"), () => sendQuotation(row.id), again ? "Sent again." : "Sent. The customer has been emailed a link.");
+        },
+      },
+    });
 
   // The one next step for this quotation.
   let primary: React.ReactNode = null;
   if (row.status === "draft" && row.contact_email) {
     primary = (
-      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => run(k("send"), () => sendQuotation(row.id), "Sent. The customer has been emailed a link.")}>
+      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
         Send
       </Button>
     );
@@ -260,7 +272,7 @@ function RowActions({
 
   const more: MenuProps["items"] = [
     ...(row.status === "sent" && row.contact_email && !expired
-      ? [{ key: "resend", icon: <SendOutlined />, label: "Send again", onClick: () => run(k("send"), () => sendQuotation(row.id), "Sent again.") }]
+      ? [{ key: "resend", icon: <SendOutlined />, label: "Send again", onClick: () => reviewAndSend(true) }]
       : []),
     ...(row.status === "sent" && expired
       ? [{ key: "late", icon: <CheckOutlined />, label: "Accept anyway (expired)", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted", true), "Accepted after expiry.") }]
