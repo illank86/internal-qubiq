@@ -29,6 +29,7 @@ const SalesSettingsPage = lazy(() => import("@/features/sales/settings-page").th
 const NewslettersPage = lazy(() => import("@/features/system/newsletters-page").then((module) => ({ default: module.NewslettersPage })));
 const UsersPage = lazy(() => import("@/features/system/users-page").then((module) => ({ default: module.UsersPage })));
 const ActivityPage = lazy(() => import("@/features/system/activity-page").then((module) => ({ default: module.ActivityPage })));
+const ProfilePage = lazy(() => import("@/pages/profile").then((module) => ({ default: module.ProfilePage })));
 const DownloadsPage = lazy(() => import("@/features/system/downloads-page").then((module) => ({ default: module.DownloadsPage })));
 const QuoteRequestsPage = lazy(() => import("@/features/sales/quote-requests-page").then((module) => ({ default: module.QuoteRequestsPage })));
 
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
     element: <RequireStaff />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "/account", element: <ProfilePage /> },
       ...NAV_ITEMS.map((item) => ({ path: item.path, element: READY[item.path] ?? <ComingSoonPage item={item} /> })),
       { path: "/sales/quotations/new", element: <QuotationBuilderPage /> },
       { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },

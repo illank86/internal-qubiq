@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { Alert, Button, Form, Input, Spin, Typography } from "antd";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { useAuth } from "@/auth/use-auth";
+import { NEW_PASSWORD_RULES, PASSWORD_HINT } from "@/auth/password-rules";
 import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -86,8 +87,8 @@ export function SetPasswordPage() {
           <Form.Item
             label="New password"
             name="password"
-            extra="At least 10 characters."
-            rules={[{ required: true, min: 10, message: "Use at least 10 characters" }]}
+            extra={PASSWORD_HINT}
+            rules={NEW_PASSWORD_RULES}
           >
             <Input.Password autoComplete="new-password" size="large" />
           </Form.Item>

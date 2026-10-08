@@ -2,7 +2,7 @@ import { Suspense, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { Avatar, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Skeleton, Tag, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
-import { DashboardOutlined, DownOutlined, LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { DashboardOutlined, DownOutlined, LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined, UserOutlined } from "@ant-design/icons";
 import { useAuth, useCan, useStaff } from "@/auth/use-auth";
 import { Brand, FullPageSpinner } from "@/components/ui";
 import { NAV } from "@/nav";
@@ -72,6 +72,7 @@ function SideMenu({ onNavigate }: { onNavigate?: () => void }) {
 function AppShell() {
   const staff = useStaff();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const { dark, toggle } = useThemeMode();
   const screens = Grid.useBreakpoint();
   const [drawer, setDrawer] = useState(false);
@@ -118,6 +119,7 @@ function AppShell() {
       ),
     },
     { type: "divider" },
+    { key: "profile", icon: <UserOutlined />, label: "My profile", onClick: () => navigate("/account") },
     { key: "theme", icon: dark ? <SunOutlined /> : <MoonOutlined />, label: dark ? "Light theme" : "Dark theme", onClick: toggle },
     { key: "signout", icon: <LogoutOutlined />, label: "Sign out", danger: true, onClick: () => void signOut() },
   ];
