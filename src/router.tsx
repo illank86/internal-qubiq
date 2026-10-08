@@ -26,6 +26,10 @@ const LicencesPage = lazy(() => import("@/features/licensing/licences-page").the
 const EditionsPage = lazy(() => import("@/features/sales/editions-page").then((module) => ({ default: module.EditionsPage })));
 const LeadsPage = lazy(() => import("@/features/sales/leads-page").then((module) => ({ default: module.LeadsPage })));
 const SalesSettingsPage = lazy(() => import("@/features/sales/settings-page").then((module) => ({ default: module.SalesSettingsPage })));
+const NewslettersPage = lazy(() => import("@/features/system/newsletters-page").then((module) => ({ default: module.NewslettersPage })));
+const UsersPage = lazy(() => import("@/features/system/users-page").then((module) => ({ default: module.UsersPage })));
+const ActivityPage = lazy(() => import("@/features/system/activity-page").then((module) => ({ default: module.ActivityPage })));
+const DownloadsPage = lazy(() => import("@/features/system/downloads-page").then((module) => ({ default: module.DownloadsPage })));
 const QuoteRequestsPage = lazy(() => import("@/features/sales/quote-requests-page").then((module) => ({ default: module.QuoteRequestsPage })));
 
 import { CONTENT_SCREENS } from "@/features/content/content-screens";
@@ -42,6 +46,10 @@ const READY: Record<string, React.ReactNode> = {
   "/community/bug-reports": <BugReportsPage />,
   "/community/integrators": <IntegratorsPage />,
   "/content/media": <MediaLibraryPage />,
+  "/marketing/newsletters": <NewslettersPage />,
+  "/system/users": <UsersPage />,
+  "/system/activity": <ActivityPage />,
+  "/system/downloads": <DownloadsPage />,
   ...Object.fromEntries(Object.keys(CONTENT_SCREENS).map((path) => [path, <ContentPage key={path} path={path} />])),
 };
 

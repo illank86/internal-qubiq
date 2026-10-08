@@ -18,7 +18,8 @@
     {
       "files": [
         "src/lib/*pdf*.tsx",
-        "src/lib/pdf-markdown.tsx"
+        "src/lib/pdf-markdown.tsx",
+        "src/router.tsx"
       ],
       "rules": {
         "react/only-export-components": "off"

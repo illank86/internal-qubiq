@@ -7,5 +7,7 @@ export const CONTENT_SCREENS: Record<string, { title: string; description: strin
   "/content/releases": { title: "Releases", description: "Product releases, their download files and system requirements.", keys: ["releases", "release_artifacts", "system_requirements"] },
   "/content/site": { title: "Site settings", description: "Company details, contact addresses and site-wide settings.", keys: ["site_settings"] },
   "/blog/posts": { title: "Blog posts", description: "Write and publish blog posts.", keys: ["blog_posts"] },
+  "/marketing/subscribers": { title: "Subscribers", description: "Who receives the newsletter.", keys: ["newsletter_subscribers"] },
+  "/system/notifications": { title: "Email log", description: "Every email the site has sent, and why one failed.", keys: ["notification_log"] },
   "/blog/taxonomy": { title: "Categories & tags", description: "How blog posts are grouped.", keys: ["blog_categories", "blog_tags"] },
 };

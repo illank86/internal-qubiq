@@ -94,17 +94,17 @@ export const NAV: NavGroup[] = [
   {
     heading: "Marketing",
     items: [
-      { path: "/marketing/newsletters", label: "Newsletters", icon: NotificationOutlined, permissions: ["content.manage"], legacy: "/admin/newsletter_issues", phase: 5, summary: "Compose, test and send newsletters." },
-      { path: "/marketing/subscribers", label: "Subscribers", icon: MailOutlined, permissions: ["content.manage"], legacy: "/admin/newsletter_subscribers", phase: 5, summary: "Who receives the newsletter." },
+      { path: "/marketing/newsletters", label: "Newsletters", icon: NotificationOutlined, permissions: ["leads.manage"], legacy: "/admin/newsletter_issues", phase: 5, ready: true, summary: "Compose, test and send newsletters." },
+      { path: "/marketing/subscribers", label: "Subscribers", icon: MailOutlined, permissions: ["leads.manage"], legacy: "/admin/newsletter_subscribers", phase: 5, ready: true, summary: "Who receives the newsletter." },
     ],
   },
   {
     heading: "System",
     items: [
-      { path: "/system/users", label: "Users & roles", icon: TeamOutlined, permissions: ["users.manage"], legacy: "/admin/users", phase: 5, summary: "Invite staff and give them roles." },
-      { path: "/system/activity", label: "Activity log", icon: AuditOutlined, permissions: ["users.manage"], legacy: "/admin/activity", phase: 5, summary: "Who changed what, and when." },
-      { path: "/system/notifications", label: "Email log", icon: SafetyCertificateOutlined, permissions: ["users.manage", "content.manage"], legacy: "/admin/notification_log", phase: 5, summary: "Every email the site has sent, and why one failed." },
-      { path: "/system/downloads", label: "Download analytics", icon: BarChartOutlined, permissions: ["downloads.manage"], legacy: "/admin/downloads", phase: 5, summary: "Who downloads what, from where." },
+      { path: "/system/users", label: "Users & roles", icon: TeamOutlined, permissions: ["users.manage"], legacy: "/admin/users", phase: 5, ready: true, summary: "Invite staff and give them roles." },
+      { path: "/system/activity", label: "Activity log", icon: AuditOutlined, permissions: ["users.manage"], legacy: "/admin/activity", phase: 5, ready: true, summary: "Who changed what, and when." },
+      { path: "/system/notifications", label: "Email log", icon: SafetyCertificateOutlined, permissions: ["leads.manage"], legacy: "/admin/notification_log", phase: 5, ready: true, summary: "Every email the site has sent, and why one failed." },
+      { path: "/system/downloads", label: "Download analytics", icon: BarChartOutlined, permissions: ["downloads.manage"], legacy: "/admin/downloads", phase: 5, ready: true, summary: "Who downloads what, from where." },
     ],
   },
 ];
