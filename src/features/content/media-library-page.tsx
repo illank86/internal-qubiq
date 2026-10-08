@@ -22,6 +22,7 @@ import { PageTitle } from "@/components/app-shell";
 import { formatBytes } from "@/lib/media";
 import { supabase } from "@/lib/supabase";
 import { deleteMedia, uploadMedia, type MediaAsset } from "./media";
+import { siteAsset } from "@/lib/env";
 
 type Sort = "newest" | "oldest" | "largest" | "name";
 type View = "grid" | "list";
@@ -71,7 +72,7 @@ function Tile({ asset, selected, onOpen, onToggle }: { asset: MediaAsset; select
       }}
     >
       {asset.kind === "image" ? (
-        <img src={asset.url} alt={asset.alt ?? ""} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        <img src={siteAsset(asset.url)} alt={asset.alt ?? ""} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
       ) : (
         <Flex vertical align="center" justify="center" gap={8} style={{ height: "100%", color: token.colorTextTertiary }}>
           <KindIcon asset={asset} size={40} />
@@ -184,7 +185,7 @@ export function MediaLibraryPage() {
       render: (_, asset) => (
         <Flex gap={12} align="center">
           <Flex align="center" justify="center" style={{ width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: asset.kind === "image" ? CHECKER : token.colorFillQuaternary, flexShrink: 0, color: token.colorTextTertiary }}>
-            {asset.kind === "image" ? <img src={asset.url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <KindIcon asset={asset} size={20} />}
+            {asset.kind === "image" ? <img src={siteAsset(asset.url)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <KindIcon asset={asset} size={20} />}
           </Flex>
           <Flex vertical style={{ minWidth: 0 }}>
             <Typography.Text strong ellipsis style={{ maxWidth: 360 }}>
@@ -381,9 +382,9 @@ function AssetDrawer({ asset, onClose }: { asset: MediaAsset; onClose: () => voi
     >
       <Flex align="center" justify="center" style={{ borderRadius: token.borderRadiusLG, overflow: "hidden", marginBottom: 16, minHeight: 200, maxHeight: 360, background: asset.kind === "image" ? CHECKER : token.colorFillQuaternary, color: token.colorTextTertiary }}>
         {asset.kind === "image" ? (
-          <img src={asset.url} alt={asset.alt ?? ""} style={{ maxWidth: "100%", maxHeight: 360, objectFit: "contain", display: "block" }} />
+          <img src={siteAsset(asset.url)} alt={asset.alt ?? ""} style={{ maxWidth: "100%", maxHeight: 360, objectFit: "contain", display: "block" }} />
         ) : asset.kind === "video" ? (
-          <video src={asset.url} controls style={{ width: "100%", maxHeight: 360, background: "#000" }} />
+          <video src={siteAsset(asset.url)} controls style={{ width: "100%", maxHeight: 360, background: "#000" }} />
         ) : (
           <Flex vertical align="center" gap={8}>
             <KindIcon asset={asset} size={56} />

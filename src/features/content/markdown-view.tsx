@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { markdownToHtml } from "@/lib/markdown-html";
+import { siteAsset } from "@/lib/env";
 
 const SAFE_URL = /^(https?:|mailto:|#|\/)/i;
 
@@ -21,7 +22,9 @@ export function MarkdownView({ markdown }: { markdown: string | null | undefined
       link.setAttribute("rel", "noopener noreferrer");
     }
     for (const image of doc.querySelectorAll("img")) {
-      if (!/^https?:/i.test((image.getAttribute("src") ?? "").trim())) image.remove();
+      const src = siteAsset((image.getAttribute("src") ?? "").trim()) ?? "";
+      if (/^https?:/i.test(src)) image.setAttribute("src", src);
+      else image.remove();
     }
     return doc.body.firstElementChild?.innerHTML ?? "";
   }, [markdown]);

@@ -5,11 +5,12 @@ import { FileOutlined, PlayCircleOutlined, UploadOutlined } from "@ant-design/ic
 import { formatBytes } from "@/lib/media";
 import { supabase } from "@/lib/supabase";
 import { uploadMedia, type MediaAsset } from "./media";
+import { siteAsset } from "@/lib/env";
 
 type Accept = "image" | "video" | "any";
 
 export function MediaThumb({ asset, size = 120 }: { asset: Pick<MediaAsset, "url" | "kind" | "file_name" | "alt">; size?: number }) {
-  if (asset.kind === "image") return <img src={asset.url} alt={asset.alt ?? ""} style={{ width: "100%", height: size, objectFit: "cover", display: "block" }} loading="lazy" />;
+  if (asset.kind === "image") return <img src={siteAsset(asset.url)} alt={asset.alt ?? ""} style={{ width: "100%", height: size, objectFit: "cover", display: "block" }} loading="lazy" />;
   return (
     <Flex align="center" justify="center" style={{ height: size, background: "rgba(127,127,127,0.08)" }}>
       {asset.kind === "video" ? <PlayCircleOutlined style={{ fontSize: 32 }} /> : <FileOutlined style={{ fontSize: 32 }} />}
@@ -130,7 +131,7 @@ export function MediaInput({ value, onChange, accept = "any" }: { value?: string
         <Input value={value ?? ""} onChange={(event) => onChange?.(event.target.value || null)} placeholder="https://… or choose from the library" allowClear />
         <Button onClick={() => setOpen(true)}>Choose…</Button>
       </Flex>
-      {value && accept === "image" ? <img src={value} alt="" style={{ maxWidth: 240, maxHeight: 140, objectFit: "contain", borderRadius: 8, border: "1px solid rgba(127,127,127,0.2)" }} /> : null}
+      {value && accept === "image" ? <img src={siteAsset(value)} alt="" style={{ maxWidth: 240, maxHeight: 140, objectFit: "contain", borderRadius: 8, border: "1px solid rgba(127,127,127,0.2)" }} /> : null}
       <MediaPicker open={open} accept={accept} onClose={() => setOpen(false)} onPick={(asset) => onChange?.(asset.url)} />
     </Flex>
   );

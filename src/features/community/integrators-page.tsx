@@ -8,7 +8,7 @@ import { CheckOutlined, ExportOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
-import { env } from "@/lib/env";
+import { env, siteAsset } from "@/lib/env";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
@@ -56,7 +56,7 @@ export function IntegratorsPage() {
       key: "company",
       render: (_, row) => (
         <Flex gap={10} align="center">
-          <Avatar shape="square" src={row.logo_url ?? undefined}>
+          <Avatar shape="square" src={siteAsset(row.logo_url)}>
             {row.company_name[0]}
           </Avatar>
           <Flex vertical>

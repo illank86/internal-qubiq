@@ -12,6 +12,7 @@ import { ResourceForm } from "./resource-form";
 import { deleteRows, fetchLookups, fetchRows, fetchSingleton, fromFormValues, moveRow, saveRow, toFormValues, type Row } from "./resource-data";
 import type { ListColumn, Resource } from "./resources";
 import type { Lookups } from "./field-input";
+import { siteAsset } from "@/lib/env";
 
 /** Any list of a content table: search, order, open to edit, add, delete. */
 export function ResourceList({ resource }: { resource: Resource }) {
@@ -78,7 +79,7 @@ export function ResourceList({ resource }: { resource: Resource }) {
       case "duration":
         return formatDuration(Number(value));
       case "image":
-        return <Image src={String(value)} width={56} height={40} style={{ objectFit: "cover", borderRadius: 4 }} preview={false} />;
+        return <Image src={siteAsset(String(value))} width={56} height={40} style={{ objectFit: "cover", borderRadius: 4 }} preview={false} />;
       default:
         return <Typography.Text ellipsis style={{ maxWidth: 320 }}>{looked ?? String(value)}</Typography.Text>;
     }
