@@ -1,8 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2.05 -0.25 20.26 20.26">
-  <!-- The QUBIQ cube in the brand orange: three faces, three shades, solid so it reads on light and dark tabs. -->
-  <g transform="translate(-47.366465,-169.31119)">
-    <path fill="#ffb27f" d="m 47.366466,173.91966 9.222879,-4.60847 v 10.30471 l -9.22288,4.0903 z"/>
-    <path fill="#ff6600" d="m 47.366465,183.70619 9.22288,-4.09029 6.936794,5.9217 -8.907486,3.52934 z"/>
-    <path fill="#cc5200" d="m 56.589345,169.31119 6.936794,6.67189 v 9.55452 l -6.936794,-5.9217 z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="QUBIQ">
+  <!--
+    Theme-aware favicon. The supplied mark is two-thirds dark grey, which all but
+    disappears on a dark tab strip, so dark mode raises every face while keeping
+    the same ordering — top-left brightest through to the bottom face — so it
+    still reads as one lit cube rather than an inverted one.
+
+    SVG favicons honour prefers-color-scheme; favicon.ico stays as the fallback
+    for anything that does not support them.
+  -->
+  <style>
+    .face-a { fill: #e3e2db }
+    .face-b { fill: #333333 }
+    .face-c { fill: #666666 }
+    @media (prefers-color-scheme: dark) {
+      .face-a { fill: #f2f1ec }
+      .face-b { fill: #8a8a86 }
+      .face-c { fill: #b8b8b4 }
+    }
+  </style>
+  <g transform="translate(4.485 1.92) scale(1.4254)">
+    <path class="face-a" d="M0 4.60847 9.22288 0v10.30471L0 14.39501Z"/>
+    <path class="face-b" d="M0 14.395 9.22288 10.30471 16.15967 16.22641 7.25219 19.75575Z"/>
+    <path class="face-c" d="M9.22288 0 16.15967 6.67189v9.55452L9.22288 10.30471Z"/>
   </g>
 </svg>
