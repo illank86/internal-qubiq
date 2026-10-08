@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input } from "antd";
 import { LockOutlined, LoginOutlined, MailOutlined } from "@ant-design/icons";
 import { useAuth } from "@/auth/use-auth";
 import { Captcha } from "@/components/captcha";
+import { CAPTCHA_REQUIRED } from "@/components/captcha-config";
 import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -61,8 +62,9 @@ export function LoginPage() {
           <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
         </Form.Item>
         <Captcha onToken={setCaptchaToken} resetKey={attempt} />
-        <Button type="primary" htmlType="submit" size="large" block loading={pending} icon={<LoginOutlined />}>
-          Sign in
+        {/* Without a token Supabase refuses the sign-in, so wait for the check. */}
+        <Button type="primary" htmlType="submit" size="large" block loading={pending} disabled={CAPTCHA_REQUIRED && !captchaToken} icon={<LoginOutlined />}>
+          {CAPTCHA_REQUIRED && !captchaToken ? "Checking…" : "Sign in"}
         </Button>
         <div style={{ marginTop: 16, textAlign: "center" }}>
           <Link to="/forgot-password">Forgot your password?</Link>

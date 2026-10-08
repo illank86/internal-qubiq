@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Alert, Button, Form, Input } from "antd";
 import { MailOutlined } from "@ant-design/icons";
 import { Captcha } from "@/components/captcha";
+import { CAPTCHA_REQUIRED } from "@/components/captcha-config";
 import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -40,8 +41,8 @@ export function ForgotPasswordPage() {
             <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
           </Form.Item>
           <Captcha onToken={setCaptchaToken} />
-          <Button type="primary" htmlType="submit" size="large" block loading={pending}>
-            Send reset link
+          <Button type="primary" htmlType="submit" size="large" block loading={pending} disabled={CAPTCHA_REQUIRED && !captchaToken}>
+            {CAPTCHA_REQUIRED && !captchaToken ? "Checking…" : "Send reset link"}
           </Button>
           <div style={{ marginTop: 16, textAlign: "center" }}>
             <Link to="/login">Back to sign in</Link>
