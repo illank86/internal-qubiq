@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { renderQuotationPdf, type QuotationForPdf } from "@/lib/quotation-pdf";
 import { priceGroups, type GroupDraft, type SalesCatalog } from "@/lib/sales";
+import { loadSignatureInfo } from "./api";
 
 /**
  * Our company block, as private.invoice_seller() builds it when a quotation
@@ -144,5 +145,8 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     seller,
   } as unknown as QuotationForPdf;
 
-  return renderQuotationPdf(quotation, items, groups);
+  // Not approved yet: where the company signature will go (or the QR code if none is on file).
+  const signature = await loadSignatureInfo();
+  const signoff = signature ? { name: signature.signatory_name, title: signature.signatory_title, place: signature.place, pending: true } : null;
+  return renderQuotationPdf(quotation, items, groups, signoff);
 }

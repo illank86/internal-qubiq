@@ -8,6 +8,7 @@ import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
+import { SignatureCard } from "./signature-card";
 
 type Settings = Database["public"]["Tables"]["invoice_settings"]["Row"];
 type Values = Omit<Settings, "id" | "updated_at">;
@@ -172,6 +173,7 @@ export function SalesSettingsPage() {
           />
         </Card>
       </Form>
+      <SignatureCard />
     </>
   );
 }

@@ -1,20 +1,44 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Divider, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Divider, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
-import { CheckCircleOutlined, EditOutlined, FilePdfOutlined, FileTextOutlined, MoreOutlined, RollbackOutlined, StopOutlined, UndoOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  CheckCircleOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  EditOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  MoreOutlined,
+  RollbackOutlined,
+  SendOutlined,
+  StopOutlined,
+  UndoOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney, isOverdue, type Invoice } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { invoicePdf, quotationPdf, setInvoiceStatus } from "./api";
+import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice, setInvoiceMaterai, setInvoiceStatus } from "./api";
+import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { CcNote } from "./quotations-page";
 import { useAction } from "./use-action";
 
-type Row = Invoice & { license: { label: string } | null };
+type Row = Invoice & {
+  license: { label: string } | null;
+  approver: { full_name: string | null } | null;
+  requester: { full_name: string | null } | null;
+};
+
+/** Over this, an IDR document usually carries a Rp10.000 materai (UU 10/2020). */
+const MATERAI_THRESHOLD_IDR = 5_000_000;
+export const needsMateraiHint = (invoice: Pick<Invoice, "currency" | "total">, materai: string) =>
+  invoice.currency === "IDR" && Number(invoice.total) > MATERAI_THRESHOLD_IDR && materai === "none";
 type Filter = "all" | "unpaid" | "overdue" | "paid" | "void";
 
 export function InvoiceStatusTag({ invoice }: { invoice: Pick<Invoice, "status" | "due_date"> }) {
@@ -26,12 +50,11 @@ export function InvoiceStatusTag({ invoice }: { invoice: Pick<Invoice, "status" 
 
 /** Every invoice, newest first. Invoices are made by converting an accepted quotation. */
 export function InvoicesPage() {
-  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Row | null>(null);
   const { run, busy } = useAction([["invoices"], ["quotations"]]);
-  const viewPdf = usePdfViewer();
+  const isApprover = useIsApprover();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["invoices"],
@@ -39,7 +62,9 @@ export function InvoicesPage() {
       // Named link: licences also point at invoices (licenses.invoice_id).
       const { data: rows, error: loadError } = await supabase
         .from("invoices")
-        .select("*, license:licenses!invoices_license_id_fkey(label)")
+        .select(
+          "*, license:licenses!invoices_license_id_fkey(label), approver:profiles!invoices_approved_by_fkey(full_name), requester:profiles!invoices_approval_requested_by_fkey(full_name)",
+        )
         .order("created_at", { ascending: false })
         .limit(1000);
       if (loadError) throw loadError;
@@ -104,55 +129,33 @@ export function InvoicesPage() {
       render: (_, row) => <Typography.Text strong>{formatMoney(row.total, row.currency, row.decimal_places)}</Typography.Text>,
       sorter: (a, b) => Number(a.total) - Number(b.total),
     },
-    { title: "Status", key: "status", render: (_, row) => <InvoiceStatusTag invoice={row} /> },
+    {
+      title: "Status",
+      key: "status",
+      render: (_, row) => (
+        <Flex vertical gap={2} align="flex-start">
+          <InvoiceStatusTag invoice={row} />
+          {row.approval_status === "none" && row.send_count === 0 && row.status !== "void" ? (
+            <Tag icon={<SendOutlined />} style={{ marginInlineEnd: 0 }}>
+              Not sent
+            </Tag>
+          ) : (
+            <ApprovalNote
+              state={row.approval_status}
+              note={row.approval_note}
+              requestedBy={row.requester?.full_name}
+              approvedBy={row.approved_by ? row.approver?.full_name : null}
+              approvedAt={row.approved_at}
+            />
+          )}
+        </Flex>
+      ),
+    },
     {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => {
-        const k = (name: string) => `${name}:${row.id}`;
-        const more: MenuProps["items"] = [
-          ...(row.quotation_id
-            ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`, onClick: () => viewPdf(quotationPdf(row.quotation_id!, row.quotation_number)) }]
-            : []),
-          ...(row.quotation_id && !row.owner_id
-            ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
-            : []),
-          ...(row.status === "paid"
-            ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }]
-            : []),
-          ...(row.status !== "void"
-            ? [
-                { type: "divider" as const },
-                { key: "void", icon: <StopOutlined />, label: "Void invoice", danger: true, onClick: () => run(k("void"), () => setInvoiceStatus(row.id, "void"), "Invoice voided.") },
-              ]
-            : []),
-        ];
-        return (
-          <Flex gap={4} justify="flex-end" align="center" wrap={false}>
-            {row.status === "unpaid" ? (
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />} loading={busy === k("paid")} onClick={() => run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`)}>
-                Mark paid
-              </Button>
-            ) : row.status === "void" ? (
-              <Button size="small" icon={<RollbackOutlined />} loading={busy === k("restore")} onClick={() => run(k("restore"), () => setInvoiceStatus(row.id, "unpaid"), "Invoice restored.")}>
-                Restore
-              </Button>
-            ) : null}
-            <Tooltip title="View PDF">
-              <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(row.id, row.number))} aria-label="View PDF" />
-            </Tooltip>
-            {row.status === "unpaid" ? (
-              <Tooltip title="Edit">
-                <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditing(row)} />
-              </Tooltip>
-            ) : null}
-            <Dropdown menu={{ items: more }} trigger={["click"]} placement="bottomRight" disabled={more.length === 0}>
-              <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this invoice"}`} />
-            </Dropdown>
-          </Flex>
-        );
-      },
+      render: (_, row) => <InvoiceRowActions row={row} isApprover={isApprover} run={run} busy={busy} onEdit={() => setEditing(row)} />,
     },
   ];
 
@@ -191,11 +194,148 @@ export function InvoicesPage() {
   );
 }
 
+function InvoiceRowActions({
+  row,
+  isApprover,
+  run,
+  busy,
+  onEdit,
+}: {
+  row: Row;
+  isApprover: boolean;
+  run: ReturnType<typeof useAction>["run"];
+  busy: string | null;
+  onEdit: () => void;
+}) {
+  const navigate = useNavigate();
+  const viewPdf = usePdfViewer();
+  const [rejecting, setRejecting] = useState(false);
+  const [history, setHistory] = useState(false);
+  const k = (name: string) => `${name}:${row.id}`;
+  const title = `invoice ${row.number ?? ""}`.trim();
+  const waiting = row.approval_status === "pending";
+  const approved = row.approval_status === "approved";
+  const unsent = !waiting && !approved;
+
+  // Sending shows the PDF first; an approver sends, anyone else asks.
+  const reviewAndSend = (again: boolean) =>
+    viewPdf({
+      ...invoicePdf(row.id, row.number),
+      note: isApprover ? "Check it before it goes to the customer." : "Check it; an approver sends it to the customer.",
+      recipients: row.bill_to_email ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
+      action: {
+        label: isApprover ? (again ? "Send again" : "Send to customer") : "Request approval",
+        onClick: async () => {
+          await run(k("send"), () => sendInvoice(row.id), isApprover ? "Sent to the customer." : "Sent for approval. The approvers have been emailed.");
+        },
+      },
+    });
+  const reviewAndApprove = () =>
+    viewPdf({
+      ...invoicePdf(row.id, row.number),
+      note: `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving makes it live for the customer${row.approval_sends ? " and emails it" : ""}.`,
+      recipients: row.approval_sends && row.bill_to_email ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
+      action: {
+        label: row.approval_sends ? "Approve & send" : "Approve",
+        onClick: async () => {
+          await run(k("approve"), () => approveDocument("invoice", row.id), "Approved.");
+        },
+      },
+    });
+
+  let primary: React.ReactNode = null;
+  if (row.status === "void") {
+    primary = (
+      <Button size="small" icon={<RollbackOutlined />} loading={busy === k("restore")} onClick={() => run(k("restore"), () => setInvoiceStatus(row.id, "unpaid"), "Invoice restored.")}>
+        Restore
+      </Button>
+    );
+  } else if (waiting) {
+    primary = isApprover ? (
+      <>
+        <Button size="small" type="primary" icon={<CheckOutlined />} loading={busy === k("approve")} onClick={reviewAndApprove}>
+          Review
+        </Button>
+        <Tooltip title="Reject">
+          <Button size="small" danger type="text" icon={<CloseCircleOutlined />} loading={busy === k("reject")} onClick={() => setRejecting(true)} aria-label="Reject" />
+        </Tooltip>
+      </>
+    ) : null;
+  } else if (unsent) {
+    primary = (
+      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
+        {isApprover ? "Send" : "Request approval"}
+      </Button>
+    );
+  } else if (row.status === "unpaid") {
+    primary = (
+      <Button
+        size="small"
+        type="primary"
+        icon={<CheckCircleOutlined />}
+        loading={busy === k("paid")}
+        onClick={() =>
+          run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`)
+        }
+      >
+        Mark paid
+      </Button>
+    );
+  }
+
+  const more: MenuProps["items"] = [
+    ...(row.quotation_id
+      ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`, onClick: () => viewPdf(quotationPdf(row.quotation_id!, row.quotation_number)) }]
+      : []),
+    ...(row.quotation_id && !row.owner_id
+      ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
+      : []),
+    ...(approved && row.status === "unpaid"
+      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
+      : []),
+    ...(row.status === "paid"
+      ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }]
+      : []),
+    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
+    ...(row.status !== "void"
+      ? [
+          { type: "divider" as const },
+          { key: "void", icon: <StopOutlined />, label: "Void invoice", danger: true, onClick: () => run(k("void"), () => setInvoiceStatus(row.id, "void"), "Invoice voided.") },
+        ]
+      : []),
+  ];
+
+  return (
+    <Flex gap={4} justify="flex-end" align="center" wrap={false}>
+      {primary}
+      <Tooltip title="View PDF">
+        <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(row.id, row.number))} aria-label="View PDF" />
+      </Tooltip>
+      {row.status === "unpaid" ? (
+        <Tooltip title="Edit">
+          <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit} />
+        </Tooltip>
+      ) : null}
+      <Dropdown menu={{ items: more }} trigger={["click"]} placement="bottomRight">
+        <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this invoice"}`} />
+      </Dropdown>
+      <RejectModal
+        open={rejecting}
+        title={title}
+        onCancel={() => setRejecting(false)}
+        onReject={(reason) => run(k("reject"), () => rejectDocument("invoice", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
+      />
+      <ApprovalHistoryModal type="invoice" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
+    </Flex>
+  );
+}
+
 type DetailValues = {
   bill_to_name: string;
   bill_to_company: string;
   bill_to_email: string;
   cc_emails: string[];
+  materai: "none" | "physical";
   bill_to_address: string;
   due_date: string;
   tax_rate: number;
@@ -217,6 +357,8 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const [error, setError] = useState<string | null>(null);
   const taxRate = Form.useWatch("tax_rate", form);
   const billToEmail = Form.useWatch("bill_to_email", form);
+  const materai = Form.useWatch("materai", form) ?? "none";
+  const isApprover = useIsApprover();
   const ccWatched = Form.useWatch("cc_emails", form);
 
   const { data: groups } = useQuery({
@@ -235,6 +377,15 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const save = async (values: DetailValues) => {
     setPending(true);
     setError(null);
+    // Materai only changes the PDF, not what is owed: no approval needed.
+    if (values.materai !== (invoice.materai === "physical" ? "physical" : "none")) {
+      try {
+        await setInvoiceMaterai(invoice.id, values.materai);
+      } catch (cause) {
+        setPending(false);
+        return setError(errorText(cause as { code?: string; message?: string }, "The materai setting could not be saved."));
+      }
+    }
     // First, so an "invoice changed" email (sent after commit) already has it.
     const { error: ccError } = await supabase.from("invoices").update({ cc_emails: normaliseEmails(values.cc_emails) }).eq("id", invoice.id);
     if (ccError) {
@@ -256,7 +407,14 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
     setPending(false);
     if (saveError) return setError(errorText(saveError, "The invoice could not be saved. Please try again."));
     await queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    message.success(values.notify ? "Invoice saved, and the customer has been emailed the update." : "Invoice saved.");
+    const throughApproval = !isApprover && (invoice.send_count > 0 || invoice.approval_status === "pending");
+    message.success(
+      throughApproval
+        ? "Saved and sent for approval. The customer sees the change once an approver approves it."
+        : values.notify && invoice.send_count > 0
+          ? "Invoice saved, and the customer has been emailed the update."
+          : "Invoice saved.",
+    );
     onClose();
   };
 
@@ -289,6 +447,7 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
           bill_to_company: invoice.bill_to_company ?? "",
           bill_to_email: invoice.bill_to_email ?? "",
           cc_emails: invoice.cc_emails ?? [],
+          materai: invoice.materai === "physical" ? "physical" : "none",
           bill_to_address: invoice.bill_to_address ?? "",
           due_date: invoice.due_date,
           tax_rate: Number(invoice.tax_rate),
@@ -343,11 +502,36 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
         <Form.Item label="Notes on the invoice" name="notes" rules={[{ max: 1000 }]}>
           <Input.TextArea rows={3} />
         </Form.Item>
+        <Form.Item
+          label="Materai"
+          name="materai"
+          extra="A box beside the signature for a Rp10.000 materai, stuck on and signed across. e-Meterai (a stamped copy from Peruri) is coming."
+        >
+          <Select
+            options={[
+              { value: "none", label: "None" },
+              { value: "physical", label: "Space for physical materai" },
+              { value: "e_meterai", label: "e-Meterai — coming soon", disabled: true },
+            ]}
+          />
+        </Form.Item>
+        {needsMateraiHint(invoice, materai) ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            title="Over Rp5.000.000"
+            description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai."
+          />
+        ) : null}
         <Form.Item name="refresh_seller" valuePropName="checked" style={{ marginBottom: 8 }}>
           <Checkbox>Use our current company and payment details</Checkbox>
         </Form.Item>
         <Form.Item name="notify" valuePropName="checked">
-          <Checkbox>Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed</Checkbox>
+          <Checkbox>
+            Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed
+            {isApprover ? "" : " — once approved"}
+          </Checkbox>
         </Form.Item>
       </Form>
       {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}

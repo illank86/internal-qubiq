@@ -1,6 +1,8 @@
+import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { renderQuotationPdf } from "@/lib/quotation-pdf";
+import type { DocumentSignoff } from "@/lib/pdf-theme";
 import type { PdfRequest } from "@/components/pdf-viewer-context";
 
 /**
@@ -38,10 +40,91 @@ export async function setQuotationStatus(id: string, status: QuotationOutcome, l
   }
 }
 
-/** Emails the customer the private link (send_quotation bumps send_count; a trigger sends). */
+/**
+ * Send a quotation: an approver's goes straight to the customer; anyone
+ * else's waits for an approver (the database decides, and records who).
+ */
 export async function sendQuotation(id: string) {
   const { error } = await supabase.rpc("send_quotation", { p_quotation_id: id });
   fail(error);
+}
+
+/** Send an invoice (again), through approval like a quotation. */
+export async function sendInvoice(id: string) {
+  const { data, error } = await supabase.rpc("send_invoice", { p_invoice_id: id });
+  fail(error);
+  return data;
+}
+
+export type DocumentType = "quotation" | "invoice";
+
+/** Approve a waiting quotation or invoice: it is sent at once. */
+export async function approveDocument(type: DocumentType, id: string) {
+  const { error } = await supabase.rpc("approve_document", { p_type: type, p_id: id });
+  fail(error);
+}
+
+/** Reject with a reason; the person who asked is told. */
+export async function rejectDocument(type: DocumentType, id: string, reason: string) {
+  const { error } = await supabase.rpc("reject_document", { p_type: type, p_id: id, p_reason: reason });
+  fail(error);
+}
+
+/** Physical materai box on the PDF, or none. (e-Meterai: not yet.) */
+export async function setInvoiceMaterai(id: string, materai: "none" | "physical") {
+  const { error } = await supabase.rpc("set_invoice_materai", { p_invoice_id: id, p_materai: materai });
+  fail(error);
+}
+
+export type ApprovalEntry = {
+  id: string;
+  action: "requested" | "approved" | "self_approved" | "rejected";
+  actor_name: string | null;
+  note: string | null;
+  created_at: string;
+};
+
+export async function loadApprovalHistory(type: DocumentType, id: string) {
+  const { data, error } = await supabase
+    .from("document_approvals")
+    .select("id, action, actor_name, note, created_at")
+    .eq("document_type", type)
+    .eq("document_id", id)
+    .order("created_at", { ascending: false });
+  fail(error);
+  return (data ?? []) as ApprovalEntry[];
+}
+
+export type SignatureInfo = {
+  id: string;
+  signatory_name: string;
+  signatory_title: string | null;
+  place: string | null;
+  created_at: string;
+  created_by: string | null;
+} | null;
+
+/** The signature on file — who signs, never the image. */
+export async function loadSignatureInfo(): Promise<SignatureInfo> {
+  const { data, error } = await supabase.rpc("document_signature_info");
+  fail(error);
+  return (data as SignatureInfo) ?? null;
+}
+
+/**
+ * An approved document that carries the signature is fetched as the
+ * customer's own copy from the website — the only place the signature is
+ * drawn. Anything else is drawn here, with a placeholder where the signature
+ * will go once approved (or the QR code / a blank line if none is on file).
+ */
+async function fetchSigned(path: string) {
+  const response = await fetch(`${env.siteUrl}${path}`, { credentials: "omit" });
+  if (!response.ok) throw new Error(`The signed copy could not be loaded (${response.status})`);
+  return response.blob();
+}
+
+function placeholder(info: SignatureInfo): DocumentSignoff | null {
+  return info ? { name: info.signatory_name, title: info.signatory_title, place: info.place, pending: true } : null;
 }
 
 const safeName = (value: string) => value.replace(/[^\w.-]/g, "_");
@@ -59,7 +142,12 @@ export function quotationPdf(id: string, number: string | null): PdfRequest {
       ]);
       fail(error);
       if (!quotation) throw new Error("Quotation not found");
-      return renderQuotationPdf(quotation, items ?? [], groups ?? []);
+      const shared = ["sent", "accepted", "declined"].includes(quotation.status);
+      if (quotation.approval_status === "approved" && quotation.signature_id && shared) {
+        return fetchSigned(`/quotes/${quotation.public_token}/pdf`);
+      }
+      const signoff = quotation.approval_status === "approved" ? null : placeholder(await loadSignatureInfo());
+      return renderQuotationPdf(quotation, items ?? [], groups ?? [], signoff);
     },
   };
 }
@@ -77,7 +165,11 @@ export function invoicePdf(id: string, number: string | null): PdfRequest {
       ]);
       fail(error);
       if (!invoice) throw new Error("Invoice not found");
-      return renderInvoicePdf(invoice, items ?? [], groups ?? []);
+      if (invoice.approval_status === "approved" && invoice.signature_id) {
+        return fetchSigned(`/i/${invoice.public_token}/pdf`);
+      }
+      const signoff = invoice.approval_status === "approved" ? null : placeholder(await loadSignatureInfo());
+      return renderInvoicePdf(invoice, items ?? [], groups ?? [], signoff);
     },
   };
 }

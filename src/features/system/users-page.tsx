@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { UserAddOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
@@ -13,11 +13,11 @@ import { useAction } from "@/features/sales/use-action";
 const ROLES: AppRole[] = ["admin", "editor", "licensing", "viewer"];
 const ROLE_HINT: Record<AppRole, string> = {
   admin: "Everything, including users and roles",
-  editor: "Content, blog, sales and the inbox",
+  editor: "Website content, blog, pricing and downloads",
   licensing: "Licences, invoices and Sales settings",
   viewer: "Can sign in and look around",
 };
-type User = Profile & { roles: AppRole[] };
+type User = Profile & { roles: AppRole[]; approver: boolean };
 
 /**
  * Everyone with an account: the team (staff, with roles) and customers.
@@ -34,16 +34,18 @@ export function UsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const [profiles, roles, permissions] = await Promise.all([
+      const [profiles, roles, permissions, approvers] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: true }),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("role_permissions").select("role, permission").order("role"),
+        supabase.from("document_approvers").select("user_id"),
       ]);
+      const approving = new Set((approvers.data ?? []).map((row) => row.user_id));
       if (profiles.error) throw profiles.error;
       const byUser = new Map<string, AppRole[]>();
       for (const row of roles.data ?? []) byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row.role as AppRole]);
       return {
-        users: (profiles.data ?? []).map((profile) => ({ ...profile, roles: byUser.get(profile.id) ?? [] })) as User[],
+        users: (profiles.data ?? []).map((profile) => ({ ...profile, roles: byUser.get(profile.id) ?? [], approver: approving.has(profile.id) })) as User[],
         permissions: permissions.data ?? [],
       };
     },
@@ -73,6 +75,13 @@ export function UsersPage() {
         if (error) throw error;
       }
     }, "Roles saved.");
+
+  // Who may approve quotations and invoices (the database checks it too).
+  const setApprover = (user: User, approver: boolean) =>
+    run(`approver:${user.id}`, async () => {
+      const { error } = await supabase.rpc("set_document_approver", { p_user_id: user.id, p_approver: approver });
+      if (error) throw error;
+    }, approver ? `${user.full_name || user.email} can now approve quotations and invoices.` : `${user.full_name || user.email} no longer approves.`);
 
   const setStaff = (user: User, internal: boolean) =>
     run(`type:${user.id}`, async () => {
@@ -126,6 +135,18 @@ export function UsersPage() {
         ) : (
           <Typography.Text type="secondary">—</Typography.Text>
         ),
+    },
+    {
+      title: (
+        <Tooltip title="Approvers send quotations and invoices straight away, and approve everyone else's. They also need the sales (quotations) or licensing (invoices) permission.">
+          Approver
+        </Tooltip>
+      ),
+      key: "approver",
+      render: (_, user) =>
+        user.user_type === "internal" ? (
+          <Switch size="small" checked={user.approver} loading={busy === `approver:${user.id}`} onChange={(checked) => setApprover(user, checked)} aria-label={`${user.full_name || user.email} can approve`} />
+        ) : null,
     },
     { title: "Joined", dataIndex: "created_at", render: (value: string) => formatInvoiceDate(value), responsive: ["md"] },
     {

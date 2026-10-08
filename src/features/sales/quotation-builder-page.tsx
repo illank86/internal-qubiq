@@ -13,6 +13,7 @@ import { ServerGroupsEditor } from "./server-groups-editor";
 import { renderQuotationPreview } from "./quotation-preview";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
+import { useIsApprover } from "./approvals";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
@@ -77,6 +78,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<Values>();
+  const isApprover = useIsApprover();
   const viewPdf = usePdfViewer();
   const [groups, setGroups] = useState<GroupDraft[]>(() =>
     draft.groups.length > 0 ? draft.groups.map((group, index) => newGroup(catalog.editions, index, group)) : [newGroup(catalog.editions, 0)],
@@ -144,7 +146,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       note: action ? "Check it, and who it goes to, before sending." : "Preview of what is on screen — not saved yet.",
       recipients: action ? { to: values.contact_email, cc: normaliseEmails(values.cc_emails) } : undefined,
       make: () => renderQuotationPreview(catalog, previewInput(values)),
-      action: action ? { label: "Send to customer", onClick: () => persist(action.values, "send") } : undefined,
+      action: action ? { label: isApprover ? "Send to customer" : "Request approval", onClick: () => persist(action.values, "send") } : undefined,
     });
   };
 
@@ -231,7 +233,13 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       }
     }
     await queryClient.invalidateQueries({ queryKey: ["quotations"] });
-    message.success(intent === "send" ? "Saved and sent. The customer has been emailed a link." : "Quotation saved.");
+    message.success(
+      intent !== "send"
+        ? "Quotation saved."
+        : isApprover
+          ? "Saved and sent. The customer has been emailed a link."
+          : "Saved and sent for approval. The approvers have been emailed.",
+    );
     navigate("/sales/quotations");
   };
 
@@ -498,7 +506,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 {error ? <Alert type="error" showIcon title={error} style={{ marginTop: 16 }} /> : null}
                 <Flex vertical gap={8} style={{ marginTop: 16 }}>
                   <Button type="primary" block size="large" icon={<SendOutlined />} loading={saving === "send"} onClick={() => save("send")}>
-                    {draft.sent ? "Save & send again" : "Save & send to customer"}
+                    {isApprover ? (draft.sent ? "Save & send again" : "Save & send to customer") : "Save & request approval"}
                   </Button>
                   <Button block icon={<EyeOutlined />} onClick={() => preview()}>
                     Preview PDF

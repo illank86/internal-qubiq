@@ -400,6 +400,63 @@ export type Database = {
           },
         ]
       }
+      document_approvals: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          document_id: string
+          document_number: string | null
+          document_type: string
+          id: string
+          note: string | null
+          requester_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          document_id: string
+          document_number?: string | null
+          document_type: string
+          id?: string
+          note?: string | null
+          requester_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          document_id?: string
+          document_number?: string | null
+          document_type?: string
+          id?: string
+          note?: string | null
+          requester_id?: string | null
+        }
+        Relationships: []
+      }
+      document_approvers: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       download_events: {
         Row: {
           arch: string | null
@@ -954,6 +1011,17 @@ export type Database = {
       }
       invoices: {
         Row: {
+          approval_status: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by: string | null
+          approval_requested_at: string | null
+          approved_by: string | null
+          approved_at: string | null
+          approval_note: string | null
+          approval_sends: boolean
+          signature_id: string | null
+          send_count: number
+          materai: string
+          stamped_pdf_path: string | null
           cc_emails: string[]
           base_currency: string | null
           bill_to_address: string | null
@@ -989,6 +1057,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by?: string | null
+          approval_requested_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_note?: string | null
+          approval_sends?: boolean
+          signature_id?: string | null
+          send_count?: number
+          materai?: string
+          stamped_pdf_path?: string | null
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
@@ -1024,6 +1103,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by?: string | null
+          approval_requested_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_note?: string | null
+          approval_sends?: boolean
+          signature_id?: string | null
+          send_count?: number
+          materai?: string
+          stamped_pdf_path?: string | null
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
@@ -2301,6 +2391,14 @@ export type Database = {
       }
       quotations: {
         Row: {
+          approval_status: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by: string | null
+          approval_requested_at: string | null
+          approved_by: string | null
+          approved_at: string | null
+          approval_note: string | null
+          approval_sends: boolean
+          signature_id: string | null
           cc_emails: string[]
           accepted_at: string | null
           accepted_late: boolean
@@ -2351,6 +2449,14 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by?: string | null
+          approval_requested_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_note?: string | null
+          approval_sends?: boolean
+          signature_id?: string | null
           cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
@@ -2401,6 +2507,14 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approval_requested_by?: string | null
+          approval_requested_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_note?: string | null
+          approval_sends?: boolean
+          signature_id?: string | null
           cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
@@ -3194,6 +3308,31 @@ export type Database = {
       }
     }
     Functions: {
+      approve_document: { Args: { p_id: string; p_type: string }; Returns: string }
+      document_signature_info: { Args: never; Returns: Json }
+      reject_document: {
+        Args: { p_id: string; p_reason: string; p_type: string }
+        Returns: undefined
+      }
+      remove_document_signature: { Args: never; Returns: undefined }
+      send_invoice: { Args: { p_invoice_id: string }; Returns: string }
+      set_document_approver: {
+        Args: { p_approver: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      set_document_signature: {
+        Args: {
+          p_image: string
+          p_place: string
+          p_signatory_name: string
+          p_signatory_title: string
+        }
+        Returns: string
+      }
+      set_invoice_materai: {
+        Args: { p_invoice_id: string; p_materai: string }
+        Returns: undefined
+      }
       assign_quotation_customer: {
         Args: { p_customer_id: string; p_quotation_id: string }
         Returns: undefined
@@ -3350,6 +3489,7 @@ export type Database = {
       }
     }
     Enums: {
+      approval_state: "none" | "pending" | "approved" | "rejected"
       app_permission:
         | "admin.access"
         | "content.manage"
@@ -3516,6 +3656,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_state: ["none", "pending", "approved", "rejected"],
       app_permission: [
         "admin.access",
         "content.manage",

@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { AppPermission } from "@/lib/types";
 
-export type NotificationKind = "lead" | "quote" | "bug" | "reply" | "integrator" | "license" | "account";
+export type NotificationKind = "lead" | "quote" | "bug" | "reply" | "integrator" | "license" | "account" | "approval";
 
 export type NotificationItem = {
   id: string;
@@ -24,6 +24,26 @@ export type NotificationFeed = { items: NotificationItem[]; unread: number };
 export async function loadNotifications(userId: string, permissions: AppPermission[], limit = 15): Promise<NotificationFeed> {
   const sees = (permission: AppPermission) => permissions.includes(permission);
   const none = Promise.resolve({ data: null });
+
+  // Approvals: what waits for an approver, and decisions on what you asked for.
+  const { data: approverRow } = await supabase.from("document_approvers").select("user_id").eq("user_id", userId).maybeSingle();
+  const approver = Boolean(approverRow);
+  const [waitingQuotes, waitingInvoices, decisions] = await Promise.all([
+    approver && sees("leads.manage")
+      ? supabase.from("quotations").select("id, number, company, contact_name, approval_requested_at").eq("approval_status", "pending").neq("approval_requested_by", userId).limit(limit)
+      : none,
+    approver && sees("licenses.manage")
+      ? supabase.from("invoices").select("id, number, bill_to_name, approval_requested_at").eq("approval_status", "pending").neq("approval_requested_by", userId).limit(limit)
+      : none,
+    supabase
+      .from("document_approvals")
+      .select("id, document_type, document_number, action, actor_name, note, created_at")
+      .eq("requester_id", userId)
+      .neq("actor_id", userId)
+      .in("action", ["approved", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(limit),
+  ]);
 
   const [{ data: me }, leads, quotes, bugs, replies, integrators, licenses, accounts] = await Promise.all([
     supabase.from("profiles").select("notifications_seen_at").eq("id", userId).maybeSingle(),
@@ -57,6 +77,22 @@ export async function loadNotifications(userId: string, permissions: AppPermissi
   });
 
   const items: NotificationItem[] = [
+    ...(waitingQuotes.data ?? []).map((row) =>
+      item(`approve-q-${row.id}`, "approval", `Quotation ${row.number ?? ""} awaits your approval`, row.company || row.contact_name, "/sales/quotations", row.approval_requested_at ?? new Date(0).toISOString()),
+    ),
+    ...(waitingInvoices.data ?? []).map((row) =>
+      item(`approve-i-${row.id}`, "approval", `Invoice ${row.number ?? ""} awaits your approval`, row.bill_to_name, "/sales/invoices", row.approval_requested_at ?? new Date(0).toISOString()),
+    ),
+    ...(decisions.data ?? []).map((row) =>
+      item(
+        `decision-${row.id}`,
+        "approval",
+        `${row.document_type === "quotation" ? "Quotation" : "Invoice"} ${row.document_number ?? ""} ${row.action === "approved" ? "was approved" : "was not approved"}`,
+        row.action === "approved" ? `By ${row.actor_name ?? "an approver"}` : `${row.actor_name ?? "An approver"}: ${row.note ?? ""}`,
+        row.document_type === "quotation" ? "/sales/quotations" : "/sales/invoices",
+        row.created_at,
+      ),
+    ),
     ...(leads.data ?? []).map((row) => item(`lead-${row.id}`, "lead", row.company || row.name || row.email, `New ${row.type ?? "contact"} enquiry`, "/sales/leads", row.created_at)),
     ...(quotes.data ?? []).map((row) => item(`quote-${row.id}`, "quote", row.company || row.contact_name, `Quote request ${row.reference}`, "/sales/quote-requests", row.created_at)),
     ...(bugs.data ?? []).map((row) => item(`bug-${row.id}`, "bug", row.title, `${row.reference} · ${row.severity}`, "/community/bug-reports", row.created_at)),

@@ -6,6 +6,7 @@ import type { MenuProps, TableColumnsType } from "antd";
 import {
   CalendarOutlined,
   CheckOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
   DislikeOutlined,
   EditOutlined,
@@ -24,13 +25,16 @@ import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { isExpired, quotationState, type Quotation } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { quotationPdf, sendQuotation, setQuotationStatus } from "./api";
+import { approveDocument, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus } from "./api";
+import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { useAction } from "./use-action";
 
 type Row = Quotation & {
   request: { reference: string } | null;
   invoices: { id: string; number: string | null; status: string }[];
   customer: { full_name: string | null; email: string | null } | null;
+  approver: { full_name: string | null } | null;
+  requester: { full_name: string | null } | null;
 };
 
 const SOURCE_LABEL: Record<string, string> = { phone: "By phone", email: "By email", meeting: "From a meeting", other: "Made by hand" };
@@ -51,6 +55,7 @@ export function QuotationsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const { run, busy } = useAction([["quotations"]]);
+  const isApprover = useIsApprover();
 
   const { data, isLoading } = useQuery({
     queryKey: ["quotations"],
@@ -58,7 +63,7 @@ export function QuotationsPage() {
       const { data: rows, error } = await supabase
         .from("quotations")
         .select(
-          "*, request:quote_requests(reference), invoices(id, number, status), customer:profiles!quotations_customer_id_fkey(full_name, email)",
+          "*, request:quote_requests(reference), invoices(id, number, status), customer:profiles!quotations_customer_id_fkey(full_name, email), approver:profiles!quotations_approved_by_fkey(full_name), requester:profiles!quotations_approval_requested_by_fkey(full_name)",
         )
         .order("created_at", { ascending: false })
         .limit(1000);
@@ -154,6 +159,14 @@ export function QuotationsPage() {
       render: (_, row) => (
         <Flex vertical gap={2}>
           <QuotationStatusTag quotation={row} />
+          <ApprovalNote
+            state={row.approval_status}
+            note={row.approval_note}
+            requestedBy={row.requester?.full_name}
+            approvedBy={row.approved_by ? row.approver?.full_name : null}
+            approvedAt={row.approved_at}
+            edited={row.status === "sent" && row.approval_status === "none"}
+          />
           {row.status === "accepted" && row.accepted_late ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Accepted after expiry
@@ -166,7 +179,7 @@ export function QuotationsPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} run={run} busy={busy} />,
+      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} isApprover={isApprover} run={run} busy={busy} />,
     },
   ];
 
@@ -212,16 +225,24 @@ export function QuotationsPage() {
 function RowActions({
   row,
   canInvoice,
+  isApprover,
   run,
   busy,
 }: {
   row: Row;
   canInvoice: boolean;
+  isApprover: boolean;
   run: ReturnType<typeof useAction>["run"];
   busy: string | null;
 }) {
   const navigate = useNavigate();
   const viewPdf = usePdfViewer();
+  const [rejecting, setRejecting] = useState(false);
+  const [history, setHistory] = useState(false);
+  const title = `quotation ${row.number ?? ""}`.trim();
+  const waiting = row.approval_status === "pending";
+  // An approver sends; anyone else asks an approver (the database decides).
+  const sendLabel = isApprover ? "Send" : "Request approval";
   const open = row.status === "draft" || row.status === "sent";
   const expired = isExpired(row);
   const invoice = row.invoices.find((candidate) => candidate.status !== "void");
@@ -230,22 +251,57 @@ function RowActions({
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...quotationPdf(row.id, row.number),
-      note: "Check it, and who it goes to, before sending.",
+      note: isApprover ? "Check it, and who it goes to, before sending." : "Check it; an approver sends it to the customer.",
       recipients: row.contact_email ? { to: row.contact_email, cc: row.cc_emails } : undefined,
       action: {
-        label: again ? "Send again" : "Send to customer",
+        label: isApprover ? (again ? "Send again" : "Send to customer") : "Request approval",
         onClick: async () => {
-          await run(k("send"), () => sendQuotation(row.id), again ? "Sent again." : "Sent. The customer has been emailed a link.");
+          await run(
+            k("send"),
+            () => sendQuotation(row.id),
+            isApprover ? (again ? "Sent again." : "Sent. The customer has been emailed a link.") : "Sent for approval. The approvers have been emailed.",
+          );
+        },
+      },
+    });
+  // An approver's review of someone else's request: approving sends it.
+  const reviewAndApprove = () =>
+    viewPdf({
+      ...quotationPdf(row.id, row.number),
+      note: `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving sends it to the customer now.`,
+      recipients: row.contact_email ? { to: row.contact_email, cc: row.cc_emails } : undefined,
+      action: {
+        label: "Approve & send",
+        onClick: async () => {
+          await run(k("approve"), () => approveDocument("quotation", row.id), "Approved and sent to the customer.");
         },
       },
     });
 
   // The one next step for this quotation.
   let primary: React.ReactNode = null;
-  if (row.status === "draft" && row.contact_email) {
+  if (waiting) {
+    primary = isApprover ? (
+      <>
+        <Button size="small" type="primary" icon={<CheckOutlined />} loading={busy === k("approve")} onClick={reviewAndApprove}>
+          Review
+        </Button>
+        <Tooltip title="Reject">
+          <Button size="small" danger type="text" icon={<CloseCircleOutlined />} loading={busy === k("reject")} onClick={() => setRejecting(true)} aria-label="Reject" />
+        </Tooltip>
+      </>
+    ) : null;
+  } else if (row.status === "draft" && row.contact_email) {
     primary = (
       <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
-        Send
+        {sendLabel}
+      </Button>
+    );
+  } else if (row.status === "sent" && row.approval_status !== "approved" && row.contact_email && !expired) {
+    // Edited or not approved since it was sent: the customer's link is paused.
+    primary = (
+      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(true)}>
+        {isApprover ? "Send again" : "Request approval"}
       </Button>
     );
   } else if (expired) {
@@ -275,9 +331,10 @@ function RowActions({
   }
 
   const more: MenuProps["items"] = [
-    ...(row.status === "sent" && row.contact_email && !expired
-      ? [{ key: "resend", icon: <SendOutlined />, label: "Send again", onClick: () => reviewAndSend(true) }]
+    ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved"
+      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
+    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
     ...(row.status === "sent" && expired
       ? [{ key: "late", icon: <CheckOutlined />, label: "Accept anyway (expired)", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted", true), "Accepted after expiry.") }]
       : []),
@@ -310,6 +367,13 @@ function RowActions({
       <Dropdown menu={{ items: more }} trigger={["click"]} placement="bottomRight" disabled={more.length === 0}>
         <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this quotation"}`} />
       </Dropdown>
+      <RejectModal
+        open={rejecting}
+        title={title}
+        onCancel={() => setRejecting(false)}
+        onReject={(reason) => run(k("reject"), () => rejectDocument("quotation", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
+      />
+      <ApprovalHistoryModal type="quotation" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
     </Flex>
   );
 }

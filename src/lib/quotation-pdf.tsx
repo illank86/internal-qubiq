@@ -22,6 +22,7 @@ import {
   type DocumentGroup,
   type DocumentLine,
   type SellerBlock,
+  type DocumentSignoff,
 } from "@/lib/pdf-theme";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { quotationState, type Quotation, type QuotationTone } from "@/lib/quotations";
@@ -78,7 +79,19 @@ async function signatureQr(token: string) {
   });
 }
 
-function QuotationDocument({ quotation, items, groups, qr }: { quotation: QuotationForPdf; items: DocumentLine[]; groups: DocumentGroup[]; qr: string }) {
+function QuotationDocument({
+  quotation,
+  items,
+  groups,
+  qr,
+  signoff,
+}: {
+  quotation: QuotationForPdf;
+  items: DocumentLine[];
+  groups: DocumentGroup[];
+  qr: string;
+  signoff: DocumentSignoff | null;
+}) {
   const seller = (quotation.seller ?? {}) as SellerBlock;
   const currency = quotation.currency || "USD";
   const money = (amount: number | string | null | undefined) => formatMoney(amount, currency, quotation.decimal_places ?? 2);
@@ -202,17 +215,34 @@ function QuotationDocument({ quotation, items, groups, qr }: { quotation: Quotat
             </View>
           ) : null}
           <Text style={{ color: INK }}>{quotation.signoff || "Best regards,"}</Text>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
-            <Image src={qr} style={{ width: 68, height: 68 }} />
-            <Text style={{ fontSize: 7, color: MUTED, width: 110, marginBottom: 2 }}>
-              Digitally signed. Scan to verify this quotation ({quotation.number}).
-            </Text>
-          </View>
+          {signoff ? (
+            // The company signature (approved), or where it will go (a preview).
+            <View style={{ marginTop: 8, height: 62, justifyContent: "flex-end" }}>
+              {signoff.image ? (
+                // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
+                <Image src={signoff.image} style={{ height: 58, width: 150, objectFit: "contain" }} />
+              ) : (
+                <View style={{ height: 50, width: 150, borderWidth: 0.8, borderStyle: "dashed", borderColor: LINE, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 7, color: MUTED }}>Signature added on approval</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            // No signature on file: the QR that verifies the document instead.
+            <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 }}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
+              <Image src={qr} style={{ width: 68, height: 68 }} />
+              <Text style={{ fontSize: 7, color: MUTED, width: 110, marginBottom: 2 }}>
+                Digitally signed. Scan to verify this quotation ({quotation.number}).
+              </Text>
+            </View>
+          )}
           <Text style={[styles.partyName, { marginTop: 8, fontSize: 10.5 }]}>
-            {quotation.sales_name || `${seller.company_name ?? "QUBIQ"} Sales`}
+            {signoff ? signoff.name : quotation.sales_name || `${seller.company_name ?? "QUBIQ"} Sales`}
           </Text>
-          {quotation.sales_title ? <Text style={{ color: INK }}>{quotation.sales_title}</Text> : null}
+          {(signoff ? signoff.title : quotation.sales_title) ? (
+            <Text style={{ color: INK }}>{signoff ? signoff.title : quotation.sales_title}</Text>
+          ) : null}
           <Text>{seller.company_name ?? "QUBIQ"}</Text>
           <Text>{[replyTo, quotation.sales_phone || seller.phone].filter(Boolean).join("  ·  ")}</Text>
         </View>
@@ -228,7 +258,8 @@ export async function renderQuotationPdf(
   quotation: QuotationForPdf,
   items: DocumentLine[],
   groups: DocumentGroup[] = [],
+  signoff: DocumentSignoff | null = null,
 ) {
   const qr = await signatureQr(quotation.public_token);
-  return pdf(<QuotationDocument quotation={quotation} items={items} groups={groups} qr={qr} />).toBlob();
+  return pdf(<QuotationDocument quotation={quotation} items={items} groups={groups} qr={qr} signoff={signoff} />).toBlob();
 }

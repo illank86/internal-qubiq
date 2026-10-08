@@ -458,6 +458,98 @@ export function Summary({
 }
 
 /**
+ * The company signature on an approved quotation or invoice. Only ever drawn
+ * from the approval's own record: the image comes with an approved document
+ * (never on its own), so a preview before approval shows a placeholder.
+ */
+export type DocumentSignoff = {
+  name: string;
+  title?: string | null;
+  place?: string | null;
+  /** When it was approved (ISO); the date printed beside the place. */
+  date?: string | null;
+  /** data: URL of the signature image; absent on a preview or an unsigned document. */
+  image?: string | null;
+  /** A preview before approval: the signature is added once approved. */
+  pending?: boolean;
+};
+
+const signoffDate = (value: string | null | undefined) =>
+  value
+    ? new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })
+    : "";
+
+/**
+ * Place and date, the company, the signature (or a space to sign by hand)
+ * and the signatory. With `materai`, a box for a physical stamp duty seal
+ * overlaps the signature, as it is signed across. Kept whole on one page.
+ */
+export function SignatureBlock({
+  signoff,
+  company,
+  materai = false,
+  inline = false,
+}: {
+  signoff: DocumentSignoff | null;
+  company: string;
+  materai?: boolean;
+  /** Beside another block (an invoice's payment details) rather than on its own line. */
+  inline?: boolean;
+}) {
+  const dated = [signoff?.place, signoffDate(signoff?.date)].filter(Boolean).join(", ");
+  return (
+    <View wrap={false} style={inline ? { width: 190 } : { marginTop: 22, alignSelf: "flex-end", width: 220 }}>
+      {dated ? <Text style={{ color: INK }}>{dated}</Text> : null}
+      <Text style={{ color: INK, fontFamily: "Helvetica-Bold", marginTop: 1 }}>{company}</Text>
+      <View style={{ height: 52, marginTop: 2, justifyContent: "flex-end" }}>
+        {materai ? (
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 3,
+              width: 56,
+              height: 40,
+              borderWidth: 0.8,
+              borderStyle: "dashed",
+              borderColor: MUTED,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 6.5, color: MUTED, letterSpacing: 0.6 }}>MATERAI</Text>
+            <Text style={{ fontSize: 6.5, color: MUTED }}>Rp10.000</Text>
+          </View>
+        ) : null}
+        {signoff?.image ? (
+          // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
+          <Image src={signoff.image} style={{ height: 48, width: 140, objectFit: "contain", marginLeft: materai ? 30 : 0 }} />
+        ) : signoff?.pending ? (
+          <View
+            style={{
+              height: 44,
+              width: 140,
+              marginLeft: materai ? 30 : 0,
+              borderWidth: 0.8,
+              borderStyle: "dashed",
+              borderColor: LINE,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 7, color: MUTED }}>Signature added on approval</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={{ borderTopWidth: 0.8, borderColor: INK, marginTop: 3, paddingTop: 3 }}>
+        <Text style={{ color: INK, fontFamily: "Helvetica-Bold" }}>{signoff?.name || " "}</Text>
+        {signoff?.title ? <Text style={{ color: MUTED }}>{signoff.title}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+/**
  * Footer on every page. Fixed text must be absolutely positioned Text elements
  * of its own (react-pdf's documented pattern); a fixed View wrapping them was
  * silently dropped.

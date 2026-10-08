@@ -17,6 +17,8 @@ import {
   fit,
   styles,
   type DocumentGroup,
+  SignatureBlock,
+  type DocumentSignoff,
 } from "@/lib/pdf-theme";
 import {
   INVOICE_STATUS_LABEL,
@@ -48,7 +50,17 @@ const STATUS_COLORS: Record<string, string> = {
   void: STAMP.slate,
 };
 
-function InvoiceDocument({ invoice, items, groups }: { invoice: Invoice; items: InvoiceItem[]; groups: DocumentGroup[] }) {
+function InvoiceDocument({
+  invoice,
+  items,
+  groups,
+  signoff,
+}: {
+  invoice: Invoice;
+  items: InvoiceItem[];
+  groups: DocumentGroup[];
+  signoff: DocumentSignoff | null;
+}) {
   const seller = (invoice.seller ?? {}) as InvoiceSeller;
   const currency = invoice.currency || "USD";
   const money = (amount: number | string | null | undefined) => formatMoney(amount, currency, invoice.decimal_places ?? 2);
@@ -63,6 +75,8 @@ function InvoiceDocument({ invoice, items, groups }: { invoice: Invoice; items: 
   const statusText = overdue ? "PAYMENT OVERDUE" : INVOICE_STATUS_LABEL[invoice.status];
   const licensee = invoice.licensee_name || invoice.bill_to_name;
   const settled = invoice.status === "paid" || invoice.status === "void";
+  // Signed (approved), or with a space for materai to be signed across.
+  const signed = Boolean(signoff) || invoice.materai === "physical";
   const termsDays = Math.round(
     (Date.parse(`${invoice.due_date}T00:00:00Z`) - Date.parse(`${invoice.issue_date}T00:00:00Z`)) / 86_400_000,
   );
@@ -140,10 +154,12 @@ function InvoiceDocument({ invoice, items, groups }: { invoice: Invoice; items: 
         />
 
         {!settled ? (
-          // Kept whole: if it does not fit below the totals it moves to the
-          // next page entirely. Only payment text too long for any page may
-          // break, and then between rows of bank cards, never inside one.
-          <View style={styles.section} wrap={!paymentFitsOnAPage}>
+          // Payment details, and beside them the signature (bottom right) when
+          // there is one. Kept whole: if it does not fit below the totals it
+          // moves to the next page entirely. Only payment text too long for any
+          // page may break, and then between rows of bank cards, never inside one.
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 18, marginTop: 26 }} wrap={!paymentFitsOnAPage}>
+          <View style={[styles.section, { marginTop: 0, flex: 1 }]} wrap={!paymentFitsOnAPage}>
             <View style={styles.sectionHead} wrap={false} minPresenceAhead={60}>
               <Text style={[styles.label, { marginBottom: 0 }]}>How to pay</Text>
               <Text style={styles.sectionAside}>
@@ -161,6 +177,11 @@ function InvoiceDocument({ invoice, items, groups }: { invoice: Invoice; items: 
               {seller.email ? `. Questions about this invoice: ${seller.email}` : ""}.
             </Text>
           </View>
+          {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai === "physical"} inline /> : null}
+          </View>
+        ) : signed ? (
+          // Paid or void: no payment details, the signature on its own.
+          <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai === "physical"} />
         ) : null}
 
         <PageFooter seller={seller} />
@@ -170,6 +191,11 @@ function InvoiceDocument({ invoice, items, groups }: { invoice: Invoice; items: 
 }
 
 /** Renders the invoice to PDF bytes. */
-export async function renderInvoicePdf(invoice: Invoice, items: InvoiceItem[], groups: DocumentGroup[] = []) {
-  return pdf(<InvoiceDocument invoice={invoice} items={items} groups={groups} />).toBlob();
+export async function renderInvoicePdf(
+  invoice: Invoice,
+  items: InvoiceItem[],
+  groups: DocumentGroup[] = [],
+  signoff: DocumentSignoff | null = null,
+) {
+  return pdf(<InvoiceDocument invoice={invoice} items={items} groups={groups} signoff={signoff} />).toBlob();
 }

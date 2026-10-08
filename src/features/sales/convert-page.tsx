@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Descriptions, Flex, Form, Result, Skeleton, Typography } from "antd";
+import { Alert, App, Button, Card, Descriptions, Flex, Form, Result, Segmented, Skeleton, Typography } from "antd";
 import { TransactionOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { EmailListInput, Recipients, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { formatMoney } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
+import { setInvoiceMaterai } from "./api";
+import { useIsApprover } from "./approvals";
+import { needsMateraiHint } from "./invoices-page";
 import { AccountPicker } from "./account-picker";
 import { loadCustomerAccounts } from "./accounts";
 
@@ -27,6 +30,8 @@ export function ConvertPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ccForm] = Form.useForm<{ cc: string[] }>();
+  const [materai, setMaterai] = useState<"none" | "physical">("none");
+  const isApprover = useIsApprover();
 
   const { data, isLoading } = useQuery({
     queryKey: ["convert", id],
@@ -83,16 +88,21 @@ export function ConvertPage() {
     }
     setPending(true);
     setError(null);
-    const { error: convertError } = await supabase.rpc("convert_quotation_to_invoice", {
+    const { data: invoiceId, error: convertError } = await supabase.rpc("convert_quotation_to_invoice", {
       p_quotation_id: quotation.id,
       // Linked, or "no account yet": the database uses the quotation's own account (or none).
       ...(linked || !choice ? {} : { p_owner_id: choice }),
       p_cc_emails: cc,
     });
+    if (convertError) {
+      setPending(false);
+      return setError(errorText(convertError, "The invoice could not be created. Please try again."));
+    }
+    // The PDF is drawn on demand, so the box is there whenever it is opened.
+    if (materai === "physical" && invoiceId) await setInvoiceMaterai(invoiceId, "physical").catch(() => undefined);
     setPending(false);
-    if (convertError) return setError(errorText(convertError, "The invoice could not be created. Please try again."));
     await Promise.all(["quotations", "invoices"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
-    message.success("Invoice created, and the customer has been emailed.");
+    message.success(isApprover ? "Invoice created and sent to the customer." : "Invoice created and sent for approval. The approvers have been emailed.");
     navigate("/sales/invoices");
   };
 
@@ -182,12 +192,39 @@ export function ConvertPage() {
           </Flex>
         </Card>
 
+        <Card title="Materai">
+          <Flex vertical gap={12}>
+            <Segmented<"none" | "physical">
+              value={materai}
+              onChange={setMaterai}
+              options={[
+                { value: "none", label: "None" },
+                { value: "physical", label: "Space for physical materai" },
+                { value: "e_meterai" as "none", label: "e-Meterai (coming soon)", disabled: true },
+              ]}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              A box beside the signature for a Rp10.000 materai, stuck on and signed across. It can be changed later on the invoice.
+            </Typography.Text>
+            {needsMateraiHint({ currency: quotation.currency, total: quotation.total }, materai) ? (
+              <Alert type="info" showIcon title="Over Rp5.000.000" description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai." />
+            ) : null}
+          </Flex>
+        </Card>
+
         {error ? <Alert type="error" showIcon title={error} /> : null}
-        <div>
-          <Button type="primary" size="large" icon={<TransactionOutlined />} loading={pending} disabled={Boolean(quotation.customer_id && !linked)} onClick={convert}>
-            Create the invoice
-          </Button>
-        </div>
+        <Flex vertical gap={6}>
+          <div>
+            <Button type="primary" size="large" icon={<TransactionOutlined />} loading={pending} disabled={Boolean(quotation.customer_id && !linked)} onClick={convert}>
+              {isApprover ? "Create & send invoice" : "Create & request approval"}
+            </Button>
+          </div>
+          {isApprover ? null : (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              It is created now and goes to the customer once an approver approves it.
+            </Typography.Text>
+          )}
+        </Flex>
       </Flex>
     </>
   );
