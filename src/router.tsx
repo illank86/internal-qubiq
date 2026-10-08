@@ -6,6 +6,17 @@ import { ForgotPasswordPage } from "@/pages/forgot-password";
 import { LoginPage } from "@/pages/login";
 import { SetPasswordPage } from "@/pages/set-password";
 import { NAV_ITEMS } from "@/nav";
+import { QuotationBuilderPage } from "@/features/sales/quotation-builder-page";
+import { QuotationsPage } from "@/features/sales/quotations-page";
+import { ConvertPage } from "@/features/sales/convert-page";
+import { CustomerPage } from "@/features/sales/customer-page";
+import { InvoicesPage } from "@/features/sales/invoices-page";
+
+/** Screens built here; everything else in the menu is still a placeholder. */
+const READY: Record<string, React.ReactNode> = {
+  "/sales/quotations": <QuotationsPage />,
+  "/sales/invoices": <InvoicesPage />,
+};
 
 /**
  * Signed-out screens: sign in, forgot password, set password (invite and
@@ -22,7 +33,11 @@ export const router = createBrowserRouter([
     element: <RequireStaff />,
     children: [
       { index: true, element: <DashboardPage /> },
-      ...NAV_ITEMS.map((item) => ({ path: item.path, element: <ComingSoonPage item={item} /> })),
+      ...NAV_ITEMS.map((item) => ({ path: item.path, element: READY[item.path] ?? <ComingSoonPage item={item} /> })),
+      { path: "/sales/quotations/new", element: <QuotationBuilderPage /> },
+      { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },
+      { path: "/sales/quotations/:id/convert", element: <ConvertPage /> },
+      { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

@@ -52,8 +52,8 @@ export const NAV: NavGroup[] = [
     heading: "Sales",
     items: [
       { path: "/sales/quote-requests", label: "Quote requests", icon: InboxOutlined, permissions: ["leads.manage"], legacy: "/admin/quote_requests", phase: 3, summary: "Requests from the pricing page, ready to turn into quotations." },
-      { path: "/sales/quotations", label: "Quotations", icon: FileDoneOutlined, permissions: ["leads.manage"], legacy: "/admin/quotations", phase: 3, summary: "Build, send and track quotations with server groups; claim links and customer accounts." },
-      { path: "/sales/invoices", label: "Invoices", icon: TransactionOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, summary: "Invoices converted from accepted quotations: payment status, corrections, PDFs." },
+      { path: "/sales/quotations", label: "Quotations", icon: FileDoneOutlined, permissions: ["leads.manage"], legacy: "/admin/quotations", phase: 3, ready: true, summary: "Build, send and track quotations with server groups; claim links and customer accounts." },
+      { path: "/sales/invoices", label: "Invoices", icon: TransactionOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "Invoices converted from accepted quotations: payment status, corrections, PDFs." },
       { path: "/sales/leads", label: "Leads", icon: ContactsOutlined, permissions: ["leads.manage"], legacy: "/admin/leads", phase: 3, summary: "Contact-form enquiries and their follow-up." },
       { path: "/sales/editions", label: "Editions & modules", icon: AppstoreOutlined, permissions: ["pricing.manage"], legacy: "/admin/license_modules", phase: 3, summary: "The price list: modules, categories and the editions built from them." },
       { path: "/sales/settings", label: "Sales settings", icon: SettingOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoice_settings", phase: 3, summary: "Tax, payment terms, how to pay, quotation wording." },
