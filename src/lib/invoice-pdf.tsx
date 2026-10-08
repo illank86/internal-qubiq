@@ -76,7 +76,7 @@ function InvoiceDocument({
   const licensee = invoice.licensee_name || invoice.bill_to_name;
   const settled = invoice.status === "paid" || invoice.status === "void";
   // Signed (approved), or with a space for materai to be signed across.
-  const signed = Boolean(signoff) || invoice.materai === "physical";
+  const signed = Boolean(signoff) || invoice.materai !== "none";
   const termsDays = Math.round(
     (Date.parse(`${invoice.due_date}T00:00:00Z`) - Date.parse(`${invoice.issue_date}T00:00:00Z`)) / 86_400_000,
   );
@@ -177,11 +177,11 @@ function InvoiceDocument({
               {seller.email ? `. Questions about this invoice: ${seller.email}` : ""}.
             </Text>
           </View>
-          {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai === "physical"} inline /> : null}
+          {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} inline /> : null}
           </View>
         ) : signed ? (
           // Paid or void: no payment details, the signature on its own.
-          <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai === "physical"} />
+          <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} />
         ) : null}
 
         <PageFooter seller={seller} />

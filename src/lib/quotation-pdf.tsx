@@ -221,10 +221,13 @@ function QuotationDocument({
               {signoff.image ? (
                 // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
                 <Image src={signoff.image} style={{ height: 58, width: 150, objectFit: "contain" }} />
-              ) : (
+              ) : signoff.pending ? (
                 <View style={{ height: 50, width: 150, borderWidth: 0.8, borderStyle: "dashed", borderColor: LINE, alignItems: "center", justifyContent: "center" }}>
                   <Text style={{ fontSize: 7, color: MUTED }}>Signature added on approval</Text>
                 </View>
+              ) : (
+                // Signed by hand: the space is left for it.
+                <View style={{ height: 50 }} />
               )}
             </View>
           ) : (
@@ -238,10 +241,10 @@ function QuotationDocument({
             </View>
           )}
           <Text style={[styles.partyName, { marginTop: 8, fontSize: 10.5 }]}>
-            {signoff ? signoff.name : quotation.sales_name || `${seller.company_name ?? "QUBIQ"} Sales`}
+            {(signoff ? signoff.name : null) || quotation.sales_name || `${seller.company_name ?? "QUBIQ"} Sales`}
           </Text>
-          {(signoff ? signoff.title : quotation.sales_title) ? (
-            <Text style={{ color: INK }}>{signoff ? signoff.title : quotation.sales_title}</Text>
+          {(signoff?.name ? signoff.title : quotation.sales_title) ? (
+            <Text style={{ color: INK }}>{signoff?.name ? signoff.title : quotation.sales_title}</Text>
           ) : null}
           <Text>{seller.company_name ?? "QUBIQ"}</Text>
           <Text>{[replyTo, quotation.sales_phone || seller.phone].filter(Boolean).join("  ·  ")}</Text>

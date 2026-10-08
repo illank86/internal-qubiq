@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Checkbox, Col, Divider, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
@@ -24,7 +24,7 @@ import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice, setInvoiceMaterai, setInvoiceStatus } from "./api";
+import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice, setInvoiceMaterai, setInvoiceStatus, type Materai, type SignatureMode } from "./api";
 import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { CcNote } from "./quotations-page";
 import { useAction } from "./use-action";
@@ -52,6 +52,8 @@ export function InvoiceStatusTag({ invoice }: { invoice: Pick<Invoice, "status" 
 export function InvoicesPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const [params, setParams] = useSearchParams();
+  const viewPdf = usePdfViewer();
   const [editing, setEditing] = useState<Row | null>(null);
   const { run, busy } = useAction([["invoices"], ["quotations"]]);
   const isApprover = useIsApprover();
@@ -71,6 +73,24 @@ export function InvoicesPage() {
       return (rows ?? []) as unknown as Row[];
     },
   });
+
+  // Opened from a quotation (?invoice=<id>): show that invoice — the list
+  // narrowed to it, and its PDF — then forget the link.
+  const linked = params.get("invoice");
+  useEffect(() => {
+    if (!linked || !data) return;
+    const target = data.find((row) => row.id === linked);
+    if (target) {
+      setFilter("all");
+      setSearch(target.number ?? "");
+      viewPdf(invoicePdf(target.id, target.number));
+    }
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("invoice");
+      return next;
+    }, { replace: true });
+  }, [linked, data, setParams, viewPdf]);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -178,7 +198,13 @@ export function InvoicesPage() {
             { value: "void", label: "Void" },
           ]}
         />
-        <Input.Search allowClear placeholder="Search number, customer or quotation" onChange={(event) => setSearch(event.target.value)} style={{ maxWidth: 320 }} />
+        <Input.Search
+          allowClear
+          value={search}
+          placeholder="Search number, customer or quotation"
+          onChange={(event) => setSearch(event.target.value)}
+          style={{ maxWidth: 320 }}
+        />
       </Flex>
       <Table<Row>
         rowKey="id"
@@ -335,7 +361,8 @@ type DetailValues = {
   bill_to_company: string;
   bill_to_email: string;
   cc_emails: string[];
-  materai: "none" | "physical";
+  materai: Materai;
+  signature_mode: SignatureMode;
   bill_to_address: string;
   due_date: string;
   tax_rate: number;
@@ -377,8 +404,15 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const save = async (values: DetailValues) => {
     setPending(true);
     setError(null);
-    // Materai only changes the PDF, not what is owed: no approval needed.
-    if (values.materai !== (invoice.materai === "physical" ? "physical" : "none")) {
+    // Materai and how it is signed only change the PDF, not what is owed: no approval needed.
+    if (values.signature_mode !== invoice.signature_mode) {
+      const { error: modeError } = await supabase.from("invoices").update({ signature_mode: values.signature_mode }).eq("id", invoice.id);
+      if (modeError) {
+        setPending(false);
+        return setError(errorText(modeError, "The signature setting could not be saved."));
+      }
+    }
+    if (values.materai !== invoice.materai) {
       try {
         await setInvoiceMaterai(invoice.id, values.materai);
       } catch (cause) {
@@ -447,7 +481,8 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
           bill_to_company: invoice.bill_to_company ?? "",
           bill_to_email: invoice.bill_to_email ?? "",
           cc_emails: invoice.cc_emails ?? [],
-          materai: invoice.materai === "physical" ? "physical" : "none",
+          materai: (invoice.materai as Materai) ?? "none",
+          signature_mode: (invoice.signature_mode as SignatureMode) ?? "digital",
           bill_to_address: invoice.bill_to_address ?? "",
           due_date: invoice.due_date,
           tax_rate: Number(invoice.tax_rate),
@@ -502,19 +537,29 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
         <Form.Item label="Notes on the invoice" name="notes" rules={[{ max: 1000 }]}>
           <Input.TextArea rows={3} />
         </Form.Item>
-        <Form.Item
-          label="Materai"
-          name="materai"
-          extra="A box beside the signature for a Rp10.000 materai, stuck on and signed across. e-Meterai (a stamped copy from Peruri) is coming."
-        >
-          <Select
-            options={[
-              { value: "none", label: "None" },
-              { value: "physical", label: "Space for physical materai" },
-              { value: "e_meterai", label: "e-Meterai — coming soon", disabled: true },
-            ]}
-          />
-        </Form.Item>
+        <Row gutter={16}>
+          <Col xs={24} sm={12}>
+            <Form.Item label="Signature" name="signature_mode" extra="Digital: the company signature, added once approved. By hand: the space is left empty to sign on paper.">
+              <Select
+                options={[
+                  { value: "digital", label: "Digital" },
+                  { value: "wet", label: "Sign by hand" },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item label="Materai" name="materai" extra="Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site.">
+              <Select
+                options={[
+                  { value: "none", label: "None" },
+                  { value: "physical", label: "Physical materai" },
+                  { value: "e_meterai", label: "e-Meterai (space for the stamp)" },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
         {needsMateraiHint(invoice, materai) ? (
           <Alert
             type="info"

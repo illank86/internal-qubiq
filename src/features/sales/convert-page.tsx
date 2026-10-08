@@ -8,7 +8,7 @@ import { EmailListInput, Recipients, ccRules, normaliseEmails } from "@/componen
 import { formatMoney } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
-import { setInvoiceMaterai } from "./api";
+import { setInvoiceMaterai, type Materai, type SignatureMode } from "./api";
 import { useIsApprover } from "./approvals";
 import { needsMateraiHint } from "./invoices-page";
 import { AccountPicker } from "./account-picker";
@@ -30,7 +30,8 @@ export function ConvertPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ccForm] = Form.useForm<{ cc: string[] }>();
-  const [materai, setMaterai] = useState<"none" | "physical">("none");
+  const [materai, setMaterai] = useState<Materai>("none");
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("digital");
   const isApprover = useIsApprover();
 
   const { data, isLoading } = useQuery({
@@ -99,7 +100,8 @@ export function ConvertPage() {
       return setError(errorText(convertError, "The invoice could not be created. Please try again."));
     }
     // The PDF is drawn on demand, so the box is there whenever it is opened.
-    if (materai === "physical" && invoiceId) await setInvoiceMaterai(invoiceId, "physical").catch(() => undefined);
+    if (invoiceId && materai !== "none") await setInvoiceMaterai(invoiceId, materai).catch(() => undefined);
+    if (invoiceId && signatureMode === "wet") await supabase.from("invoices").update({ signature_mode: "wet" }).eq("id", invoiceId);
     setPending(false);
     await Promise.all(["quotations", "invoices"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
     message.success(isApprover ? "Invoice created and sent to the customer." : "Invoice created and sent for approval. The approvers have been emailed.");
@@ -192,19 +194,34 @@ export function ConvertPage() {
           </Flex>
         </Card>
 
-        <Card title="Materai">
+        <Card title="Signing">
           <Flex vertical gap={12}>
-            <Segmented<"none" | "physical">
+            <Typography.Text strong>Signature</Typography.Text>
+            <Segmented<SignatureMode>
+              value={signatureMode}
+              onChange={setSignatureMode}
+              options={[
+                { value: "digital", label: "Digital" },
+                { value: "wet", label: "Sign by hand" },
+              ]}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Digital: the company signature, added once approved. By hand: the space is left empty to sign on paper.
+            </Typography.Text>
+            <Typography.Text strong style={{ marginTop: 4 }}>
+              Materai
+            </Typography.Text>
+            <Segmented<Materai>
               value={materai}
               onChange={setMaterai}
               options={[
                 { value: "none", label: "None" },
-                { value: "physical", label: "Space for physical materai" },
-                { value: "e_meterai" as "none", label: "e-Meterai (coming soon)", disabled: true },
+                { value: "physical", label: "Physical materai" },
+                { value: "e_meterai", label: "e-Meterai" },
               ]}
             />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              A box beside the signature for a Rp10.000 materai, stuck on and signed across. It can be changed later on the invoice.
+              Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site. Both can be changed later on the invoice.
             </Typography.Text>
             {needsMateraiHint({ currency: quotation.currency, total: quotation.total }, materai) ? (
               <Alert type="info" showIcon title="Over Rp5.000.000" description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai." />

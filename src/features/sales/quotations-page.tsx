@@ -318,7 +318,7 @@ function RowActions({
     );
   } else if (invoice) {
     primary = (
-      <Button size="small" icon={<TransactionOutlined />} onClick={() => navigate("/sales/invoices")}>
+      <Button size="small" icon={<TransactionOutlined />} onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
         {invoice.number}
       </Button>
     );

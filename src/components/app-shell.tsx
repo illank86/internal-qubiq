@@ -88,7 +88,7 @@ function AppShell() {
     .join("");
 
   // The role that says most about the person, for the header; all of them in the menu.
-  const ROLE_ORDER = ["admin", "licensing", "editor", "viewer"] as const;
+  const ROLE_ORDER = ["admin", "sales", "licensing", "editor", "viewer"] as const;
   const mainRole = ROLE_ORDER.find((role) => staff.roles.includes(role));
   const roleLabel = (role: string) => role[0].toUpperCase() + role.slice(1);
 

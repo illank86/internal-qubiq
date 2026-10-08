@@ -43,6 +43,8 @@ export type PreviewInput = {
   terms: string;
   closing: string;
   signoff: string;
+  /** Digital (the company signature once approved) or signed by hand (an empty space). */
+  signatureMode?: "digital" | "wet";
 };
 
 /**
@@ -145,8 +147,14 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     seller,
   } as unknown as QuotationForPdf;
 
-  // Not approved yet: where the company signature will go (or the QR code if none is on file).
+  // Not approved yet: where the company signature will go (or the QR code if
+  // none is on file); signed by hand, an empty space for it.
   const signature = await loadSignatureInfo();
-  const signoff = signature ? { name: signature.signatory_name, title: signature.signatory_title, place: signature.place, pending: true } : null;
+  const signoff =
+    input.signatureMode === "wet"
+      ? { wet: true, name: signature?.signatory_name ?? "", title: signature?.signatory_title, place: signature?.place }
+      : signature
+        ? { name: signature.signatory_name, title: signature.signatory_title, place: signature.place, pending: true }
+        : null;
   return renderQuotationPdf(quotation, items, groups, signoff);
 }

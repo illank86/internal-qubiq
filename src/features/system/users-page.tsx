@@ -10,10 +10,11 @@ import { supabase } from "@/lib/supabase";
 import type { AppRole, Profile } from "@/lib/types";
 import { useAction } from "@/features/sales/use-action";
 
-const ROLES: AppRole[] = ["admin", "editor", "licensing", "viewer"];
+const ROLES: AppRole[] = ["admin", "sales", "editor", "licensing", "viewer"];
 const ROLE_HINT: Record<AppRole, string> = {
   admin: "Everything, including users and roles",
-  editor: "Website content, blog, pricing and downloads",
+  sales: "Quotations, and the inbox: leads, quote requests, bug reports, newsletters",
+  editor: "Website content, blog, pricing, downloads and the inbox",
   licensing: "Licences, invoices and Sales settings",
   viewer: "Can sign in and look around",
 };

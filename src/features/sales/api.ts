@@ -70,8 +70,11 @@ export async function rejectDocument(type: DocumentType, id: string, reason: str
   fail(error);
 }
 
-/** Physical materai box on the PDF, or none. (e-Meterai: not yet.) */
-export async function setInvoiceMaterai(id: string, materai: "none" | "physical") {
+export type Materai = "none" | "physical" | "e_meterai";
+export type SignatureMode = "digital" | "wet";
+
+/** Materai on the PDF: none, a box for a physical one, or empty space for an e-Meterai stamp. */
+export async function setInvoiceMaterai(id: string, materai: Materai) {
   const { error } = await supabase.rpc("set_invoice_materai", { p_invoice_id: id, p_materai: materai });
   fail(error);
 }
@@ -123,7 +126,16 @@ async function fetchSigned(path: string) {
   return response.blob();
 }
 
-function placeholder(info: SignatureInfo): DocumentSignoff | null {
+/** What goes in the signature space when it is drawn here (no image ever is). */
+function localSignoff(
+  doc: { approval_status: string; approved_at: string | null; signature_mode: string },
+  info: SignatureInfo,
+): DocumentSignoff | null {
+  // Signed by hand: an empty space, with the signatory, before and after approval.
+  if (doc.signature_mode === "wet") {
+    return { wet: true, name: info?.signatory_name ?? "", title: info?.signatory_title, place: info?.place, date: doc.approval_status === "approved" ? doc.approved_at : null };
+  }
+  if (doc.approval_status === "approved") return null;
   return info ? { name: info.signatory_name, title: info.signatory_title, place: info.place, pending: true } : null;
 }
 
@@ -143,10 +155,10 @@ export function quotationPdf(id: string, number: string | null): PdfRequest {
       fail(error);
       if (!quotation) throw new Error("Quotation not found");
       const shared = ["sent", "accepted", "declined"].includes(quotation.status);
-      if (quotation.approval_status === "approved" && quotation.signature_id && shared) {
+      if (quotation.approval_status === "approved" && quotation.signature_mode !== "wet" && quotation.signature_id && shared) {
         return fetchSigned(`/quotes/${quotation.public_token}/pdf`);
       }
-      const signoff = quotation.approval_status === "approved" ? null : placeholder(await loadSignatureInfo());
+      const signoff = localSignoff(quotation, await loadSignatureInfo());
       return renderQuotationPdf(quotation, items ?? [], groups ?? [], signoff);
     },
   };
@@ -165,10 +177,10 @@ export function invoicePdf(id: string, number: string | null): PdfRequest {
       ]);
       fail(error);
       if (!invoice) throw new Error("Invoice not found");
-      if (invoice.approval_status === "approved" && invoice.signature_id) {
+      if (invoice.approval_status === "approved" && invoice.signature_mode !== "wet" && invoice.signature_id) {
         return fetchSigned(`/i/${invoice.public_token}/pdf`);
       }
-      const signoff = invoice.approval_status === "approved" ? null : placeholder(await loadSignatureInfo());
+      const signoff = localSignoff(invoice, await loadSignatureInfo());
       return renderInvoicePdf(invoice, items ?? [], groups ?? [], signoff);
     },
   };

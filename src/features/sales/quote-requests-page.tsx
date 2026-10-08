@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, Descriptions, Drawer, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { DeleteOutlined, FileAddOutlined } from "@ant-design/icons";
+import { useCan } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
@@ -27,6 +28,8 @@ export function QuoteRequestsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [open, setOpen] = useState<QuoteRequest | null>(null);
   const { run, busy } = useAction([["quote-requests"]]);
+  // The inbox is leads.manage; making a quotation needs quotations.manage.
+  const canQuote = useCan()("quotations.manage");
 
   const { data, isLoading } = useQuery({
     queryKey: ["quote-requests"],
@@ -116,7 +119,8 @@ export function QuoteRequestsPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => (
+      render: (_, row) =>
+        canQuote ? (
         <Button
           size="small"
           type={row.quotations.length === 0 ? "primary" : "default"}
@@ -128,7 +132,7 @@ export function QuoteRequestsPage() {
         >
           Create quotation
         </Button>
-      ),
+        ) : null,
     },
   ];
 
@@ -178,6 +182,7 @@ export function QuoteRequestsPage() {
 
 function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest | null; onClose: () => void; run: ReturnType<typeof useAction>["run"]; busy: string | null }) {
   const navigate = useNavigate();
+  const canQuote = useCan()("quotations.manage");
   if (!request) return <Drawer open={false} onClose={onClose} />;
   const modules = Array.isArray(request.modules) ? (request.modules as { name?: string; slug?: string; price?: number }[]) : [];
   const money = (amount: number | null) => (amount != null ? formatMoney(amount, request.currency ?? "USD") : "—");
@@ -190,9 +195,11 @@ function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest 
       size={620}
       destroyOnHidden
       extra={
-        <Button type="primary" icon={<FileAddOutlined />} onClick={() => navigate(`/sales/quotations/new?request=${request.id}`)}>
-          Create quotation
-        </Button>
+        canQuote ? (
+          <Button type="primary" icon={<FileAddOutlined />} onClick={() => navigate(`/sales/quotations/new?request=${request.id}`)}>
+            Create quotation
+          </Button>
+        ) : null
       }
     >
       <Descriptions column={1} size="small" bordered>

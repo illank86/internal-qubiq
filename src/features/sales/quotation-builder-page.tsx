@@ -29,6 +29,7 @@ type Values = {
   contact_name: string;
   contact_email: string;
   cc_emails: string[];
+  signature_mode: "digital" | "wet";
   company: string;
   job_title: string;
   phone: string;
@@ -136,6 +137,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     terms: values.terms ?? "",
     closing: values.closing ?? "",
     signoff: values.signoff ?? "",
+    signatureMode: values.signature_mode ?? "digital",
   });
 
   const preview = (action?: { values: Values }) => {
@@ -217,7 +219,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     // Saved before sending, so the email (sent after commit) has the CC list.
     const { error: ccError } = await supabase
       .from("quotations")
-      .update({ cc_emails: normaliseEmails(values.cc_emails) })
+      .update({ cc_emails: normaliseEmails(values.cc_emails), signature_mode: values.signature_mode })
       .eq("id", quotationId);
     if (ccError) {
       setSaving(null);
@@ -249,6 +251,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     contact_name: draft.contact.name,
     contact_email: draft.contact.email,
     cc_emails: draft.cc,
+    signature_mode: draft.signatureMode,
     company: draft.contact.company,
     job_title: draft.contact.jobTitle,
     phone: draft.contact.phone,
@@ -457,8 +460,21 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                         <Form.Item label="Closing paragraph" name="closing" extra="{company} {name} {email} {phone} are filled in. Empty for none." rules={[{ max: 2000 }]}>
                           <Input.TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Sign-off" name="signoff" rules={[{ max: 80 }]} style={{ marginBottom: 0 }}>
+                        <Form.Item label="Sign-off" name="signoff" rules={[{ max: 80 }]}>
                           <Input placeholder="Best regards," />
+                        </Form.Item>
+                        <Form.Item
+                          label="Signature"
+                          name="signature_mode"
+                          style={{ marginBottom: 0 }}
+                          extra="Digital: the company signature, added once approved (the QR code if none is on file). By hand: the space is left empty to sign on paper."
+                        >
+                          <Segmented
+                            options={[
+                              { value: "digital", label: "Digital" },
+                              { value: "wet", label: "Sign by hand" },
+                            ]}
+                          />
                         </Form.Item>
                       </>
                     ),

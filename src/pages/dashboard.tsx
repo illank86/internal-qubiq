@@ -43,7 +43,7 @@ async function loadDashboard(can: (permission: AppPermission) => boolean) {
   const [leads, requests, quotations, invoices, licences, bugs, integrators, recentRequests, recentLeads, activity] = await Promise.all([
     sales ? supabase.from("leads").select("status, created_at").limit(5000) : none,
     sales ? supabase.from("quote_requests").select("status, created_at").limit(5000) : none,
-    sales ? supabase.from("quotations").select("status, valid_until, total, currency, decimal_places").limit(5000) : none,
+    can("quotations.manage") ? supabase.from("quotations").select("status, valid_until, total, currency, decimal_places").limit(5000) : none,
     licensing ? supabase.from("invoices").select("status, due_date, total, currency, decimal_places, paid_at").limit(5000) : none,
     licensing ? supabase.from("licenses").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
     sales ? supabase.from("bug_reports").select("status, severity").limit(5000) : none,

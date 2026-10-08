@@ -1011,6 +1011,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          signature_mode: string
           approval_status: Database["public"]["Enums"]["approval_state"]
           approval_requested_by: string | null
           approval_requested_at: string | null
@@ -1057,6 +1058,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
           approval_requested_at?: string | null
@@ -1103,6 +1105,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
           approval_requested_at?: string | null
@@ -2391,6 +2394,7 @@ export type Database = {
       }
       quotations: {
         Row: {
+          signature_mode: string
           approval_status: Database["public"]["Enums"]["approval_state"]
           approval_requested_by: string | null
           approval_requested_at: string | null
@@ -2449,6 +2453,7 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
           approval_requested_at?: string | null
@@ -2507,6 +2512,7 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
           approval_requested_at?: string | null
@@ -3499,7 +3505,8 @@ export type Database = {
         | "leads.manage"
         | "users.manage"
         | "licenses.manage"
-      app_role: "admin" | "editor" | "viewer" | "licensing"
+        | "quotations.manage"
+      app_role: "admin" | "editor" | "viewer" | "licensing" | "sales"
       bug_severity: "low" | "medium" | "high" | "critical"
       bug_status:
         | "new"
@@ -3666,8 +3673,9 @@ export const Constants = {
         "leads.manage",
         "users.manage",
         "licenses.manage",
+        "quotations.manage",
       ],
-      app_role: ["admin", "editor", "viewer", "licensing"],
+      app_role: ["admin", "editor", "viewer", "licensing", "sales"],
       bug_severity: ["low", "medium", "high", "critical"],
       bug_status: [
         "new",

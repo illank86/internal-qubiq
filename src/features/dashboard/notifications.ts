@@ -29,7 +29,7 @@ export async function loadNotifications(userId: string, permissions: AppPermissi
   const { data: approverRow } = await supabase.from("document_approvers").select("user_id").eq("user_id", userId).maybeSingle();
   const approver = Boolean(approverRow);
   const [waitingQuotes, waitingInvoices, decisions] = await Promise.all([
-    approver && sees("leads.manage")
+    approver && sees("quotations.manage")
       ? supabase.from("quotations").select("id, number, company, contact_name, approval_requested_at").eq("approval_status", "pending").neq("approval_requested_by", userId).limit(limit)
       : none,
     approver && sees("licenses.manage")

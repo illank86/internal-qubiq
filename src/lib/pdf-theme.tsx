@@ -472,7 +472,12 @@ export type DocumentSignoff = {
   image?: string | null;
   /** A preview before approval: the signature is added once approved. */
   pending?: boolean;
+  /** Signed by hand: the space is left empty, to sign on paper. */
+  wet?: boolean;
 };
+
+/** none; physical (a box to stick it on and sign across); e_meterai (empty space for the stamp). */
+export type MateraiMode = "none" | "physical" | "e_meterai" | string;
 
 const signoffDate = (value: string | null | undefined) =>
   value
@@ -480,29 +485,31 @@ const signoffDate = (value: string | null | undefined) =>
     : "";
 
 /**
- * Place and date, the company, the signature (or a space to sign by hand)
- * and the signatory. With `materai`, a box for a physical stamp duty seal
- * overlaps the signature, as it is signed across. Kept whole on one page.
+ * Place and date, the company, the signature (or an empty space to sign by
+ * hand) and the signatory. Physical materai: a box overlapping the
+ * signature, which is signed across it. e-Meterai: the same place left
+ * empty, for the stamp applied through an e-Meterai provider. Kept whole.
  */
 export function SignatureBlock({
   signoff,
   company,
-  materai = false,
+  materai = "none",
   inline = false,
 }: {
   signoff: DocumentSignoff | null;
   company: string;
-  materai?: boolean;
+  materai?: MateraiMode;
   /** Beside another block (an invoice's payment details) rather than on its own line. */
   inline?: boolean;
 }) {
   const dated = [signoff?.place, signoffDate(signoff?.date)].filter(Boolean).join(", ");
+  const stamp = materai === "physical" || materai === "e_meterai";
   return (
     <View wrap={false} style={inline ? { width: 190 } : { marginTop: 22, alignSelf: "flex-end", width: 220 }}>
       {dated ? <Text style={{ color: INK }}>{dated}</Text> : null}
       <Text style={{ color: INK, fontFamily: "Helvetica-Bold", marginTop: 1 }}>{company}</Text>
       <View style={{ height: 52, marginTop: 2, justifyContent: "flex-end" }}>
-        {materai ? (
+        {materai === "physical" ? (
           <View
             style={{
               position: "absolute",
@@ -523,13 +530,13 @@ export function SignatureBlock({
         ) : null}
         {signoff?.image ? (
           // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
-          <Image src={signoff.image} style={{ height: 48, width: 140, objectFit: "contain", marginLeft: materai ? 30 : 0 }} />
+          <Image src={signoff.image} style={{ height: 48, width: 140, objectFit: "contain", marginLeft: stamp ? 30 : 0 }} />
         ) : signoff?.pending ? (
           <View
             style={{
               height: 44,
               width: 140,
-              marginLeft: materai ? 30 : 0,
+              marginLeft: stamp ? 30 : 0,
               borderWidth: 0.8,
               borderStyle: "dashed",
               borderColor: LINE,
