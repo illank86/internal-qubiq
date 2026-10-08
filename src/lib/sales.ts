@@ -7,9 +7,9 @@ import { formatMoney } from "@/lib/invoices";
  * member, so RLS decides what comes back.
  */
 
-/** A named group of modules; it has no price of its own. */
-export type BuilderEdition = { id: string; name: string; currency: string; moduleIds: string[] };
-export type BuilderModule = { id: string; name: string; category: string; price: number; percent: number | null; recurring: boolean };
+/** A named group of modules; it has no price of its own. `custom`: the customer picks (no set, no heading). */
+export type BuilderEdition = { id: string; name: string; tagline: string; custom: boolean; currency: string; moduleIds: string[] };
+export type BuilderModule = { id: string; name: string; description: string; category: string; price: number; percent: number | null; recurring: boolean };
 export type SalesPerson = { id: string; name: string; title: string; email: string; phone: string };
 
 export type SalesCatalog = {
@@ -29,10 +29,10 @@ export type SalesCatalog = {
 
 export async function loadSalesCatalog(): Promise<SalesCatalog> {
   const [{ data: editions }, { data: modules }, { data: links }, { data: settings }, { data: staff }, { data: site }] = await Promise.all([
-    supabase.from("license_editions").select("id, name, currency").order("sort_order"),
+    supabase.from("license_editions").select("id, name, tagline, allows_module_selection, currency").order("sort_order"),
     supabase
       .from("license_modules")
-      .select("id, name, price, percent_of_licence, is_recurring, sort_order, category:license_module_categories(name, sort_order)")
+      .select("id, name, description, price, percent_of_licence, is_recurring, sort_order, category:license_module_categories(name, sort_order)")
       .order("sort_order"),
     supabase.from("license_edition_modules").select("edition_id, module_id"),
     supabase
@@ -50,6 +50,8 @@ export async function loadSalesCatalog(): Promise<SalesCatalog> {
     editions: (editions ?? []).map((edition) => ({
       id: edition.id,
       name: edition.name,
+      tagline: edition.tagline ?? "",
+      custom: Boolean(edition.allows_module_selection),
       currency: edition.currency ?? "USD",
       moduleIds: editionModules.get(edition.id) ?? [],
     })),
@@ -59,6 +61,7 @@ export async function loadSalesCatalog(): Promise<SalesCatalog> {
       .map(({ row, category }) => ({
         id: row.id,
         name: row.name,
+        description: row.description ?? "",
         category: category?.name ?? "Other",
         price: Number(row.price ?? 0),
         percent: row.percent_of_licence ? Number(row.percent_of_licence) : null,

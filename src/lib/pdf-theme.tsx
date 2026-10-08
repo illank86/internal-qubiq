@@ -79,6 +79,8 @@ export const styles = StyleSheet.create({
   itemName: { fontFamily: "Helvetica-Bold", color: INK },
   groupRow: { flexDirection: "row", alignItems: "baseline", marginTop: 10, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: PANEL, borderRadius: 4 },
   groupName: { flex: 1, fontFamily: "Helvetica-Bold", color: INK },
+  editionRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", paddingTop: 9, paddingBottom: 5, paddingLeft: 20, borderBottomWidth: 0.6, borderColor: LINE },
+  editionName: { fontFamily: "Helvetica-Bold", color: BRAND },
   groupSubtotal: { flexDirection: "row", justifyContent: "flex-end", paddingVertical: 6, borderBottomWidth: 1, borderColor: INK },
 
   summary: { flexDirection: "row", marginTop: 18, gap: 24, alignItems: "flex-start" },
@@ -227,7 +229,38 @@ export type DocumentLine = {
   unit_price: number | string;
   amount: number | string;
   group_id?: string | null;
+  edition_id?: string | null;
+  module_id?: string | null;
 };
+
+/**
+ * An edition heading ("Plant edition"): the line a quotation writes ahead of
+ * an edition's modules — the edition, no module, no price. (Before editions
+ * lost their own price, an edition line had an amount and printed as a row.)
+ */
+const isEditionHeading = (item: DocumentLine) => Boolean(item.edition_id) && !item.module_id && Number(item.amount) === 0;
+
+function EditionHeading({ item }: { item: DocumentLine }) {
+  return (
+    <View style={styles.editionRow} minPresenceAhead={30} wrap={false}>
+      <Text style={styles.editionName}>{item.description}</Text>
+      {item.detail ? <Text style={styles.muted}>{`  ·  ${item.detail}`}</Text> : null}
+    </View>
+  );
+}
+
+/** Lines in order: an edition heading as a heading (no server groups), the rest numbered from `start`. */
+function ItemLines({ items, start, money }: { items: DocumentLine[]; start: number; money: (amount: number | string) => string }) {
+  // Each priced line's number: `start` plus the priced lines before it.
+  const numbers = items.map((_, index) => start + items.slice(0, index).filter((item) => !isEditionHeading(item)).length);
+  return (
+    <>
+      {items.map((item, index) =>
+        isEditionHeading(item) ? <EditionHeading key={item.id} item={item} /> : <LineRow key={item.id} item={item} index={numbers[index]} money={money} />,
+      )}
+    </>
+  );
+}
 
 /** A server group: identical servers sharing an edition and modules. */
 export type DocumentGroup = {
@@ -270,9 +303,17 @@ export function ItemsTable({
 }) {
   const grouped = groups.length > 1 || groups.some((group) => group.quantity > 1);
   if (grouped) {
-    let number = 0;
     const known = new Set(groups.map((group) => group.id));
     const loose = items.filter((item) => !item.group_id || !known.has(item.group_id));
+    // Each group's edition goes into its heading ("Server group 1 — Plant
+    // edition"), not a row of its own; numbering runs on across groups.
+    const sections = groups.map((group) => {
+      const lines = items.filter((item) => item.group_id === group.id);
+      const edition = lines.find(isEditionHeading);
+      return { group, edition, lines: lines.filter((item) => !isEditionHeading(item)) };
+    });
+    const starts = sections.map((_, index) => sections.slice(0, index).reduce((sum, section) => sum + section.lines.length, 0));
+    const looseStart = sections.reduce((sum, section) => sum + section.lines.length, 0);
     return (
       <View style={styles.table}>
         <View style={styles.headRow} minPresenceAhead={60}>
@@ -282,28 +323,25 @@ export function ItemsTable({
           <Text style={[styles.cPrice, styles.headCell]}>Unit price</Text>
           <Text style={[styles.cAmount, styles.headCell]}>Amount</Text>
         </View>
-        {groups.map((group) => (
+        {sections.map(({ group, edition, lines }, index) => (
           <View key={group.id}>
             <View style={styles.groupRow} minPresenceAhead={40} wrap={false}>
-              <Text style={styles.groupName}>{group.label}</Text>
+              <Text style={styles.groupName}>
+                {group.label}
+                {edition ? <Text style={styles.editionName}>{`  —  ${edition.description}`}</Text> : null}
+              </Text>
               <Text style={styles.muted}>
                 {group.quantity} server{group.quantity === 1 ? "" : "s"}
               </Text>
             </View>
-            {items
-              .filter((item) => item.group_id === group.id)
-              .map((item) => (
-                <LineRow key={item.id} item={item} index={number++} money={money} />
-              ))}
+            <ItemLines items={lines} start={starts[index]} money={money} />
             <View style={styles.groupSubtotal} wrap={false}>
               <Text style={[styles.muted, { marginRight: 12 }]}>{group.label} subtotal</Text>
               <Text style={[styles.cAmount, styles.itemName, { fontSize: fit(money(group.subtotal), 9, 104) }]}>{money(group.subtotal)}</Text>
             </View>
           </View>
         ))}
-        {loose.map((item) => (
-          <LineRow key={item.id} item={item} index={number++} money={money} />
-        ))}
+        <ItemLines items={loose} start={looseStart} money={money} />
       </View>
     );
   }
@@ -316,9 +354,7 @@ export function ItemsTable({
         <Text style={[styles.cPrice, styles.headCell]}>Unit price</Text>
         <Text style={[styles.cAmount, styles.headCell]}>Amount</Text>
       </View>
-      {items.map((item, index) => (
-        <LineRow key={item.id} item={item} index={index} money={money} />
-      ))}
+      <ItemLines items={items} start={0} money={money} />
     </View>
   );
 }

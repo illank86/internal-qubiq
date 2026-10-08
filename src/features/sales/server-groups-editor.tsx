@@ -51,8 +51,8 @@ export function ServerGroupsEditor({
                   onChange={(event) => update(group.key, { label: event.target.value.slice(0, 120) })}
                   placeholder={`Server group ${index + 1}`}
                   aria-label={`Name of server group ${index + 1}`}
-                  variant="borderless"
-                  style={{ fontWeight: 600, maxWidth: 280, paddingInline: 4 }}
+                  variant="filled"
+                  style={{ fontWeight: 600, maxWidth: 300 }}
                 />
               </Flex>
             }
@@ -92,7 +92,7 @@ export function ServerGroupsEditor({
             </Typography.Text>
             <Radio.Group value={group.editionId} onChange={(event) => chooseEdition(event.target.value)} style={{ width: "100%", margin: "8px 0 16px" }}>
               <Row gutter={[8, 8]}>
-                {[...editions, { id: "", name: "No edition — modules only", currency: baseCurrency, moduleIds: [] }].map((item) => (
+                {[...editions, { id: "", name: "No edition — modules only", tagline: "", custom: false, currency: baseCurrency, moduleIds: [] }].map((item) => (
                   <Col key={item.id || "none"} xs={24} sm={12} xl={8}>
                     <Radio value={item.id}>
                       {item.name}
