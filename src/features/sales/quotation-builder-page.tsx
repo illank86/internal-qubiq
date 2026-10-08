@@ -294,11 +294,18 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                       <AutoComplete options={CURRENCIES.map((code) => ({ value: code }))} placeholder={baseCurrency} allowClear filterOption={(input, option) => (option?.value ?? "").startsWith(input.toUpperCase())} />
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item label={`1 ${baseCurrency} =`} name="exchange_rate" hidden={!converting} extra={converting ? `How many ${currency} one ${baseCurrency} is worth.` : undefined}>
-                      <InputNumber min={0} style={{ width: "100%" }} suffix={currency} />
+                  {/* The rate takes a column only while converting; hidden, it still keeps its value. */}
+                  {converting ? (
+                    <Col xs={24} md={8}>
+                      <Form.Item label={`1 ${baseCurrency} =`} name="exchange_rate" extra={`How many ${currency} one ${baseCurrency} is worth.`}>
+                        <InputNumber min={0} style={{ width: "100%" }} suffix={currency} />
+                      </Form.Item>
+                    </Col>
+                  ) : (
+                    <Form.Item name="exchange_rate" hidden>
+                      <InputNumber />
                     </Form.Item>
-                  </Col>
+                  )}
                   <Col xs={12} md={8}>
                     <Form.Item label="Decimal places" name="decimals">
                       <InputNumber min={0} max={4} style={{ width: "100%" }} />

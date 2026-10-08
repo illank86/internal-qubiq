@@ -9,7 +9,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       <Typography.Text style={{ lineHeight: 0 }}>{compact ? <QubiqMark style={{ height: 28, width: "auto" }} /> : <Logo height={18} />}</Typography.Text>
       {compact ? null : (
         <Typography.Text type="secondary" style={{ fontSize: 13, whiteSpace: "nowrap", borderLeft: "1px solid rgba(127,127,127,0.35)", paddingLeft: 10 }}>
-          Console
+          Admin
         </Typography.Text>
       )}
     </Flex>

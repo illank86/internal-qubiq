@@ -2,7 +2,7 @@ import { Suspense, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { Avatar, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Skeleton, Tag, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
-import { DashboardOutlined, LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { DashboardOutlined, DownOutlined, LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { useAuth, useCan, useStaff } from "@/auth/use-auth";
 import { Brand, FullPageSpinner } from "@/components/ui";
 import { NAV } from "@/nav";
@@ -85,18 +85,35 @@ function AppShell() {
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
+  // The role that says most about the person, for the header; all of them in the menu.
+  const ROLE_ORDER = ["admin", "licensing", "editor", "viewer"] as const;
+  const mainRole = ROLE_ORDER.find((role) => staff.roles.includes(role));
+  const roleLabel = (role: string) => role[0].toUpperCase() + role.slice(1);
+
   const account: MenuProps["items"] = [
     {
       key: "who",
       disabled: true,
+      style: { cursor: "default" },
       label: (
-        <div style={{ lineHeight: 1.4 }}>
-          <Typography.Text strong>{name}</Typography.Text>
-          <br />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {staff.email}
-          </Typography.Text>
-        </div>
+        <Flex vertical gap={6} style={{ padding: "4px 0", minWidth: 220 }}>
+          <div style={{ lineHeight: 1.4 }}>
+            <Typography.Text strong>{name}</Typography.Text>
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {staff.email}
+            </Typography.Text>
+          </div>
+          {staff.roles.length ? (
+            <Flex gap={4} wrap>
+              {ROLE_ORDER.filter((role) => staff.roles.includes(role)).map((role) => (
+                <Tag key={role} color={role === mainRole ? "orange" : undefined} style={{ marginInlineEnd: 0 }}>
+                  {roleLabel(role)}
+                </Tag>
+              ))}
+            </Flex>
+          ) : null}
+        </Flex>
       ),
     },
     { type: "divider" },
@@ -117,7 +134,20 @@ function AppShell() {
             borderInlineEnd: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          <div style={{ height: 64, display: "flex", alignItems: "center", padding: "0 20px", borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+          {/* Stays at the top while the menu scrolls under it. */}
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
+              height: 64,
+              display: "flex",
+              alignItems: "center",
+              padding: "0 20px",
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              background: dark ? "#1f1f1f" : "#ffffff",
+            }}
+          >
             <Brand />
           </div>
           <SideMenu />
@@ -154,16 +184,23 @@ function AppShell() {
             </>
           ) : null}
           <Flex align="center" gap={12} style={{ marginLeft: "auto" }}>
-            {staff.roles.map((role) => (
-              <Tag key={role} style={{ marginInlineEnd: 0, textTransform: "capitalize" }}>
-                {role}
-              </Tag>
-            ))}
             <Dropdown menu={{ items: account }} trigger={["click"]} placement="bottomRight">
-              <Button type="text" style={{ height: 40, paddingInline: 6 }} aria-label="Account menu">
-                <Flex align="center" gap={8}>
-                  <Avatar style={{ backgroundColor: token.colorPrimary }}>{initials}</Avatar>
-                  {screens.sm ? <span>{name}</span> : null}
+              <Button type="text" style={{ height: 48, paddingInline: 8 }} aria-label="Account menu">
+                <Flex align="center" gap={10}>
+                  <Avatar style={{ backgroundColor: token.colorPrimary, flexShrink: 0 }}>{initials}</Avatar>
+                  {screens.sm ? (
+                    <Flex vertical align="flex-start" style={{ lineHeight: 1.25, textAlign: "left" }}>
+                      <Typography.Text strong style={{ fontSize: 13 }}>
+                        {name}
+                      </Typography.Text>
+                      {mainRole ? (
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {roleLabel(mainRole)}
+                        </Typography.Text>
+                      ) : null}
+                    </Flex>
+                  ) : null}
+                  <DownOutlined style={{ fontSize: 10, opacity: 0.5 }} />
                 </Flex>
               </Button>
             </Dropdown>
