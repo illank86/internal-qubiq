@@ -1,4 +1,12 @@
 /* Ant Design styles everything; this only sets the page itself. */
+
+/* The logo's orange "I" — the exact brand hue, as on the website. */
+:root {
+  --brand-accent: #ff6600;
+}
+html.dark {
+  --brand-accent: #ff7a1f;
+}
 html,
 body,
 #root {

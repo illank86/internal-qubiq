@@ -50,7 +50,7 @@ export function LoginPage() {
   const notice = state.status === "signed-out" ? state.notice : undefined;
 
   return (
-    <AuthCard intro="The QUBIQ team's internal app">
+    <AuthCard title="QUBIQ Console" intro="Sales, licensing and content for the QUBIQ team">
       <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
         {notice ? <Alert type="info" showIcon title={notice} style={{ marginBottom: 16 }} /> : null}
         {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}

@@ -1,14 +1,15 @@
 import { Card, Flex, Spin, Typography } from "antd";
 import { QubiqMark, QubiqWordmark } from "./brand";
 
-/** The QUBIQ mark and name, used in the sidebar and on sign-in screens. */
+/** The logo and the app's name, for the sidebar and the header on small screens. */
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Flex align="center" gap={10}>
-      <img src="/qubiq-mark.svg" alt="" width={28} height={28} />
+      {/* The logo draws in the text colour, so it follows the theme. */}
+      <Typography.Text style={{ lineHeight: 0 }}>{compact ? <QubiqMark style={{ height: 28, width: "auto" }} /> : <Logo height={18} />}</Typography.Text>
       {compact ? null : (
-        <Typography.Text strong style={{ fontSize: 15, whiteSpace: "nowrap" }}>
-          QUBIQ <Typography.Text type="secondary">Internal</Typography.Text>
+        <Typography.Text type="secondary" style={{ fontSize: 13, whiteSpace: "nowrap", borderLeft: "1px solid rgba(127,127,127,0.35)", paddingLeft: 10 }}>
+          Console
         </Typography.Text>
       )}
     </Flex>

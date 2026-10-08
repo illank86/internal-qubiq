@@ -22,7 +22,7 @@ export type AuthContextValue = {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-export const NOT_STAFF_NOTICE = "This app is for the QUBIQ team. Customers sign in on goqubiq.com.";
+export const NOT_STAFF_NOTICE = "QUBIQ Console is for the QUBIQ team. Customers sign in on goqubiq.com.";
 
 export function useAuth() {
   const value = useContext(AuthContext);

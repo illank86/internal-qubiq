@@ -1,4 +1,4 @@
-# QUBIQ Internal
+# QUBIQ Console
 
 The QUBIQ team's internal app: sales, licensing, content, newsletters and
 system administration — everything staff do that is not the public website.
