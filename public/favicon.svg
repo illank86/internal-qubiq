@@ -1,82 +1,8 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
-<svg
-   width="16.159676mm"
-   height="19.755751mm"
-   viewBox="0 0 16.159675 19.755753"
-   version="1.1"
-   id="svg1"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   sodipodi:docname="Qubiq.svg"
-   inkscape:export-filename="Qubiq-text.svg"
-   inkscape:export-xdpi="96"
-   inkscape:export-ydpi="96"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:document-units="mm"
-     inkscape:zoom="1.4702524"
-     inkscape:cx="238.05437"
-     inkscape:cy="797.82221"
-     inkscape:window-width="1889"
-     inkscape:window-height="1360"
-     inkscape:window-x="613"
-     inkscape:window-y="0"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="g31">
-    <inkscape:page
-       x="0"
-       y="0"
-       width="16.159676"
-       height="19.755753"
-       id="page2"
-       margin="0"
-       bleed="0" />
-  </sodipodi:namedview>
-  <defs
-     id="defs1" />
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1"
-     transform="translate(-47.366465,-169.31119)">
-    <g
-       id="g18"
-       style="fill:var(--qubiq-ink)">
-      <g
-         id="text18-2"
-         style="font-weight:800;font-size:16.2763px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';fill:#ff6600;stroke-width:0.864"
-         aria-label="CubiQ">
-        <g
-           id="g31">
-          <path
-             id="rect31"
-             d="m 47.366466,173.91966 9.222879,-4.60847 v 10.30471 l -9.22288,4.0903 z"
-             sodipodi:nodetypes="ccccc"
-             style="fill:var(--qubiq-ink);fill-opacity:0.35" />
-          <path
-             id="rect31-1"
-             d="m 47.366465,183.70619 9.22288,-4.09029 6.936794,5.9217 -8.907486,3.52934 z"
-             sodipodi:nodetypes="ccccc"
-             style="font-weight:800;font-size:16.2763px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';fill:var(--qubiq-ink);fill-opacity:1;stroke-width:0.864" />
-          <path
-             id="rect31-1-9"
-             d="m 56.589345,169.31119 6.936794,6.67189 v 9.55452 l -6.936794,-5.9217 z"
-             sodipodi:nodetypes="ccccc"
-             style="font-weight:800;font-size:16.2763px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Ultra-Bold';fill:var(--qubiq-ink);fill-opacity:0.65;stroke-width:0.864" />
-        </g>
-      </g>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2.05 -0.25 20.26 20.26">
+  <!-- The QUBIQ cube in the brand orange: three faces, three shades, solid so it reads on light and dark tabs. -->
+  <g transform="translate(-47.366465,-169.31119)">
+    <path fill="#ffb27f" d="m 47.366466,173.91966 9.222879,-4.60847 v 10.30471 l -9.22288,4.0903 z"/>
+    <path fill="#ff6600" d="m 47.366465,183.70619 9.22288,-4.09029 6.936794,5.9217 -8.907486,3.52934 z"/>
+    <path fill="#cc5200" d="m 56.589345,169.31119 6.936794,6.67189 v 9.55452 l -6.936794,-5.9217 z"/>
   </g>
 </svg>
