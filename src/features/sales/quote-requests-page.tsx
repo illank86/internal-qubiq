@@ -9,7 +9,7 @@ import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
-import { QuotationStatusTag } from "./quotations-page";
+import { QuotationStatusTag } from "./quotation-parts";
 import { useAction } from "./use-action";
 
 type QuoteRequest = Database["public"]["Tables"]["quote_requests"]["Row"] & {

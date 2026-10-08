@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Descriptions, Flex, Form, Result, Segmented, Skeleton, Typography } from "antd";
-import { TransactionOutlined } from "@ant-design/icons";
+import { DownloadOutlined, TransactionOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { EmailListInput, Recipients, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { formatMoney } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
-import { setInvoiceMaterai, type Materai, type SignatureMode } from "./api";
+import { invoicePdf, type Materai, type SignatureMode } from "./api";
+import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { useIsApprover } from "./approvals";
 import { needsMateraiHint } from "./invoices-page";
 import { AccountPicker } from "./account-picker";
@@ -24,6 +25,7 @@ import { loadCustomerAccounts } from "./accounts";
 export function ConvertPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const viewPdf = usePdfViewer();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [picked, setPicked] = useState<string | null>(null);
@@ -80,6 +82,9 @@ export function ConvertPage() {
     );
   }
 
+  // Signed by hand or with materai: an approver downloads it to sign; it is sent once the signed copy is uploaded.
+  const toSign = signatureMode === "wet" || materai !== "none";
+
   const convert = async () => {
     let cc: string[];
     try {
@@ -94,16 +99,22 @@ export function ConvertPage() {
       // Linked, or "no account yet": the database uses the quotation's own account (or none).
       ...(linked || !choice ? {} : { p_owner_id: choice }),
       p_cc_emails: cc,
+      p_signature_mode: signatureMode,
+      p_materai: materai,
     });
     if (convertError) {
       setPending(false);
       return setError(errorText(convertError, "The invoice could not be created. Please try again."));
     }
-    // The PDF is drawn on demand, so the box is there whenever it is opened.
-    if (invoiceId && materai !== "none") await setInvoiceMaterai(invoiceId, materai).catch(() => undefined);
-    if (invoiceId && signatureMode === "wet") await supabase.from("invoices").update({ signature_mode: "wet" }).eq("id", invoiceId);
     setPending(false);
     await Promise.all(["quotations", "invoices"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    if (isApprover && toSign && invoiceId) {
+      // Approved, not sent: it goes out as the signed (or stamped) copy.
+      message.success("Invoice created and approved. Download it, sign or stamp it, then upload the signed copy.");
+      navigate(`/sales/invoices?invoice=${invoiceId}`);
+      viewPdf({ ...invoicePdf(invoiceId, null, { original: true }), note: "Print and sign it, or stamp it on your e-Meterai provider's site — then upload the signed copy from the invoice." });
+      return;
+    }
     message.success(isApprover ? "Invoice created and sent to the customer." : "Invoice created and sent for approval. The approvers have been emailed.");
     navigate("/sales/invoices");
   };
@@ -232,8 +243,8 @@ export function ConvertPage() {
         {error ? <Alert type="error" showIcon title={error} /> : null}
         <Flex vertical gap={6}>
           <div>
-            <Button type="primary" size="large" icon={<TransactionOutlined />} loading={pending} disabled={Boolean(quotation.customer_id && !linked)} onClick={convert}>
-              {isApprover ? "Create & send invoice" : "Create & request approval"}
+            <Button type="primary" size="large" icon={isApprover && toSign ? <DownloadOutlined /> : <TransactionOutlined />} loading={pending} disabled={Boolean(quotation.customer_id && !linked)} onClick={convert}>
+              {isApprover ? (toSign ? "Create & download to sign" : "Create & send invoice") : "Create & request approval"}
             </Button>
           </div>
           {isApprover ? null : (

@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Divider, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Checkbox, Col, Descriptions, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
   CheckOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
+  DownloadOutlined,
   EditOutlined,
   FilePdfOutlined,
   FileTextOutlined,
   MoreOutlined,
+  ProfileOutlined,
   RollbackOutlined,
   SendOutlined,
   StopOutlined,
@@ -26,7 +28,10 @@ import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-lis
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice, setInvoiceMaterai, setInvoiceStatus, type Materai, type SignatureMode } from "./api";
 import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
-import { CcNote } from "./quotations-page";
+import { CcNote } from "./quotation-parts";
+import { DocumentHistory } from "./document-history";
+import { SigningActions, SigningTag } from "./signing";
+import { needsSigning, signingHint, signingState } from "./api";
 import { useAction } from "./use-action";
 
 type Row = Invoice & {
@@ -54,8 +59,8 @@ export function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [params, setParams] = useSearchParams();
   const viewPdf = usePdfViewer();
-  const [editing, setEditing] = useState<Row | null>(null);
-  const { run, busy } = useAction([["invoices"], ["quotations"]]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const { run, busy } = useAction([["invoices"], ["quotations"], ["history"]]);
   const isApprover = useIsApprover();
 
   const { data, isLoading, error } = useQuery({
@@ -83,7 +88,9 @@ export function InvoicesPage() {
     if (target) {
       setFilter("all");
       setSearch(target.number ?? "");
-      viewPdf(invoicePdf(target.id, target.number));
+      // To sign: the drawer, where it is downloaded and uploaded; otherwise its PDF.
+      if (signingState(target) !== "none") setOpenId(target.id);
+      else viewPdf(invoicePdf(target.id, target.number));
     }
     setParams((current) => {
       const next = new URLSearchParams(current);
@@ -155,6 +162,7 @@ export function InvoicesPage() {
       render: (_, row) => (
         <Flex vertical gap={2} align="flex-start">
           <InvoiceStatusTag invoice={row} />
+          <SigningTag row={row} />
           {row.approval_status === "none" && row.send_count === 0 && row.status !== "void" ? (
             <Tag icon={<SendOutlined />} style={{ marginInlineEnd: 0 }}>
               Not sent
@@ -175,7 +183,7 @@ export function InvoicesPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => <InvoiceRowActions row={row} isApprover={isApprover} run={run} busy={busy} onEdit={() => setEditing(row)} />,
+      render: (_, row) => <InvoiceRowActions row={row} isApprover={isApprover} run={run} busy={busy} onEdit={() => setOpenId(row.id)} />,
     },
   ];
 
@@ -214,8 +222,15 @@ export function InvoicesPage() {
         pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }}
         scroll={{ x: 860 }}
         locale={{ emptyText: data && data.length > 0 ? "Nothing matches." : "No invoices yet." }}
+        onRow={(row) => ({ onClick: () => setOpenId(row.id), style: { cursor: "pointer" } })}
       />
-      <InvoiceDetailsDrawer invoice={editing} onClose={() => setEditing(null)} />
+      <InvoiceDetailsDrawer
+        invoice={(openId && data?.find((row) => row.id === openId)) || null}
+        onClose={() => setOpenId(null)}
+        isApprover={isApprover}
+        run={run}
+        busy={busy}
+      />
     </>
   );
 }
@@ -242,29 +257,49 @@ function InvoiceRowActions({
   const waiting = row.approval_status === "pending";
   const approved = row.approval_status === "approved";
   const unsent = !waiting && !approved;
+  const signing = signingState(row);
+  // Signed by hand or with materai: an approver's "send" approves it for signing.
+  const toSign = needsSigning(row);
 
   // Sending shows the PDF first; an approver sends, anyone else asks.
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...invoicePdf(row.id, row.number),
-      note: isApprover ? "Check it before it goes to the customer." : "Check it; an approver sends it to the customer.",
-      recipients: row.bill_to_email ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
+      note: isApprover
+        ? toSign
+          ? "Check it. Approving makes it ready to sign: download it, sign or stamp it, then upload the signed copy to send it."
+          : "Check it before it goes to the customer."
+        : "Check it; an approver sends it to the customer.",
+      recipients: row.bill_to_email && !(isApprover && toSign) ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
       action: {
-        label: isApprover ? (again ? "Send again" : "Send to customer") : "Request approval",
+        label: isApprover ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
         onClick: async () => {
-          await run(k("send"), () => sendInvoice(row.id), isApprover ? "Sent to the customer." : "Sent for approval. The approvers have been emailed.");
+          let result = null as string | null;
+          const ok = await run(
+            k("send"),
+            async () => {
+              result = await sendInvoice(row.id);
+            },
+            isApprover ? (toSign ? "Approved. Download it, sign or stamp it, then upload the signed copy." : "Sent to the customer.") : "Sent for approval. The approvers have been emailed.",
+          );
+          if (ok && result === "to_sign") downloadToSign();
         },
       },
     });
+  const downloadToSign = () =>
+    viewPdf({ ...invoicePdf(row.id, row.number, { original: true }), note: "Print and sign it, or stamp it on your e-Meterai provider's site — then upload the signed copy." });
   const reviewAndApprove = () =>
     viewPdf({
       ...invoicePdf(row.id, row.number),
-      note: `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving makes it live for the customer${row.approval_sends ? " and emails it" : ""}.`,
-      recipients: row.approval_sends && row.bill_to_email ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
+      note: toSign
+        ? `Asked by ${row.requester?.full_name ?? "a colleague"}. Once approved, download it to sign or stamp; it is sent with the signed copy.`
+        : `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving makes it live for the customer${row.approval_sends ? " and emails it" : ""}.`,
+      recipients: row.approval_sends && row.bill_to_email && !toSign ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
       action: {
-        label: row.approval_sends ? "Approve & send" : "Approve",
+        label: toSign ? "Approve & download to sign" : row.approval_sends ? "Approve & send" : "Approve",
         onClick: async () => {
-          await run(k("approve"), () => approveDocument("invoice", row.id), "Approved.");
+          const ok = await run(k("approve"), () => approveDocument("invoice", row.id), toSign ? "Approved. Download it, sign or stamp it, then upload the signed copy." : "Approved.");
+          if (ok && toSign) downloadToSign();
         },
       },
     });
@@ -276,6 +311,8 @@ function InvoiceRowActions({
         Restore
       </Button>
     );
+  } else if (signing === "to_sign" || signing === "needs_check" || signing === "ready") {
+    primary = <SigningActions type="invoice" row={row} isApprover={isApprover} run={run} busy={busy} />;
   } else if (waiting) {
     primary = isApprover ? (
       <>
@@ -289,8 +326,8 @@ function InvoiceRowActions({
     ) : null;
   } else if (unsent) {
     primary = (
-      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
-        {isApprover ? "Send" : "Request approval"}
+      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
+        {isApprover ? (toSign ? "Download to sign" : "Send") : "Request approval"}
       </Button>
     );
   } else if (row.status === "unpaid") {
@@ -316,12 +353,13 @@ function InvoiceRowActions({
     ...(row.quotation_id && !row.owner_id
       ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
       : []),
-    ...(approved && row.status === "unpaid"
+    ...(approved && row.status === "unpaid" && (signing === "none" || signing === "sent")
       ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
     ...(row.status === "paid"
       ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }]
       : []),
+    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onEdit },
     { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
     ...(row.status !== "void"
       ? [
@@ -332,7 +370,7 @@ function InvoiceRowActions({
   ];
 
   return (
-    <Flex gap={4} justify="flex-end" align="center" wrap={false}>
+    <Flex gap={4} justify="flex-end" align="center" wrap={false} onClick={(event) => event.stopPropagation()}>
       {primary}
       <Tooltip title="View PDF">
         <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(row.id, row.number))} aria-label="View PDF" />
@@ -372,11 +410,25 @@ type DetailValues = {
 };
 
 /**
- * Corrects an unpaid invoice: who pays, when, tax and notes. The lines are
- * what the customer accepted on the quotation and are not edited here; to
- * change what is sold, void the invoice, revise the quotation and convert again.
+ * One invoice: its details (editable while unpaid: who pays, when, tax and
+ * notes), where it stands — approval and the signed copy — what is invoiced,
+ * and its full history. The lines are what the customer accepted on the
+ * quotation and are not edited here; to change what is sold, void the
+ * invoice, revise the quotation and convert again.
  */
-function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClose: () => void }) {
+function InvoiceDetailsDrawer({
+  invoice,
+  onClose,
+  isApprover,
+  run,
+  busy,
+}: {
+  invoice: Row | null;
+  onClose: () => void;
+  isApprover: boolean;
+  run: ReturnType<typeof useAction>["run"];
+  busy: string | null;
+}) {
   const [form] = Form.useForm<DetailValues>();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -385,7 +437,7 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   const taxRate = Form.useWatch("tax_rate", form);
   const billToEmail = Form.useWatch("bill_to_email", form);
   const materai = Form.useWatch("materai", form) ?? "none";
-  const isApprover = useIsApprover();
+  const viewPdf = usePdfViewer();
   const ccWatched = Form.useWatch("cc_emails", form);
 
   const { data: groups } = useQuery({
@@ -397,9 +449,10 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
   if (!invoice) return <Drawer open={false} onClose={onClose} />;
   const money = (amount: number) => formatMoney(amount, invoice.currency, invoice.decimal_places);
   const scale = 10 ** invoice.decimal_places;
-  const rate = Number(taxRate ?? invoice.tax_rate) || 0;
+  const rate = Number((invoice.status === "unpaid" ? taxRate : undefined) ?? invoice.tax_rate) || 0;
   const tax = Math.round(((Number(invoice.subtotal) * rate) / 100) * scale) / scale;
   const ccCount = (ccWatched ?? invoice.cc_emails ?? []).length;
+  const editable = invoice.status === "unpaid";
 
   const save = async (values: DetailValues) => {
     setPending(true);
@@ -456,156 +509,228 @@ function InvoiceDetailsDrawer({ invoice, onClose }: { invoice: Row | null; onClo
     <Drawer
       open
       onClose={onClose}
-      title={`Edit ${invoice.number ?? "invoice"}`}
-      size={560}
+      title={
+        <Flex gap={8} align="center" wrap>
+          <span style={{ fontFamily: "Geist Mono, monospace" }}>{invoice.number ?? "Invoice"}</span>
+          <InvoiceStatusTag invoice={invoice} />
+          <SigningTag row={invoice} />
+        </Flex>
+      }
+      size={820}
       destroyOnHidden
       extra={
-        <Button type="primary" loading={pending} onClick={() => form.submit()}>
-          Save invoice
-        </Button>
+        <Flex gap={8}>
+          <Button icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(invoice.id, invoice.number))}>
+            View PDF
+          </Button>
+          {editable ? (
+            <Button type="primary" loading={pending} onClick={() => form.submit()}>
+              Save invoice
+            </Button>
+          ) : null}
+        </Flex>
       }
     >
-      <Typography.Paragraph type="secondary">
-        {invoice.quotation_number
-          ? `The lines are as accepted on quotation ${invoice.quotation_number}. To change what is sold, void this invoice, revise the quotation and convert it again.`
-          : "The lines are as issued. Billing details, due date, tax and notes can be corrected."}
-      </Typography.Paragraph>
-      <Form<DetailValues>
-        form={form}
-        layout="vertical"
-        requiredMark="optional"
-        onFinish={save}
-        disabled={pending}
-        initialValues={{
-          bill_to_name: invoice.bill_to_name,
-          bill_to_company: invoice.bill_to_company ?? "",
-          bill_to_email: invoice.bill_to_email ?? "",
-          cc_emails: invoice.cc_emails ?? [],
-          materai: (invoice.materai as Materai) ?? "none",
-          signature_mode: (invoice.signature_mode as SignatureMode) ?? "digital",
-          bill_to_address: invoice.bill_to_address ?? "",
-          due_date: invoice.due_date,
-          tax_rate: Number(invoice.tax_rate),
-          notes: invoice.notes ?? "",
-          refresh_seller: true,
-          notify: true,
-        }}
-      >
-        <Row gutter={16}>
-          <Col span={24}>
-            <Form.Item label="Invoiced to — name" name="bill_to_name" rules={[{ required: true, whitespace: true, message: "Enter who the invoice is to" }, { max: 200 }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Company" name="bill_to_company" rules={[{ max: 200 }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Billing email" name="bill_to_email" rules={[{ type: "email", message: "Enter a valid email" }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col span={24}>
-            <Form.Item
-              label="CC"
-              name="cc_emails"
-              dependencies={["bill_to_email"]}
-              extra="Copied on every email about this invoice: the update below, and the payment receipt."
-              rules={ccRules(() => form.getFieldValue("bill_to_email"))}
-            >
-              <EmailListInput exclude={billToEmail} placeholder="Add people to copy, e.g. accounts@customer.com" />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item label="Billing address" name="bill_to_address" rules={[{ max: 500 }]}>
-          <Input.TextArea rows={3} />
-        </Form.Item>
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Due date" name="due_date" rules={[{ required: true, message: "Choose a due date" }]}>
-              <Input type="date" min={invoice.issue_date} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label={`${invoice.tax_label} rate`} name="tax_rate" rules={[{ type: "number", min: 0, max: 100, message: "0 to 100" }]}>
-              <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item label="Notes on the invoice" name="notes" rules={[{ max: 1000 }]}>
-          <Input.TextArea rows={3} />
-        </Form.Item>
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Signature" name="signature_mode" extra="Digital: the company signature, added once approved. By hand: the space is left empty to sign on paper.">
-              <Select
-                options={[
-                  { value: "digital", label: "Digital" },
-                  { value: "wet", label: "Sign by hand" },
+      <Row gutter={[24, 16]}>
+        <Col xs={24} lg={14}>
+          {editable ? (
+            <>
+              <Typography.Paragraph type="secondary">
+                {invoice.quotation_number
+                  ? `The lines are as accepted on quotation ${invoice.quotation_number}. To change what is sold, void this invoice, revise the quotation and convert it again.`
+                  : "The lines are as issued. Billing details, due date, tax and notes can be corrected."}
+              </Typography.Paragraph>
+              <Form<DetailValues>
+                form={form}
+                layout="vertical"
+                requiredMark="optional"
+                onFinish={save}
+                disabled={pending}
+                initialValues={{
+                  bill_to_name: invoice.bill_to_name,
+                  bill_to_company: invoice.bill_to_company ?? "",
+                  bill_to_email: invoice.bill_to_email ?? "",
+                  cc_emails: invoice.cc_emails ?? [],
+                  materai: (invoice.materai as Materai) ?? "none",
+                  signature_mode: (invoice.signature_mode as SignatureMode) ?? "digital",
+                  bill_to_address: invoice.bill_to_address ?? "",
+                  due_date: invoice.due_date,
+                  tax_rate: Number(invoice.tax_rate),
+                  notes: invoice.notes ?? "",
+                  refresh_seller: true,
+                  notify: true,
+                }}
+              >
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item label="Invoiced to — name" name="bill_to_name" rules={[{ required: true, whitespace: true, message: "Enter who the invoice is to" }, { max: 200 }]}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Company" name="bill_to_company" rules={[{ max: 200 }]}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Billing email" name="bill_to_email" rules={[{ type: "email", message: "Enter a valid email" }]}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item
+                      label="CC"
+                      name="cc_emails"
+                      dependencies={["bill_to_email"]}
+                      extra="Copied on every email about this invoice: the update below, and the payment receipt."
+                      rules={ccRules(() => form.getFieldValue("bill_to_email"))}
+                    >
+                      <EmailListInput exclude={billToEmail} placeholder="Add people to copy, e.g. accounts@customer.com" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item label="Billing address" name="bill_to_address" rules={[{ max: 500 }]}>
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Due date" name="due_date" rules={[{ required: true, message: "Choose a due date" }]}>
+                      <Input type="date" min={invoice.issue_date} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label={`${invoice.tax_label} rate`} name="tax_rate" rules={[{ type: "number", min: 0, max: 100, message: "0 to 100" }]}>
+                      <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item label="Notes on the invoice" name="notes" rules={[{ max: 1000 }]}>
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Signature" name="signature_mode" extra="Digital: the company signature, added once approved. By hand: the space is left empty to sign on paper.">
+                      <Select
+                        options={[
+                          { value: "digital", label: "Digital" },
+                          { value: "wet", label: "Sign by hand" },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Materai" name="materai" extra="Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site.">
+                      <Select
+                        options={[
+                          { value: "none", label: "None" },
+                          { value: "physical", label: "Physical materai" },
+                          { value: "e_meterai", label: "e-Meterai (space for the stamp)" },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                {needsMateraiHint(invoice, materai) ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    title="Over Rp5.000.000"
+                    description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai."
+                  />
+                ) : null}
+                <Form.Item name="refresh_seller" valuePropName="checked" style={{ marginBottom: 8 }}>
+                  <Checkbox>Use our current company and payment details</Checkbox>
+                </Form.Item>
+                <Form.Item name="notify" valuePropName="checked">
+                  <Checkbox>
+                    Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed
+                    {isApprover ? "" : " — once approved"}
+                  </Checkbox>
+                </Form.Item>
+              </Form>
+              {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
+            </>
+          ) : (
+            <>
+              <Typography.Paragraph type="secondary">
+                {invoice.status === "paid" ? "Paid invoices are kept as issued." : "Void invoices are kept as issued. Restore it to make changes."}
+              </Typography.Paragraph>
+              <Descriptions
+                column={1}
+                size="small"
+                bordered
+                items={[
+                  { key: "to", label: "Invoiced to", children: [invoice.bill_to_name, invoice.bill_to_company].filter(Boolean).join(" · ") },
+                  { key: "email", label: "Billing email", children: invoice.bill_to_email ?? "—" },
+                  { key: "cc", label: "CC", children: invoice.cc_emails?.length ? invoice.cc_emails.join(", ") : "—" },
+                  { key: "address", label: "Billing address", children: <span style={{ whiteSpace: "pre-line" }}>{invoice.bill_to_address || "—"}</span> },
+                  { key: "issued", label: "Issued", children: formatInvoiceDate(invoice.issue_date) },
+                  { key: "due", label: "Due", children: formatInvoiceDate(invoice.due_date) },
+                  { key: "signature", label: "Signature", children: invoice.signature_mode === "wet" ? "Signed by hand" : "Digital" },
+                  { key: "materai", label: "Materai", children: invoice.materai === "physical" ? "Physical materai" : invoice.materai === "e_meterai" ? "e-Meterai" : "None" },
+                  { key: "notes", label: "Notes", children: <span style={{ whiteSpace: "pre-line" }}>{invoice.notes || "—"}</span> },
                 ]}
               />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Materai" name="materai" extra="Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site.">
-              <Select
-                options={[
-                  { value: "none", label: "None" },
-                  { value: "physical", label: "Physical materai" },
-                  { value: "e_meterai", label: "e-Meterai (space for the stamp)" },
-                ]}
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-        {needsMateraiHint(invoice, materai) ? (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-            title="Over Rp5.000.000"
-            description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai."
-          />
-        ) : null}
-        <Form.Item name="refresh_seller" valuePropName="checked" style={{ marginBottom: 8 }}>
-          <Checkbox>Use our current company and payment details</Checkbox>
-        </Form.Item>
-        <Form.Item name="notify" valuePropName="checked">
-          <Checkbox>
-            Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed
-            {isApprover ? "" : " — once approved"}
-          </Checkbox>
-        </Form.Item>
-      </Form>
-      {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
-
-      <Divider titlePlacement="start">What is invoiced</Divider>
-      <Flex vertical gap={6}>
-        {(groups ?? []).map((group, index) => (
-          <Flex key={index} justify="space-between">
-            <Typography.Text type="secondary">
-              {group.label} × {group.quantity}
-            </Typography.Text>
-            <span>{money(Number(group.subtotal))}</span>
+            </>
+          )}
+        </Col>
+        <Col xs={24} lg={10}>
+          <Flex vertical gap={16}>
+            <Card size="small" title="Where it stands">
+              <Flex vertical gap={8} align="flex-start">
+                <ApprovalNote
+                  state={invoice.approval_status}
+                  note={invoice.approval_note}
+                  requestedBy={invoice.requester?.full_name}
+                  approvedBy={invoice.approved_by ? invoice.approver?.full_name : null}
+                  approvedAt={invoice.approved_at}
+                />
+                {invoice.approval_status === "none" && invoice.send_count === 0 ? (
+                  <Typography.Text type="secondary">Not sent yet.</Typography.Text>
+                ) : null}
+                {needsSigning(invoice) ? (
+                  <>
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      {signingHint(invoice)}
+                    </Typography.Text>
+                    <SigningActions type="invoice" row={invoice} isApprover={isApprover} run={run} busy={busy} size="middle" showView />
+                  </>
+                ) : null}
+              </Flex>
+            </Card>
+            <Card size="small" title="What is invoiced">
+              <Flex vertical gap={6}>
+                {(groups ?? []).map((group, index) => (
+                  <Flex key={index} justify="space-between">
+                    <Typography.Text type="secondary">
+                      {group.label} × {group.quantity}
+                    </Typography.Text>
+                    <span>{money(Number(group.subtotal))}</span>
+                  </Flex>
+                ))}
+                <Flex justify="space-between">
+                  <Typography.Text type="secondary">Subtotal</Typography.Text>
+                  <span>{money(Number(invoice.subtotal))}</span>
+                </Flex>
+                <Flex justify="space-between">
+                  <Typography.Text type="secondary">
+                    {invoice.tax_label} ({rate}%)
+                  </Typography.Text>
+                  <span>{money(tax)}</span>
+                </Flex>
+                <Flex justify="space-between">
+                  <Typography.Text strong>Total</Typography.Text>
+                  <Typography.Text strong>{money(Number(invoice.subtotal) + tax)}</Typography.Text>
+                </Flex>
+              </Flex>
+            </Card>
+            <Card size="small" title="History">
+              <DocumentHistory type="invoice" id={invoice.id} />
+            </Card>
           </Flex>
-        ))}
-        <Flex justify="space-between">
-          <Typography.Text type="secondary">Subtotal</Typography.Text>
-          <span>{money(Number(invoice.subtotal))}</span>
-        </Flex>
-        <Flex justify="space-between">
-          <Typography.Text type="secondary">
-            {invoice.tax_label} ({rate}%)
-          </Typography.Text>
-          <span>{money(tax)}</span>
-        </Flex>
-        <Flex justify="space-between">
-          <Typography.Text strong>Total</Typography.Text>
-          <Typography.Text strong>{money(Number(invoice.subtotal) + tax)}</Typography.Text>
-        </Flex>
-      </Flex>
+        </Col>
+      </Row>
     </Drawer>
   );
 }

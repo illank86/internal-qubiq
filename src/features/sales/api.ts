@@ -45,8 +45,9 @@ export async function setQuotationStatus(id: string, status: QuotationOutcome, l
  * else's waits for an approver (the database decides, and records who).
  */
 export async function sendQuotation(id: string) {
-  const { error } = await supabase.rpc("send_quotation", { p_quotation_id: id });
+  const { data, error } = await supabase.rpc("send_quotation", { p_quotation_id: id });
   fail(error);
+  return data;
 }
 
 /** Send an invoice (again), through approval like a quotation. */
@@ -120,32 +121,49 @@ export async function loadSignatureInfo(): Promise<SignatureInfo> {
  * drawn. Anything else is drawn here, with a placeholder where the signature
  * will go once approved (or the QR code / a blank line if none is on file).
  */
-async function fetchSigned(path: string) {
-  const response = await fetch(`${env.siteUrl}${path}`, { credentials: "omit" });
-  if (!response.ok) throw new Error(`The signed copy could not be loaded (${response.status})`);
+/**
+ * A staff member's own copy of an approved document, drawn on the website
+ * with the company signature (the image never comes here on its own).
+ */
+async function fetchStaffPdf(type: DocumentType, id: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const response = await fetch(`${env.siteUrl}/api/staff/pdf/${type}/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "omit",
+  });
+  if (!response.ok) throw new Error(`The PDF could not be loaded (${response.status})`);
   return response.blob();
 }
 
-/** What goes in the signature space when it is drawn here (no image ever is). */
-function localSignoff(
-  doc: { approval_status: string; approved_at: string | null; signature_mode: string },
-  info: SignatureInfo,
-): DocumentSignoff | null {
-  // Signed by hand: an empty space, with the signatory, before and after approval.
+/** The uploaded signed copy (signed by hand, materai or e-Meterai). */
+async function signedCopyBlob(path: string) {
+  const { data, error } = await supabase.storage.from("signed-documents").download(path);
+  fail(error);
+  if (!data) throw new Error("The signed copy could not be loaded");
+  return data;
+}
+
+/** What goes in the signature space when it is drawn here, before approval (no image ever is). */
+function localSignoff(doc: { approval_status: string; approved_at: string | null; signature_mode: string }, info: SignatureInfo): DocumentSignoff | null {
   if (doc.signature_mode === "wet") {
     return { wet: true, name: info?.signatory_name ?? "", title: info?.signatory_title, place: info?.place, date: doc.approval_status === "approved" ? doc.approved_at : null };
   }
-  if (doc.approval_status === "approved") return null;
   return info ? { name: info.signatory_name, title: info.signatory_title, place: info.place, pending: true } : null;
 }
 
 const safeName = (value: string) => value.replace(/[^\w.-]/g, "_");
 
-/** A quotation for the PDF viewer: rendered in the browser from the same code as the website's. */
-export function quotationPdf(id: string, number: string | null): PdfRequest {
+/**
+ * A quotation for the PDF viewer: the signed copy once there is one; the
+ * approved PDF (with the signature) once approved; otherwise drawn here as a
+ * preview. `original`: the approved PDF even when a signed copy exists — what
+ * is printed to sign, or stamped.
+ */
+export function quotationPdf(id: string, number: string | null, { original = false }: { original?: boolean } = {}): PdfRequest {
   return {
-    title: `Quotation ${number ?? ""}`.trim(),
-    fileName: safeName(`${number ?? "quotation"}.pdf`),
+    title: `${original ? "To sign · " : ""}Quotation ${number ?? ""}`.trim(),
+    fileName: safeName(`${number ?? "quotation"}${original ? "-to-sign" : ""}.pdf`),
     make: async () => {
       const [{ data: quotation, error }, { data: items }, { data: groups }] = await Promise.all([
         supabase.from("quotations").select("*").eq("id", id).maybeSingle(),
@@ -154,21 +172,18 @@ export function quotationPdf(id: string, number: string | null): PdfRequest {
       ]);
       fail(error);
       if (!quotation) throw new Error("Quotation not found");
-      const shared = ["sent", "accepted", "declined"].includes(quotation.status);
-      if (quotation.approval_status === "approved" && quotation.signature_mode !== "wet" && quotation.signature_id && shared) {
-        return fetchSigned(`/quotes/${quotation.public_token}/pdf`);
-      }
-      const signoff = localSignoff(quotation, await loadSignatureInfo());
-      return renderQuotationPdf(quotation, items ?? [], groups ?? [], signoff);
+      if (!original && quotation.signed_copy_path) return signedCopyBlob(quotation.signed_copy_path);
+      if (quotation.approval_status === "approved") return fetchStaffPdf("quotation", id);
+      return renderQuotationPdf(quotation, items ?? [], groups ?? [], localSignoff(quotation, await loadSignatureInfo()));
     },
   };
 }
 
-/** An invoice for the PDF viewer. */
-export function invoicePdf(id: string, number: string | null): PdfRequest {
+/** An invoice for the PDF viewer; as quotationPdf. */
+export function invoicePdf(id: string, number: string | null, { original = false }: { original?: boolean } = {}): PdfRequest {
   return {
-    title: `Invoice ${number ?? ""}`.trim(),
-    fileName: safeName(`${number ?? "invoice"}.pdf`),
+    title: `${original ? "To sign · " : ""}Invoice ${number ?? ""}`.trim(),
+    fileName: safeName(`${number ?? "invoice"}${original ? "-to-sign" : ""}.pdf`),
     make: async () => {
       const [{ data: invoice, error }, { data: items }, { data: groups }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", id).maybeSingle(),
@@ -177,13 +192,110 @@ export function invoicePdf(id: string, number: string | null): PdfRequest {
       ]);
       fail(error);
       if (!invoice) throw new Error("Invoice not found");
-      if (invoice.approval_status === "approved" && invoice.signature_mode !== "wet" && invoice.signature_id) {
-        return fetchSigned(`/i/${invoice.public_token}/pdf`);
-      }
-      const signoff = localSignoff(invoice, await loadSignatureInfo());
-      return renderInvoicePdf(invoice, items ?? [], groups ?? [], signoff);
+      if (!original && invoice.signed_copy_path) return signedCopyBlob(invoice.signed_copy_path);
+      if (invoice.approval_status === "approved") return fetchStaffPdf("invoice", id);
+      return renderInvoicePdf(invoice, items ?? [], groups ?? [], localSignoff(invoice, await loadSignatureInfo()));
     },
   };
+}
+
+// ----------------------------------------------------------------- signing
+
+type SignableDoc = {
+  signature_mode: string;
+  materai?: string | null;
+  approval_status: string;
+  signed_copy_path: string | null;
+  signed_copy_check: string | null;
+  signed_copy_confirmed_at: string | null;
+  signed_copy_sent_at: string | null;
+};
+
+/** Signed by hand, or (invoices) with a physical materai or an e-Meterai: it goes out as a signed copy. */
+export const needsSigning = (doc: { signature_mode: string; materai?: string | null }) =>
+  doc.signature_mode === "wet" || doc.materai === "physical" || doc.materai === "e_meterai";
+
+export type SigningState = "none" | "to_sign" | "needs_check" | "ready" | "sent";
+
+/** Where an approved document stands with its signed copy. */
+export function signingState(doc: SignableDoc): SigningState {
+  if (!needsSigning(doc) || doc.approval_status !== "approved") return "none";
+  if (!doc.signed_copy_path) return "to_sign";
+  if (doc.signed_copy_sent_at) return "sent";
+  return doc.signed_copy_check === "verified" || doc.signed_copy_confirmed_at ? "ready" : "needs_check";
+}
+
+/** One line on what the signed copy needs next. */
+export function signingHint(doc: SignableDoc) {
+  const how = doc.materai === "e_meterai" ? "stamped with an e-Meterai" : doc.materai === "physical" ? "signed over a physical materai" : "signed by hand";
+  switch (signingState(doc)) {
+    case "none":
+      return `It goes out ${how}. Once approved, download it, sign or stamp it, and upload the signed copy.`;
+    case "to_sign":
+      return `Approved. Download it, have it ${how}, then upload the signed copy.`;
+    case "needs_check":
+      return "A scanned copy was uploaded. An approver checks it, then it is sent.";
+    case "ready":
+      return "The signed copy is checked and ready to send.";
+    case "sent":
+      return "The customer has the signed copy.";
+  }
+}
+
+/**
+ * Uploads the signed (or stamped) copy and has it checked: "verified" when it
+ * is this approved version; "unreadable" for a scan, which an approver
+ * confirms. Anything else is refused, with the reason.
+ */
+export async function uploadSignedCopy(type: DocumentType, id: string, file: File, serial?: string) {
+  const path = `${type}/${id}/${Date.now()}.pdf`;
+  const { error: uploadError } = await supabase.storage.from("signed-documents").upload(path, file, { contentType: "application/pdf", upsert: false });
+  if (uploadError) throw { code: "22023", message: "The file could not be uploaded. Use a PDF under 15 MB." };
+  const { data, error } = await supabase.functions.invoke<{ check: "verified" | "unreadable"; error?: string }>("signed-copy", {
+    body: { type, id, path, serial: serial?.trim() || undefined },
+  });
+  if (error) {
+    let message = "The signed copy could not be checked. Please try again.";
+    try {
+      const body = await (error as { context?: Response }).context?.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // keep the general message
+    }
+    throw { code: "22023", message };
+  }
+  return data?.check ?? "unreadable";
+}
+
+export async function confirmSignedCopy(type: DocumentType, id: string) {
+  const { error } = await supabase.rpc("confirm_signed_copy", { p_type: type, p_id: id });
+  fail(error);
+}
+
+export async function sendSignedCopy(type: DocumentType, id: string) {
+  const { error } = await supabase.rpc("send_signed_copy", { p_type: type, p_id: id });
+  fail(error);
+}
+
+// ----------------------------------------------------------------- history
+
+export type HistoryEvent = {
+  at: string;
+  source: "created" | "change" | "approval" | "email";
+  action: string;
+  actor: string | null;
+  summary: string | null;
+  changes: Record<string, unknown> | null;
+  note: string | null;
+  recipient: string | null;
+  cc: string[] | null;
+  status: string | null;
+};
+
+export async function loadHistory(type: DocumentType, id: string) {
+  const { data, error } = await supabase.rpc("document_history", { p_type: type, p_id: id });
+  fail(error);
+  return (data as HistoryEvent[] | null) ?? [];
 }
 
 export type InvoiceStatus = "paid" | "unpaid" | "void";

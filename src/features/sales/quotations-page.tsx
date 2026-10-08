@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Dropdown, Flex, Input, Segmented, Table, Tag, Tooltip, Typography } from "antd";
+import { Button, Dropdown, Flex, Input, Segmented, Table, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CalendarOutlined,
@@ -9,11 +9,12 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   DislikeOutlined,
+  DownloadOutlined,
   EditOutlined,
   FilePdfOutlined,
-  MailOutlined,
   MoreOutlined,
   PlusOutlined,
+  ProfileOutlined,
   RedoOutlined,
   SendOutlined,
   TransactionOutlined,
@@ -22,30 +23,21 @@ import {
 import { useCan } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
-import { isExpired, quotationState, type Quotation } from "@/lib/quotations";
+import { isExpired, quotationState } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { approveDocument, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus } from "./api";
+import { approveDocument, needsSigning, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus, signingState } from "./api";
 import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { useAction } from "./use-action";
+import { CcNote, QuotationStatusTag } from "./quotation-parts";
+import { QuotationDrawer, type QuotationRow } from "./quotation-drawer";
+import { SigningActions, SigningTag } from "./signing";
 
-type Row = Quotation & {
-  request: { reference: string } | null;
-  invoices: { id: string; number: string | null; status: string }[];
-  customer: { full_name: string | null; email: string | null } | null;
-  approver: { full_name: string | null } | null;
-  requester: { full_name: string | null } | null;
-};
+type Row = QuotationRow;
 
 const SOURCE_LABEL: Record<string, string> = { phone: "By phone", email: "By email", meeting: "From a meeting", other: "Made by hand" };
-const TONE_COLOR: Record<string, string> = { draft: "default", open: "processing", expired: "warning", won: "success", closed: "default" };
 
 type Filter = "all" | "draft" | "open" | "expired" | "won" | "closed";
-
-export function QuotationStatusTag({ quotation }: { quotation: Pick<Quotation, "status" | "valid_until"> }) {
-  const state = quotationState(quotation);
-  return <Tag color={TONE_COLOR[state.tone]}>{state.label}</Tag>;
-}
 
 /** Every quotation, newest first, with what can be done to each. */
 export function QuotationsPage() {
@@ -54,7 +46,8 @@ export function QuotationsPage() {
   const canInvoice = can("licenses.manage");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
-  const { run, busy } = useAction([["quotations"]]);
+  const { run, busy } = useAction([["quotations"], ["history"]]);
+  const [openId, setOpenId] = useState<string | null>(null);
   const isApprover = useIsApprover();
 
   const { data, isLoading } = useQuery({
@@ -159,6 +152,7 @@ export function QuotationsPage() {
       render: (_, row) => (
         <Flex vertical gap={2}>
           <QuotationStatusTag quotation={row} />
+          <SigningTag row={row} />
           <ApprovalNote
             state={row.approval_status}
             note={row.approval_note}
@@ -179,7 +173,7 @@ export function QuotationsPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} isApprover={isApprover} run={run} busy={busy} />,
+      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} isApprover={isApprover} run={run} busy={busy} onOpen={() => setOpenId(row.id)} />,
     },
   ];
 
@@ -217,6 +211,14 @@ export function QuotationsPage() {
         pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }}
         scroll={{ x: 860 }}
         locale={{ emptyText: data && data.length > 0 ? "Nothing matches." : "No quotations yet." }}
+        onRow={(row) => ({ onClick: () => setOpenId(row.id), style: { cursor: "pointer" } })}
+      />
+      <QuotationDrawer
+        quotation={(openId && data?.find((row) => row.id === openId)) || null}
+        onClose={() => setOpenId(null)}
+        isApprover={isApprover}
+        run={run}
+        busy={busy}
       />
     </>
   );
@@ -228,12 +230,14 @@ function RowActions({
   isApprover,
   run,
   busy,
+  onOpen,
 }: {
   row: Row;
   canInvoice: boolean;
   isApprover: boolean;
   run: ReturnType<typeof useAction>["run"];
   busy: string | null;
+  onOpen: () => void;
 }) {
   const navigate = useNavigate();
   const viewPdf = usePdfViewer();
@@ -242,7 +246,10 @@ function RowActions({
   const title = `quotation ${row.number ?? ""}`.trim();
   const waiting = row.approval_status === "pending";
   // An approver sends; anyone else asks an approver (the database decides).
-  const sendLabel = isApprover ? "Send" : "Request approval";
+  // Signed by hand: an approver's "send" approves it to be downloaded and signed.
+  const toSign = needsSigning(row);
+  const signing = signingState(row);
+  const sendLabel = isApprover ? (toSign ? "Download to sign" : "Send") : "Request approval";
   const open = row.status === "draft" || row.status === "sent";
   const expired = isExpired(row);
   const invoice = row.invoices.find((candidate) => candidate.status !== "void");
@@ -251,36 +258,61 @@ function RowActions({
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...quotationPdf(row.id, row.number),
-      note: isApprover ? "Check it, and who it goes to, before sending." : "Check it; an approver sends it to the customer.",
-      recipients: row.contact_email ? { to: row.contact_email, cc: row.cc_emails } : undefined,
+      note: isApprover
+        ? toSign
+          ? "Check it. Approving makes it ready to sign: download it, sign it, then upload the signed copy to send it."
+          : "Check it, and who it goes to, before sending."
+        : "Check it; an approver sends it to the customer.",
+      recipients: row.contact_email && !(isApprover && toSign) ? { to: row.contact_email, cc: row.cc_emails } : undefined,
       action: {
-        label: isApprover ? (again ? "Send again" : "Send to customer") : "Request approval",
+        label: isApprover ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
         onClick: async () => {
-          await run(
+          let result = null as string | null;
+          const ok = await run(
             k("send"),
-            () => sendQuotation(row.id),
-            isApprover ? (again ? "Sent again." : "Sent. The customer has been emailed a link.") : "Sent for approval. The approvers have been emailed.",
+            async () => {
+              result = await sendQuotation(row.id);
+            },
+            isApprover
+              ? toSign
+                ? "Approved. Download it, sign it, then upload the signed copy."
+                : again
+                  ? "Sent again."
+                  : "Sent. The customer has been emailed a link."
+              : "Sent for approval. The approvers have been emailed.",
           );
+          if (ok && result === "to_sign") downloadToSign();
         },
       },
     });
+  const downloadToSign = () =>
+    viewPdf({ ...quotationPdf(row.id, row.number, { original: true }), note: "Print it and sign it by hand — then upload the signed copy to send it." });
   // An approver's review of someone else's request: approving sends it.
   const reviewAndApprove = () =>
     viewPdf({
       ...quotationPdf(row.id, row.number),
-      note: `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving sends it to the customer now.`,
-      recipients: row.contact_email ? { to: row.contact_email, cc: row.cc_emails } : undefined,
+      note: toSign
+        ? `Asked by ${row.requester?.full_name ?? "a colleague"}. Once approved, download it to sign; it is sent with the signed copy.`
+        : `Asked by ${row.requester?.full_name ?? "a colleague"}. Approving sends it to the customer now.`,
+      recipients: row.contact_email && !toSign ? { to: row.contact_email, cc: row.cc_emails } : undefined,
       action: {
-        label: "Approve & send",
+        label: toSign ? "Approve & download to sign" : "Approve & send",
         onClick: async () => {
-          await run(k("approve"), () => approveDocument("quotation", row.id), "Approved and sent to the customer.");
+          const ok = await run(
+            k("approve"),
+            () => approveDocument("quotation", row.id),
+            toSign ? "Approved. Download it, sign it, then upload the signed copy." : "Approved and sent to the customer.",
+          );
+          if (ok && toSign) downloadToSign();
         },
       },
     });
 
   // The one next step for this quotation.
   let primary: React.ReactNode = null;
-  if (waiting) {
+  if (signing === "to_sign" || signing === "needs_check" || signing === "ready") {
+    primary = <SigningActions type="quotation" row={row} isApprover={isApprover} run={run} busy={busy} />;
+  } else if (waiting) {
     primary = isApprover ? (
       <>
         <Button size="small" type="primary" icon={<CheckOutlined />} loading={busy === k("approve")} onClick={reviewAndApprove}>
@@ -293,15 +325,15 @@ function RowActions({
     ) : null;
   } else if (row.status === "draft" && row.contact_email) {
     primary = (
-      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
+      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
         {sendLabel}
       </Button>
     );
   } else if (row.status === "sent" && row.approval_status !== "approved" && row.contact_email && !expired) {
     // Edited or not approved since it was sent: the customer's link is paused.
     primary = (
-      <Button size="small" type="primary" icon={<SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(true)}>
-        {isApprover ? "Send again" : "Request approval"}
+      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(true)}>
+        {isApprover ? (toSign ? "Download to sign" : "Send again") : "Request approval"}
       </Button>
     );
   } else if (expired) {
@@ -331,9 +363,10 @@ function RowActions({
   }
 
   const more: MenuProps["items"] = [
-    ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved"
+    ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved" && (signing === "none" || signing === "sent")
       ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
+    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onOpen },
     { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
     ...(row.status === "sent" && expired
       ? [{ key: "late", icon: <CheckOutlined />, label: "Accept anyway (expired)", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted", true), "Accepted after expiry.") }]
@@ -354,7 +387,7 @@ function RowActions({
   ];
 
   return (
-    <Flex gap={4} justify="flex-end" align="center" wrap={false}>
+    <Flex gap={4} justify="flex-end" align="center" wrap={false} onClick={(event) => event.stopPropagation()}>
       {primary}
       <Tooltip title="View PDF">
         <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(quotationPdf(row.id, row.number))} aria-label="View PDF" />
@@ -375,26 +408,5 @@ function RowActions({
       />
       <ApprovalHistoryModal type="quotation" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
     </Flex>
-  );
-}
-
-/** "+2 in CC", with the addresses on hover. */
-export function CcNote({ cc }: { cc: string[] | null | undefined }) {
-  if (!cc?.length) return null;
-  return (
-    <Tooltip
-      title={
-        <>
-          Also emailed (CC):
-          {cc.map((email) => (
-            <div key={email}>{email}</div>
-          ))}
-        </>
-      }
-    >
-      <Typography.Text type="secondary" style={{ fontSize: 12, cursor: "default" }}>
-        <MailOutlined /> +{cc.length} in CC
-      </Typography.Text>
-    </Tooltip>
   );
 }

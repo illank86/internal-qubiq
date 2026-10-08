@@ -640,7 +640,7 @@ export function SignatureBlock({
         ) : null}
         {signoff?.image ? (
           // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
-          <Image src={signoff.image} style={{ height: 66, width: 160, objectFit: "contain", marginLeft: stamp ? 30 : 0 }} />
+          <Image src={signoff.image} style={{ maxHeight: 44, maxWidth: 150, height: 44, objectFit: "contain", objectPosition: "left", marginLeft: stamp ? 30 : 0, marginBottom: 6 }} />
         ) : signoff?.pending ? (
           <View
             style={{
@@ -663,6 +663,27 @@ export function SignatureBlock({
         {signoff?.title ? <Text style={{ color: MUTED }}>{signoff.title}</Text> : null}
       </View>
     </View>
+  );
+}
+
+/**
+ * The fingerprint of an approved document: what the signed-copy check looks
+ * for in an uploaded signed or stamped PDF (supabase/functions/signed-copy).
+ * It changes with every approval, so a copy of an earlier version is refused.
+ */
+export async function documentFingerprint(type: "invoice" | "quotation", id: string, approvedAt: string, total: number | string) {
+  const source = `${type}|${id}|${Math.floor(Date.parse(approvedAt) / 1000)}|${Number(total).toFixed(2)}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+/** The fingerprint line: white, tiny, on every page — kept in the text of a stamped copy, invisible in print. */
+export function FingerprintMark({ value }: { value: string | null }) {
+  if (!value) return null;
+  return (
+    <Text fixed style={{ position: "absolute", bottom: 4, left: 46, fontSize: 3, color: "#ffffff" }}>
+      {value}
+    </Text>
   );
 }
 

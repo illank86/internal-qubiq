@@ -1017,6 +1017,14 @@ export type Database = {
       }
       invoices: {
         Row: {
+          signed_copy_path: string | null
+          signed_copy_uploaded_by: string | null
+          signed_copy_uploaded_at: string | null
+          signed_copy_check: string | null
+          signed_copy_confirmed_by: string | null
+          signed_copy_confirmed_at: string | null
+          signed_copy_sent_at: string | null
+          emeterai_serial: string | null
           signature_mode: string
           approval_status: Database["public"]["Enums"]["approval_state"]
           approval_requested_by: string | null
@@ -1064,6 +1072,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          signed_copy_path?: string | null
+          signed_copy_uploaded_by?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_check?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_sent_at?: string | null
+          emeterai_serial?: string | null
           signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
@@ -1111,6 +1127,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          signed_copy_path?: string | null
+          signed_copy_uploaded_by?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_check?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_sent_at?: string | null
+          emeterai_serial?: string | null
           signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
@@ -2400,6 +2424,13 @@ export type Database = {
       }
       quotations: {
         Row: {
+          signed_copy_path: string | null
+          signed_copy_uploaded_by: string | null
+          signed_copy_uploaded_at: string | null
+          signed_copy_check: string | null
+          signed_copy_confirmed_by: string | null
+          signed_copy_confirmed_at: string | null
+          signed_copy_sent_at: string | null
           signature_mode: string
           approval_status: Database["public"]["Enums"]["approval_state"]
           approval_requested_by: string | null
@@ -2459,6 +2490,13 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          signed_copy_path?: string | null
+          signed_copy_uploaded_by?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_check?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_sent_at?: string | null
           signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
@@ -2518,6 +2556,13 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          signed_copy_path?: string | null
+          signed_copy_uploaded_by?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_check?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_sent_at?: string | null
           signature_mode?: string
           approval_status?: Database["public"]["Enums"]["approval_state"]
           approval_requested_by?: string | null
@@ -3320,6 +3365,10 @@ export type Database = {
       }
     }
     Functions: {
+      confirm_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }
+      document_history: { Args: { p_id: string; p_type: string }; Returns: Json }
+      send_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }
+      staff_document_signoff: { Args: { p_id: string; p_type: string }; Returns: Json }
       approve_document: { Args: { p_id: string; p_type: string }; Returns: string }
       document_signature_info: { Args: never; Returns: Json }
       reject_document: {
@@ -3352,6 +3401,8 @@ export type Database = {
       claim_quotation: { Args: { p_token: string }; Returns: Json }
       convert_quotation_to_invoice: {
         Args: {
+          p_materai?: string
+          p_signature_mode?: string
           p_cc_emails?: string[]
           p_license_id?: string
           p_owner_id?: string

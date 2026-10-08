@@ -23,6 +23,8 @@ import {
   PaymentMethodCards,
   methodsFor,
   sellerForCurrency,
+  documentFingerprint,
+  FingerprintMark,
 } from "@/lib/pdf-theme";
 import {
   INVOICE_STATUS_LABEL,
@@ -59,11 +61,14 @@ function InvoiceDocument({
   items,
   groups,
   signoff,
+  verify,
 }: {
   invoice: Invoice;
   items: InvoiceItem[];
   groups: DocumentGroup[];
   signoff: DocumentSignoff | null;
+  /** The approved version's fingerprint line (see documentFingerprint). */
+  verify: string | null;
 }) {
   // In IDR, named as in Indonesia (PT. …).
   const seller = sellerForCurrency((invoice.seller ?? {}) as InvoiceSeller, invoice.currency);
@@ -89,6 +94,7 @@ function InvoiceDocument({
       title={`Invoice ${invoice.number ?? ""}`}
       author={seller.company_name ?? "QUBIQ"}
       subject={`Invoice for the licence issued to ${licensee}`}
+      keywords={verify ?? undefined}
       creator="goqubiq.com"
       producer="goqubiq.com"
     >
@@ -165,6 +171,7 @@ function InvoiceDocument({
         {/* Signed (approved), by hand, or with a space for materai. */}
         {signed ? <SignatureBlock signoff={signoff} company={seller.company_name ?? "QUBIQ"} materai={invoice.materai} /> : null}
 
+        <FingerprintMark value={verify} />
         <PageFooter seller={seller} />
       </Page>
 
@@ -223,6 +230,7 @@ function InvoiceDocument({
             </View>
           </View>
 
+          <FingerprintMark value={verify} />
           <PageFooter seller={seller} />
         </Page>
       ) : null}
@@ -237,5 +245,8 @@ export async function renderInvoicePdf(
   groups: DocumentGroup[] = [],
   signoff: DocumentSignoff | null = null,
 ) {
-  return pdf(<InvoiceDocument invoice={invoice} items={items} groups={groups} signoff={signoff} />).toBlob();
+  const verify = invoice.approved_at
+    ? `QUBIQ-VERIFY ${invoice.number} ${await documentFingerprint("invoice", invoice.id, invoice.approved_at, invoice.total)}`
+    : null;
+  return pdf(<InvoiceDocument invoice={invoice} items={items} groups={groups} signoff={signoff} verify={verify} />).toBlob();
 }

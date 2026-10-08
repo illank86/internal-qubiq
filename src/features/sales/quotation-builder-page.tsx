@@ -3,7 +3,7 @@ import { RichTextField } from "@/features/content/rich-text-field";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Affix, Alert, App, AutoComplete, Button, Card, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
-import { EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
+import { DownloadOutlined, EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { loadSalesCatalog, newGroup, priceGroups, errorText, type GroupDraft, type SalesCatalog } from "@/lib/sales";
@@ -14,6 +14,7 @@ import { renderQuotationPreview } from "./quotation-preview";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { useIsApprover } from "./approvals";
+import { quotationPdf } from "./api";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
@@ -93,6 +94,9 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const decimals = Form.useWatch("decimals", form) ?? draft.decimals;
   const taxRate = Form.useWatch("tax_rate", form) ?? draft.taxRate;
   const contactEmail = Form.useWatch("contact_email", form);
+  // Signed by hand: an approver downloads it to sign; it goes out as the signed copy.
+  const toSign = (Form.useWatch("signature_mode", form) ?? draft.signatureMode) === "wet";
+  const sendLabel = isApprover ? (toSign ? "Save & download to sign" : draft.sent ? "Save & send again" : "Save & send to customer") : "Save & request approval";
   const firstEdition = catalog.editions.find((edition) => edition.id === groups.find((group) => group.editionId)?.editionId);
   const baseCurrency = firstEdition?.currency ?? catalog.editions[0]?.currency ?? "USD";
   const converting = /^[A-Z]{3}$/.test(currencyText) && currencyText !== baseCurrency;
@@ -145,10 +149,14 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     viewPdf({
       title: `Quotation ${draft.number ?? "preview"}`,
       fileName: `${draft.number ?? "quotation-preview"}.pdf`,
-      note: action ? "Check it, and who it goes to, before sending." : "Preview of what is on screen — not saved yet.",
+      note: action
+        ? isApprover && toSign
+          ? "Check it. Approving saves it for signing: download it, sign it, then upload the signed copy to send it."
+          : "Check it, and who it goes to, before sending."
+        : "Preview of what is on screen — not saved yet.",
       recipients: action ? { to: values.contact_email, cc: normaliseEmails(values.cc_emails) } : undefined,
       make: () => renderQuotationPreview(catalog, previewInput(values)),
-      action: action ? { label: isApprover ? "Send to customer" : "Request approval", onClick: () => persist(action.values, "send") } : undefined,
+      action: action ? { label: isApprover ? (toSign ? "Approve & download to sign" : "Send to customer") : "Request approval", onClick: () => persist(action.values, "send") } : undefined,
     });
   };
 
@@ -226,8 +234,10 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       setError(`Saved, but the CC list was not: ${errorText(ccError, "check the addresses and save again.")}`);
       return;
     }
+    let sent: string | null = null;
     if (intent === "send") {
-      const { error: sendError } = await supabase.rpc("send_quotation", { p_quotation_id: quotationId });
+      const { data: result, error: sendError } = await supabase.rpc("send_quotation", { p_quotation_id: quotationId });
+      sent = result;
       if (sendError) {
         setSaving(null);
         setError(`Saved, but not sent: ${errorText(sendError, "please try again from the quotation list.")}`);
@@ -235,6 +245,12 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       }
     }
     await queryClient.invalidateQueries({ queryKey: ["quotations"] });
+    if (sent === "to_sign") {
+      message.success("Saved and approved. Download it, sign it, then upload the signed copy from the quotation.");
+      navigate("/sales/quotations");
+      viewPdf({ ...quotationPdf(quotationId, draft.number, { original: true }), note: "Print it and sign it by hand — then upload the signed copy from the quotation to send it." });
+      return;
+    }
     message.success(
       intent !== "send"
         ? "Quotation saved."
@@ -521,8 +537,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 </Flex>
                 {error ? <Alert type="error" showIcon title={error} style={{ marginTop: 16 }} /> : null}
                 <Flex vertical gap={8} style={{ marginTop: 16 }}>
-                  <Button type="primary" block size="large" icon={<SendOutlined />} loading={saving === "send"} onClick={() => save("send")}>
-                    {isApprover ? (draft.sent ? "Save & send again" : "Save & send to customer") : "Save & request approval"}
+                  <Button type="primary" block size="large" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={saving === "send"} onClick={() => save("send")}>
+                    {sendLabel}
                   </Button>
                   <Button block icon={<EyeOutlined />} onClick={() => preview()}>
                     Preview PDF

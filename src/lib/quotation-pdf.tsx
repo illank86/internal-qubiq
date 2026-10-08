@@ -24,6 +24,8 @@ import {
   type SellerBlock,
   type DocumentSignoff,
   sellerForCurrency,
+  documentFingerprint,
+  FingerprintMark,
 } from "@/lib/pdf-theme";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { quotationState, type Quotation, type QuotationTone } from "@/lib/quotations";
@@ -86,12 +88,15 @@ function QuotationDocument({
   groups,
   qr,
   signoff,
+  verify,
 }: {
   quotation: QuotationForPdf;
   items: DocumentLine[];
   groups: DocumentGroup[];
   qr: string;
   signoff: DocumentSignoff | null;
+  /** The approved version's fingerprint line (see documentFingerprint). */
+  verify: string | null;
 }) {
   // In IDR, named as in Indonesia (PT. …).
   const seller = sellerForCurrency((quotation.seller ?? {}) as SellerBlock, quotation.currency);
@@ -115,6 +120,7 @@ function QuotationDocument({
       title={`Quotation ${quotation.number ?? ""}`}
       author={seller.company_name ?? "QUBIQ"}
       subject={`Quotation for ${quotation.company || quotation.contact_name}`}
+      keywords={verify ?? undefined}
       creator="goqubiq.com"
       producer="goqubiq.com"
     >
@@ -222,7 +228,7 @@ function QuotationDocument({
             <View style={{ marginTop: 8, height: 62, justifyContent: "flex-end" }}>
               {signoff.image ? (
                 // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
-                <Image src={signoff.image} style={{ height: 58, width: 150, objectFit: "contain" }} />
+                <Image src={signoff.image} style={{ maxHeight: 44, maxWidth: 150, height: 44, objectFit: "contain", objectPosition: "left" }} />
               ) : signoff.pending ? (
                 <View style={{ height: 50, width: 150, borderWidth: 0.8, borderStyle: "dashed", borderColor: LINE, alignItems: "center", justifyContent: "center" }}>
                   <Text style={{ fontSize: 7, color: MUTED }}>Signature added on approval</Text>
@@ -252,6 +258,7 @@ function QuotationDocument({
           <Text>{[replyTo, quotation.sales_phone || seller.phone].filter(Boolean).join("  ·  ")}</Text>
         </View>
 
+        <FingerprintMark value={verify} />
         <PageFooter seller={seller} />
       </Page>
     </Document>
@@ -266,5 +273,8 @@ export async function renderQuotationPdf(
   signoff: DocumentSignoff | null = null,
 ) {
   const qr = await signatureQr(quotation.public_token);
-  return pdf(<QuotationDocument quotation={quotation} items={items} groups={groups} qr={qr} signoff={signoff} />).toBlob();
+  const verify = quotation.approved_at
+    ? `QUBIQ-VERIFY ${quotation.number} ${await documentFingerprint("quotation", quotation.id, quotation.approved_at, quotation.total)}`
+    : null;
+  return pdf(<QuotationDocument quotation={quotation} items={items} groups={groups} qr={qr} signoff={signoff} verify={verify} />).toBlob();
 }
