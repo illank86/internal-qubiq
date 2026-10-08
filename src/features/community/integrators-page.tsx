@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { GeoField } from "@/features/content/geo-field";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Button, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { CheckOutlined, EnvironmentOutlined } from "@ant-design/icons";
+import { CheckOutlined, ExportOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
@@ -105,8 +106,6 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
   const staff = useStaff();
   const [form] = Form.useForm<Values>();
   const { run, busy } = useAction([["integrators"]]);
-  const latitude = Form.useWatch("latitude", form);
-  const longitude = Form.useWatch("longitude", form);
 
   const save = (values: Values, approve = false) =>
     run(
@@ -145,8 +144,8 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
       extra={
         <Flex gap={8}>
           {integrator.status === "approved" && integrator.slug ? (
-            <Button href={`${env.siteUrl}/integrators/${integrator.slug}`} target="_blank" rel="noreferrer">
-              View listing
+            <Button icon={<ExportOutlined />} href={`${env.siteUrl}/integrators/${integrator.slug}`} target="_blank" rel="noreferrer">
+              View on goqubiq.com
             </Button>
           ) : null}
           {integrator.status === "pending" ? (
@@ -285,27 +284,13 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
                         <Input />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={8}>
-                      <Form.Item label="Latitude" name="latitude" extra="The pin on the directory map.">
-                        <InputNumber min={-90} max={90} step={0.0001} style={{ width: "100%" }} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={12} sm={8}>
-                      <Form.Item label="Longitude" name="longitude">
-                        <InputNumber min={-180} max={180} step={0.0001} style={{ width: "100%" }} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={8}>
-                      <Form.Item label=" ">
-                        <Button
-                          icon={<EnvironmentOutlined />}
-                          disabled={latitude == null || longitude == null}
-                          href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=15/${latitude}/${longitude}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Check on a map
-                        </Button>
+                    <Col span={24}>
+                      <Form.Item label="Location on the map" extra="The pin puts the company on the directory map. Dropping one fills the address fields above.">
+                        <GeoField
+                          latitudeName="latitude"
+                          longitudeName="longitude"
+                          fill={{ addressLine: "address_line", city: "city", region: "region", country: "country", postalCode: "postal_code" }}
+                        />
                       </Form.Item>
                     </Col>
                   </Row>

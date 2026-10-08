@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, Col, Empty, Row, Statistic, Table, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { Card, Col, Row, Statistic, Table, Tabs, Tag, Typography } from "antd";
 import { PageTitle } from "@/components/app-shell";
+import { DownloadTrend, DownloadsByPlatform, DownloadsByRelease } from "./download-charts";
 import { supabase } from "@/lib/supabase";
 
-type Day = { day: string; downloads: number; unique_visitors: number };
 const when = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 
 /**
@@ -11,7 +11,6 @@ const when = (value: string | null) => (value ? new Date(value).toLocaleString("
  * from its reporting views. Bots are counted but never ranked.
  */
 export function DownloadsPage() {
-  const { token } = theme.useToken();
   const { data, isLoading } = useQuery({
     queryKey: ["downloads"],
     queryFn: async () => {
@@ -33,14 +32,12 @@ export function DownloadsPage() {
         byArtifact: byArtifact.data ?? [],
         visitors: visitors.data ?? [],
         recent: recent.data ?? [],
-        daily: (daily.data ?? []) as Day[],
+        daily: (daily.data ?? []) as { day: string; downloads: number; unique_visitors: number }[],
       };
     },
   });
 
   const totals = data?.totals;
-  const days = (data?.daily ?? []).slice(-60);
-  const peak = Math.max(1, ...days.map((day) => Number(day.downloads)));
 
   return (
     <>
@@ -61,19 +58,21 @@ export function DownloadsPage() {
           </Col>
         ))}
       </Row>
-      <Card title="Downloads per day (last 60 days)" size="small" style={{ marginBottom: 16 }}>
-        {days.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No downloads yet." />
-        ) : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 120 }}>
-            {days.map((day) => (
-              <Tooltip key={day.day} title={`${day.day}: ${day.downloads} downloads, ${day.unique_visitors} visitors`}>
-                <div style={{ flex: 1, minWidth: 2, height: `${(Number(day.downloads) / peak) * 100}%`, minHeight: 2, background: token.colorPrimary, borderRadius: 2, opacity: 0.85 }} />
-              </Tooltip>
-            ))}
-          </div>
-        )}
+      <Card title="Downloads over time" extra={<span style={{ fontSize: 12, opacity: 0.6 }}>Last 90 days</span>} style={{ marginBottom: 16 }}>
+        {isLoading ? null : <DownloadTrend days={data?.daily ?? []} />}
       </Card>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} lg={14}>
+          <Card title="By release" style={{ height: "100%" }}>
+            {isLoading ? null : <DownloadsByRelease rows={data?.byRelease ?? []} />}
+          </Card>
+        </Col>
+        <Col xs={24} lg={10}>
+          <Card title="By platform" style={{ height: "100%" }}>
+            {isLoading ? null : <DownloadsByPlatform rows={data?.byArtifact ?? []} />}
+          </Card>
+        </Col>
+      </Row>
       <Card>
         <Tabs
           items={[

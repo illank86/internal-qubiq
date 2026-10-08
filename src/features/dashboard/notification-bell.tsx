@@ -34,6 +34,7 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
+  const [marking, setMarking] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["notifications", staff.id],
@@ -41,20 +42,32 @@ export function NotificationBell() {
     refetchInterval: 60_000,
   });
 
+  // Read is shared with the website's admin: marking here clears it there too.
   const markRead = async () => {
-    await markNotificationsSeen(staff.id);
-    await queryClient.invalidateQueries({ queryKey: ["notifications", staff.id] });
+    setMarking(true);
+    try {
+      await markNotificationsSeen(staff.id);
+      await queryClient.invalidateQueries({ queryKey: ["notifications", staff.id] });
+    } finally {
+      setMarking(false);
+    }
   };
 
   const content = (
     <div style={{ width: 380, maxWidth: "calc(100vw - 32px)" }}>
       <Flex justify="space-between" align="center" style={{ padding: "4px 4px 10px", borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
-        <Typography.Text strong>Notifications</Typography.Text>
+        <Typography.Text strong>
+          Notifications{data?.unread ? <Typography.Text type="secondary" style={{ fontWeight: 400 }}> · {data.unread} new</Typography.Text> : null}
+        </Typography.Text>
         {data?.unread ? (
-          <Button type="link" size="small" onClick={markRead} style={{ paddingInline: 0 }}>
-            Mark all as read
+          <Button type="link" size="small" loading={marking} onClick={markRead} style={{ paddingInline: 0 }}>
+            Mark all read
           </Button>
-        ) : null}
+        ) : (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            All caught up
+          </Typography.Text>
+        )}
       </Flex>
       <div style={{ maxHeight: 440, overflowY: "auto", margin: "4px -12px -12px" }}>
         {isLoading ? (
@@ -62,7 +75,11 @@ export function NotificationBell() {
             <Spin />
           </Flex>
         ) : !data || data.items.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nothing yet." style={{ padding: 24 }} />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Nothing has come in yet. Leads, quote requests, bug reports and replies, licence requests, integrator applications and new accounts land here."
+            style={{ padding: 24 }}
+          />
         ) : (
           data.items.map((item) => (
             <Flex
@@ -92,9 +109,12 @@ export function NotificationBell() {
                   {item.detail}
                 </Typography.Text>
               </div>
-              <Typography.Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
-                {ago(item.createdAt)}
-              </Typography.Text>
+              <Flex vertical align="flex-end" gap={6}>
+                <Typography.Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                  {ago(item.createdAt)}
+                </Typography.Text>
+                {item.unread ? <span aria-label="Unread" style={{ width: 8, height: 8, borderRadius: 4, background: token.colorPrimary }} /> : null}
+              </Flex>
             </Flex>
           ))
         )}

@@ -1,5 +1,6 @@
-import { Col, Flex, Form, Input, InputNumber, Select, Switch } from "antd";
+import { Col, Form, Input, InputNumber, Select, Switch } from "antd";
 import type { Field } from "./resources";
+import { GeoField } from "./geo-field";
 import { MediaInput } from "./media-picker";
 import { RichTextField } from "./rich-text-field";
 
@@ -70,14 +71,7 @@ export function FieldInput({ field, lookups }: { field: Field; lookups: Lookups 
   if (field.type === "geo" && field.geo) {
     return (
       <Form.Item label={field.label} extra={field.hint}>
-        <Flex gap={8} wrap>
-          <Form.Item name={field.name} noStyle>
-            <InputNumber min={-90} max={90} step={0.0001} placeholder="Latitude" style={{ width: 180 }} />
-          </Form.Item>
-          <Form.Item name={field.geo.longitudeField} noStyle>
-            <InputNumber min={-180} max={180} step={0.0001} placeholder="Longitude" style={{ width: 180 }} />
-          </Form.Item>
-        </Flex>
+        <GeoField latitudeName={field.name} longitudeName={field.geo.longitudeField} fill={field.geo.fill} />
       </Form.Item>
     );
   }
