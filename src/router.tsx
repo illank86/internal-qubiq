@@ -11,6 +11,9 @@ import { QuotationsPage } from "@/features/sales/quotations-page";
 import { ConvertPage } from "@/features/sales/convert-page";
 import { CustomerPage } from "@/features/sales/customer-page";
 import { InvoicesPage } from "@/features/sales/invoices-page";
+import { BugReportsPage } from "@/features/community/bug-reports-page";
+import { IntegratorsPage } from "@/features/community/integrators-page";
+import { LicencesPage } from "@/features/licensing/licences-page";
 import { EditionsPage } from "@/features/sales/editions-page";
 import { LeadsPage } from "@/features/sales/leads-page";
 import { SalesSettingsPage } from "@/features/sales/settings-page";
@@ -24,6 +27,9 @@ const READY: Record<string, React.ReactNode> = {
   "/sales/leads": <LeadsPage />,
   "/sales/editions": <EditionsPage />,
   "/sales/settings": <SalesSettingsPage />,
+  "/licensing/licences": <LicencesPage />,
+  "/community/bug-reports": <BugReportsPage />,
+  "/community/integrators": <IntegratorsPage />,
 };
 
 /**

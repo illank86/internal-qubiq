@@ -59,7 +59,7 @@ const TILES: Tile[] = [
     hint: "Not triaged yet",
     to: "/community/bug-reports",
     icon: <BugOutlined />,
-    permission: "content.manage",
+    permission: "leads.manage",
     count: () => supabase.from("bug_reports").select("id", { count: "exact", head: true }).eq("status", "new"),
   },
   {

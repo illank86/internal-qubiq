@@ -62,14 +62,14 @@ export const NAV: NavGroup[] = [
   {
     heading: "Licensing",
     items: [
-      { path: "/licensing/licences", label: "Licences", icon: KeyOutlined, permissions: ["licenses.manage"], legacy: "/admin/licenses", phase: 4, summary: "Fingerprint requests: issue .qlf files, revoke, link to orders." },
+      { path: "/licensing/licences", label: "Licences", icon: KeyOutlined, permissions: ["licenses.manage"], legacy: "/admin/licenses", phase: 4, ready: true, summary: "Fingerprint requests: issue .qlf files, revoke, link to orders." },
     ],
   },
   {
     heading: "Community",
     items: [
-      { path: "/community/bug-reports", label: "Bug reports", icon: BugOutlined, permissions: ["content.manage"], legacy: "/admin/bug_reports", phase: 4, summary: "Triage customer reports and reply to them." },
-      { path: "/community/integrators", label: "Integrators", icon: GlobalOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, summary: "Review directory applications and listings." },
+      { path: "/community/bug-reports", label: "Bug reports", icon: BugOutlined, permissions: ["leads.manage"], legacy: "/admin/bug_reports", phase: 4, ready: true, summary: "Triage customer reports and reply to them." },
+      { path: "/community/integrators", label: "Integrators", icon: GlobalOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, ready: true, summary: "Review directory applications and listings." },
     ],
   },
   {
