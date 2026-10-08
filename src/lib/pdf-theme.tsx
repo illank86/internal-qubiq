@@ -255,9 +255,21 @@ function ItemLines({ items, start, money }: { items: DocumentLine[]; start: numb
   const numbers = items.map((_, index) => start + items.slice(0, index).filter((item) => !isEditionHeading(item)).length);
   return (
     <>
-      {items.map((item, index) =>
-        isEditionHeading(item) ? <EditionHeading key={item.id} item={item} /> : <LineRow key={item.id} item={item} index={numbers[index]} money={money} />,
-      )}
+      {items.map((item, index) => {
+        if (isEditionHeading(item)) {
+          const next = items[index + 1];
+          // A heading never ends a page on its own: it moves with its first line.
+          return (
+            <View key={item.id} wrap={false}>
+              <EditionHeading item={item} />
+              {next && !isEditionHeading(next) ? <LineRow item={next} index={numbers[index + 1]} money={money} /> : null}
+            </View>
+          );
+        }
+        // Already drawn with the heading before it.
+        if (index > 0 && isEditionHeading(items[index - 1])) return null;
+        return <LineRow key={item.id} item={item} index={numbers[index]} money={money} />;
+      })}
     </>
   );
 }
@@ -316,16 +328,17 @@ export function ItemsTable({
     const looseStart = sections.reduce((sum, section) => sum + section.lines.length, 0);
     return (
       <View style={styles.table}>
-        <View style={styles.headRow} minPresenceAhead={60}>
+        <View style={styles.headRow} minPresenceAhead={110}>
           <Text style={[styles.cNo, styles.headCell]}>#</Text>
           <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
           <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
           <Text style={[styles.cPrice, styles.headCell]}>Unit price</Text>
           <Text style={[styles.cAmount, styles.headCell]}>Amount</Text>
         </View>
-        {sections.map(({ group, edition, lines }, index) => (
-          <View key={group.id}>
-            <View style={styles.groupRow} minPresenceAhead={40} wrap={false}>
+        {sections.map(({ group, edition, lines }, index) => {
+          const first = starts[index];
+          const heading = (
+            <View style={styles.groupRow}>
               <Text style={styles.groupName}>
                 {group.label}
                 {edition ? <Text style={styles.editionName}>{`  —  ${edition.description}`}</Text> : null}
@@ -334,20 +347,45 @@ export function ItemsTable({
                 {group.quantity} server{group.quantity === 1 ? "" : "s"}
               </Text>
             </View>
-            <ItemLines items={lines} start={starts[index]} money={money} />
-            <View style={styles.groupSubtotal} wrap={false}>
-              <Text style={[styles.muted, { marginRight: 12 }]}>{group.label} subtotal</Text>
-              <Text style={[styles.cAmount, styles.itemName, { fontSize: fit(money(group.subtotal), 9, 104) }]}>{money(group.subtotal)}</Text>
+          );
+          const subtotal = (
+            <View style={styles.groupSubtotal}>
+              <Text style={[styles.itemName, { marginRight: 12 }]}>{group.label} subtotal</Text>
+              <Text style={[styles.cAmount, { fontSize: fit(money(group.subtotal), 9, 104) }]}>{money(group.subtotal)}</Text>
             </View>
-          </View>
-        ))}
+          );
+          // A group's heading moves with its first line, and its subtotal with
+          // its last, so a page never ends on a heading or starts on a total.
+          if (lines.length <= 1) {
+            return (
+              <View key={group.id} wrap={false}>
+                {heading}
+                {lines[0] ? <LineRow item={lines[0]} index={first} money={money} /> : null}
+                {subtotal}
+              </View>
+            );
+          }
+          return (
+            <View key={group.id}>
+              <View wrap={false}>
+                {heading}
+                <LineRow item={lines[0]} index={first} money={money} />
+              </View>
+              <ItemLines items={lines.slice(1, -1)} start={first + 1} money={money} />
+              <View wrap={false}>
+                <LineRow item={lines[lines.length - 1]} index={first + lines.length - 1} money={money} />
+                {subtotal}
+              </View>
+            </View>
+          );
+        })}
         <ItemLines items={loose} start={looseStart} money={money} />
       </View>
     );
   }
   return (
     <View style={styles.table}>
-      <View style={styles.headRow} minPresenceAhead={40}>
+      <View style={styles.headRow} minPresenceAhead={60}>
         <Text style={[styles.cNo, styles.headCell]}>#</Text>
         <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
         <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
