@@ -36,9 +36,9 @@ npm run build                # type-check and build to dist/
 | Phase | Area | Status |
 |---|---|---|
 | 0 | Foundation: app shell, staff sign-in, invite and reset links, permissions, dashboard | done |
-| 1 | Website cache refresh on data changes (website endpoint + database trigger); server-action logic into RPCs | next |
+| 1 | Website cache refresh on data changes (website endpoint + database trigger); server-action logic into RPCs | done |
 | 2 | Content and blog (generic tables and forms, media library, rich text) | |
-| 3 | Sales: quote requests, leads, quotations, invoices, editions, Sales settings | |
+| 3 | Sales: quote requests, leads, quotations, invoices, editions, Sales settings | done — in use alongside /admin |
 | 4 | Licensing and community: licence queue, bug triage, integrators | |
 | 5 | Newsletters, subscribers, users and roles, activity and email logs, downloads | |
 | 6 | Cut-over: redirect `/admin`, remove admin code from the website | |
