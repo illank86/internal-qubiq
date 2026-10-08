@@ -328,7 +328,7 @@ export function ItemsTable({
     const looseStart = sections.reduce((sum, section) => sum + section.lines.length, 0);
     return (
       <View style={styles.table}>
-        <View style={styles.headRow} minPresenceAhead={110}>
+        <View style={styles.headRow} minPresenceAhead={110} fixed>
           <Text style={[styles.cNo, styles.headCell]}>#</Text>
           <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
           <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
@@ -385,7 +385,7 @@ export function ItemsTable({
   }
   return (
     <View style={styles.table}>
-      <View style={styles.headRow} minPresenceAhead={60}>
+      <View style={styles.headRow} minPresenceAhead={60} fixed>
         <Text style={[styles.cNo, styles.headCell]}>#</Text>
         <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
         <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
