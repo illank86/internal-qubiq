@@ -450,6 +450,15 @@ function InvoiceDetailsDrawer({
   const [error, setError] = useState<string | null>(null);
   // The PO file: kept, replaced or removed when the invoice is saved.
   const [poChange, setPoChange] = useState<PurchaseOrderChange>({ kind: "keep" });
+  // The licence goes to whoever pays: name and address follow "Invoiced to".
+  const [sameAsBilling, setSameAsBilling] = useState(
+    () =>
+      Boolean(invoice) &&
+      (!invoice!.licensee_name || invoice!.licensee_name.trim() === invoice!.bill_to_name.trim()) &&
+      (invoice!.licensee_address ?? "").trim() === (invoice!.bill_to_address ?? "").trim(),
+  );
+  const copyBilling = () =>
+    form.setFieldsValue({ licensee_name: form.getFieldValue("bill_to_name") ?? "", licensee_address: form.getFieldValue("bill_to_address") ?? "" });
   const taxRate = Form.useWatch("tax_rate", form);
   const billToEmail = Form.useWatch("bill_to_email", form);
   const materai = Form.useWatch("materai", form) ?? "none";
@@ -477,7 +486,8 @@ function InvoiceDetailsDrawer({
   const ccCount = (ccWatched ?? invoice.cc_emails ?? []).length;
   const editable = invoice.status === "unpaid";
 
-  const save = async (values: DetailValues) => {
+  const save = async (submitted: DetailValues) => {
+    const values = sameAsBilling ? { ...submitted, licensee_name: submitted.bill_to_name, licensee_address: submitted.bill_to_address } : submitted;
     setPending(true);
     setError(null);
     // Materai and how it is signed only change the PDF, not what is owed: no approval needed.
@@ -617,6 +627,9 @@ function InvoiceDetailsDrawer({
                 requiredMark="optional"
                 onFinish={save}
                 disabled={pending}
+                onValuesChange={(changed) => {
+                  if (sameAsBilling && ("bill_to_name" in changed || "bill_to_address" in changed)) copyBilling();
+                }}
                 initialValues={{
                   bill_to_name: invoice.bill_to_name,
                   bill_to_company: invoice.bill_to_company ?? "",
@@ -625,8 +638,8 @@ function InvoiceDetailsDrawer({
                   materai: (invoice.materai as Materai) ?? "none",
                   signature_mode: (invoice.signature_mode as SignatureMode) ?? "digital",
                   bill_to_address: invoice.bill_to_address ?? "",
-                  licensee_name: invoice.licensee_name || invoice.bill_to_name,
-                  licensee_address: invoice.licensee_address ?? "",
+                  licensee_name: sameAsBilling ? invoice.bill_to_name : invoice.licensee_name || invoice.bill_to_name,
+                  licensee_address: sameAsBilling ? (invoice.bill_to_address ?? "") : (invoice.licensee_address ?? ""),
                   po_number: invoice.po_number ?? "",
                   due_date: invoice.due_date,
                   tax_rate: Number(invoice.tax_rate),
@@ -674,16 +687,32 @@ function InvoiceDetailsDrawer({
                       the end user
                     </Typography.Text>
                   </Flex>
+                  <Checkbox
+                    checked={sameAsBilling}
+                    onChange={(event) => {
+                      setSameAsBilling(event.target.checked);
+                      if (event.target.checked) copyBilling();
+                    }}
+                    style={{ marginBottom: 12 }}
+                  >
+                    Same as invoiced to
+                  </Checkbox>
                   <Form.Item
                     label="Name"
                     name="licensee_name"
                     rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
-                    extra="The same as who pays, unless a reseller or head office pays."
+                    extra={sameAsBilling ? "Follows the name above." : "The end user, when a reseller or head office pays."}
                   >
-                    <Input />
+                    <Input disabled={sameAsBilling} />
                   </Form.Item>
-                  <Form.Item label="Address" name="licensee_address" rules={[{ max: 500 }]} style={{ marginBottom: 0 }}>
-                    <Input.TextArea rows={2} />
+                  <Form.Item
+                    label="Address"
+                    name="licensee_address"
+                    rules={[{ max: 500 }]}
+                    extra={sameAsBilling ? "Follows the billing address." : undefined}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input.TextArea rows={2} disabled={sameAsBilling} />
                   </Form.Item>
                 </div>
                 <div style={{ margin: "4px 0 20px", padding: 16, borderRadius: 10, border: "1px solid var(--ant-color-border-secondary)" }}>
