@@ -179,9 +179,10 @@ export function ReleaseNotesInput({ value, onChange }: { value?: string[]; onCha
                 {rows.length}
               </Typography.Text>
             </Flex>
-            {isClosed
-              ? null
-              : rows.map(({ note, index }, position) => {
+            {isClosed ? null : (
+              // A long section scrolls inside itself; its heading stays in view.
+              <div style={{ maxHeight: 360, overflowY: "auto", overscrollBehavior: "contain" }}>
+                {rows.map(({ note, index }, position) => {
                   const isEditing = editing?.index === index;
                   return (
                     <Flex
@@ -250,6 +251,8 @@ export function ReleaseNotesInput({ value, onChange }: { value?: string[]; onCha
                     </Flex>
                   );
                 })}
+              </div>
+            )}
           </div>
         );
       })}
