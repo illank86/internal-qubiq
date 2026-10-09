@@ -1,4 +1,5 @@
-import { Button, Card, Checkbox, Flex, Grid, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { Button, Card, Checkbox, Flex, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { Fragment } from "react";
 import { CheckCircleFilled, CopyOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { formatMoney } from "@/lib/invoices";
 import { newGroup, type BuilderEdition, type BuilderModule, type GroupDraft } from "@/lib/sales";
@@ -29,13 +30,12 @@ export function ServerGroupsEditor({
     modules.filter((item) => edition.moduleIds.includes(item.id) && !item.percent).reduce((sum, item) => sum + item.price, 0);
   const update = (key: string, next: Partial<GroupDraft>) => onChange(groups.map((group) => (group.key === key ? { ...group, ...next } : group)));
   const { token } = theme.useToken();
-  // Modules: a two-column table, one column on narrow screens.
-  const columns = Grid.useBreakpoint().md ? 2 : 1;
   const sectionLabel = { fontSize: 12, textTransform: "uppercase", letterSpacing: 1 } as const;
-  // A table of cells: the 1px gaps over a border-coloured background draw the rules.
+  // A table per category — module and price | checkbox. The 1px gaps over a
+  // border-coloured background draw the rules.
   const grid = {
     display: "grid",
-    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gridTemplateColumns: "minmax(0, 1fr) 72px",
     gap: 1,
     background: token.colorBorderSecondary,
     border: `1px solid ${token.colorBorderSecondary}`,
@@ -160,16 +160,17 @@ export function ServerGroupsEditor({
                 const ticked = items.filter((item) => group.moduleIds.includes(item.id)).length;
                 return (
                   <div key={category} style={grid}>
-                    <Flex
-                      justify="space-between"
-                      align="center"
-                      style={{ gridColumn: "1 / -1", padding: "8px 14px", background: token.colorFillTertiary }}
-                    >
+                    <Flex align="center" gap={8} style={{ padding: "8px 14px", background: token.colorFillTertiary }}>
                       <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
                         {category}
                       </Typography.Text>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                         {ticked} of {items.length}
+                      </Typography.Text>
+                    </Flex>
+                    <Flex align="center" justify="center" style={{ background: token.colorFillTertiary }}>
+                      <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+                        Include
                       </Typography.Text>
                     </Flex>
                     {items.map((item) => {
@@ -180,46 +181,37 @@ export function ServerGroupsEditor({
                         : item.price === 0
                           ? "No charge"
                           : formatMoney(item.price, baseCurrency);
+                      const toggle = (on: boolean) =>
+                        update(group.key, { moduleIds: on ? [...group.moduleIds, item.id] : group.moduleIds.filter((id) => id !== item.id) });
+                      // Only the checkbox shows a module is ticked; the chosen edition is the one tinted.
+                      const cell = { background: token.colorBgContainer };
                       return (
-                        // The checkbox is the whole cell (antd renders it as a label): name and price left, box right.
-                        <Checkbox
-                          key={item.id}
-                          checked={checked}
-                          onChange={(event) =>
-                            update(group.key, {
-                              moduleIds: event.target.checked ? [...group.moduleIds, item.id] : group.moduleIds.filter((id) => id !== item.id),
-                            })
-                          }
-                          title={item.description || undefined}
-                          style={{
-                            margin: 0,
-                            display: "flex",
-                            flexDirection: "row-reverse",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 12,
-                            padding: "10px 14px",
-                            background: checked ? token.colorPrimaryBg : token.colorBgContainer,
-                            transition: "background 0.15s",
-                          }}
-                        >
-                          <Flex vertical style={{ minWidth: 0 }}>
+                        <Fragment key={item.id}>
+                          {/* Column 1: the module and its price; clicking it ticks the box too. */}
+                          <div
+                            onClick={() => toggle(!checked)}
+                            title={item.description || undefined}
+                            style={{ ...cell, padding: "10px 14px", cursor: "pointer", minWidth: 0 }}
+                          >
                             <Flex align="center" gap={6} wrap>
-                              <Typography.Text strong={checked}>{item.name}</Typography.Text>
+                              <Typography.Text>{item.name}</Typography.Text>
                               {inEdition ? (
                                 <Tag bordered={false} color="orange" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: "16px", paddingInline: 5 }}>
                                   In edition
                                 </Tag>
                               ) : null}
                             </Flex>
-                            <Typography.Text type={checked ? undefined : "secondary"} style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+                            <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
                               {price}
                             </Typography.Text>
+                          </div>
+                          {/* Column 2: the checkbox. */}
+                          <Flex align="center" justify="center" style={cell}>
+                            <Checkbox checked={checked} onChange={(event) => toggle(event.target.checked)} aria-label={`Include ${item.name}`} />
                           </Flex>
-                        </Checkbox>
+                        </Fragment>
                       );
                     })}
-                    {items.length % columns ? <div style={{ background: token.colorBgContainer }} aria-hidden /> : null}
                   </div>
                 );
               })}
