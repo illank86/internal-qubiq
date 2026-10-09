@@ -867,7 +867,7 @@ export const RESOURCES: Resource[] = [
       { name: "is_visible", label: "Visible", type: "boolean" },
     ],
     fields: [
-      { name: "quote", label: "Quote", type: "textarea", required: true, rows: 4 },
+      { name: "quote", label: "Quote", type: "markdown", required: true, rows: 6, hint: "Bold, italic, links and lists show on the website; headings and images do not." },
       { name: "author_name", label: "Author", type: "text", required: true, span: 1 },
       { name: "author_title", label: "Job title", type: "text", span: 1 },
       { name: "company", label: "Company", type: "text", span: 1 },
