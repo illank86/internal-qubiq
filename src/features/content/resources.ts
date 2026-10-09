@@ -450,6 +450,7 @@ export const RESOURCES: Resource[] = [
           "pricing-cards",
           "pricing-table",
           "license-builder",
+          "edition-compare",
           "download-grid",
           "releases",
           "requirements",
