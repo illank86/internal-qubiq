@@ -1017,6 +1017,9 @@ export type Database = {
       }
       invoices: {
         Row: {
+          po_file_name: string | null
+          po_number: string | null
+          po_path: string | null
           signed_copy_path: string | null
           signed_copy_uploaded_by: string | null
           signed_copy_uploaded_at: string | null
@@ -1072,6 +1075,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          po_file_name?: string | null
+          po_number?: string | null
+          po_path?: string | null
           signed_copy_path?: string | null
           signed_copy_uploaded_by?: string | null
           signed_copy_uploaded_at?: string | null
@@ -1127,6 +1133,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          po_file_name?: string | null
+          po_number?: string | null
+          po_path?: string | null
           signed_copy_path?: string | null
           signed_copy_uploaded_by?: string | null
           signed_copy_uploaded_at?: string | null
@@ -3418,6 +3427,9 @@ export type Database = {
           p_cc_emails?: string[]
           p_license_id?: string
           p_owner_id?: string
+          p_po_file_name?: string
+          p_po_number?: string
+          p_po_path?: string
           p_quotation_id: string
         }
         Returns: string
@@ -3561,6 +3573,7 @@ export type Database = {
           p_licensee_name?: string
           p_notes?: string
           p_notify?: boolean
+          p_po_number?: string
           p_refresh_seller?: boolean
           p_tax_rate?: number
         }

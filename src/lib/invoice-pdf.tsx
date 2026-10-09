@@ -56,6 +56,24 @@ const STATUS_COLORS: Record<string, string> = {
   void: STAMP.slate,
 };
 
+/** Width for a value in one of the three fact cells beside the amount, less the cell's padding. */
+const FACT_CELL_WIDTH = (595 - 92) / 4.45 - 24;
+
+/** One labelled fact in the invoice's header panel; "—" when there is none. */
+function Fact({ label, value, divider = false, small = false }: { label: string; value: string | null | undefined; divider?: boolean; small?: boolean }) {
+  const text = value?.trim() || "—";
+  const size = small ? 9 : 10;
+  return (
+    <View style={divider ? [styles.fact, styles.factDivider] : styles.fact}>
+      <Text style={styles.factLabel}>{label}</Text>
+      {/* The dates always fit; a long reference (bold capitals and digits) shrinks to stay on one line. */}
+      <Text style={[styles.factValue, { fontSize: small ? Math.max(6, Math.min(size, FACT_CELL_WIDTH / (text.length * 0.68))) : size, color: value?.trim() ? INK : MUTED }]}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 function InvoiceDocument({
   invoice,
   items,
@@ -85,6 +103,8 @@ function InvoiceDocument({
   const settled = invoice.status === "paid" || invoice.status === "void";
   // Signed (approved), or with a space for materai to be signed across.
   const signed = Boolean(signoff) || invoice.materai !== "none";
+  // The customer's references: shown when there is a quotation or a PO to quote.
+  const references = Boolean(invoice.quotation_number || invoice.po_number);
   const termsDays = Math.round(
     (Date.parse(`${invoice.due_date}T00:00:00Z`) - Date.parse(`${invoice.issue_date}T00:00:00Z`)) / 86_400_000,
   );
@@ -103,7 +123,6 @@ function InvoiceDocument({
         <DocumentHeader
           title="INVOICE"
           number={invoice.number}
-          reference={invoice.quotation_number ? `Quotation ref. ${invoice.quotation_number}` : null}
           stamp={statusText}
           stampColor={STATUS_COLORS[overdue ? "overdue" : invoice.status]}
         />
@@ -126,24 +145,29 @@ function InvoiceDocument({
           </View>
         </View>
 
+        {/* Dates on top; the customer's references under them; the amount spans both. */}
         <View style={styles.facts}>
-          <View style={styles.fact}>
-            <Text style={styles.factLabel}>Invoice number</Text>
-            <Text style={styles.factValue}>{invoice.number}</Text>
+          <View style={{ flex: 3 }}>
+            <View style={{ flexDirection: "row" }}>
+              <Fact label="Invoice number" value={invoice.number} />
+              <Fact divider label="Invoice date" value={formatInvoiceDate(invoice.issue_date)} />
+              <Fact
+                divider
+                label={invoice.status === "paid" ? "Paid on" : "Due date"}
+                value={invoice.status === "paid" ? formatInvoiceDate(invoice.paid_at) : formatInvoiceDate(invoice.due_date)}
+              />
+            </View>
+            {references ? (
+              <View style={{ flexDirection: "row", borderTopWidth: 0.6, borderColor: LINE }}>
+                <Fact small label="Quotation ref." value={invoice.quotation_number} />
+                <Fact small divider label="PO ref." value={invoice.po_number} />
+                <Fact small divider label="Payment terms" value={termsDays > 0 ? `${termsDays} days` : "On receipt"} />
+              </View>
+            ) : null}
           </View>
-          <View style={[styles.fact, styles.factDivider]}>
-            <Text style={styles.factLabel}>Invoice date</Text>
-            <Text style={styles.factValue}>{formatInvoiceDate(invoice.issue_date)}</Text>
-          </View>
-          <View style={[styles.fact, styles.factDivider]}>
-            <Text style={styles.factLabel}>{invoice.status === "paid" ? "Paid on" : "Due date"}</Text>
-            <Text style={styles.factValue}>
-              {invoice.status === "paid" ? formatInvoiceDate(invoice.paid_at) : formatInvoiceDate(invoice.due_date)}
-            </Text>
-          </View>
-          <View style={[styles.fact, styles.factDivider, { flex: 1.45 }]}>
+          <View style={[styles.fact, styles.factDivider, { flex: 1.45, justifyContent: "center" }]}>
             <Text style={styles.factLabel}>{settled ? "Amount" : "Amount due"}</Text>
-            <Text style={[styles.factDue, { fontSize: fit(dueText, 12, FACT_DUE_WIDTH) }, voidStyle]}>{dueText}</Text>
+            <Text style={[styles.factDue, { fontSize: fit(dueText, references ? 14 : 12, FACT_DUE_WIDTH) }, voidStyle]}>{dueText}</Text>
           </View>
         </View>
 

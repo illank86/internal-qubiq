@@ -26,7 +26,7 @@ const QUIET = new Set([
   "approval_status", "approval_requested_by", "approval_requested_at", "approved_by", "approved_at", "approval_note", "approval_sends",
   "signature_id", "send_count", "sent_at", "customer_revision", "updated_at", "created_at", "signed_copy_path", "signed_copy_uploaded_by",
   "signed_copy_uploaded_at", "signed_copy_check", "signed_copy_confirmed_by", "signed_copy_confirmed_at", "signed_copy_sent_at", "emeterai_serial",
-  "public_token", "claim_token", "id", "number", "seller",
+  "public_token", "claim_token", "id", "number", "seller", "po_file_name",
 ]);
 const PRICED = new Set(["subtotal", "tax_amount", "total"]);
 const STATUS_LABEL: Record<string, string> = {
@@ -55,6 +55,10 @@ const FIELD: Record<string, string> = {
   customer_id: "Customer account",
   owner_id: "Customer account",
   claimed_at: "Added to an account",
+  po_number: "PO reference",
+  po_path: "Purchase order file",
+  licensee_name: "Licensed to",
+  licensee_address: "Licensee address",
 };
 const label = (key: string) => FIELD[key] ?? key.replace(/_/g, " ").replace(/^./, (first) => first.toUpperCase());
 

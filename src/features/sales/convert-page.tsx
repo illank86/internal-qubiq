@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Descriptions, Flex, Form, Result, Segmented, Skeleton, Typography } from "antd";
-import { DownloadOutlined, TransactionOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Card, Col, Descriptions, Flex, Form, Input, Result, Row, Segmented, Skeleton, Typography } from "antd";
+import { DownloadOutlined, FileProtectOutlined, TransactionOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { EmailListInput, Recipients, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { formatMoney } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
-import { invoicePdf, type Materai, type SignatureMode } from "./api";
+import { invoicePdf, removeStoredPurchaseOrder, storePurchaseOrder, type Materai, type SignatureMode } from "./api";
+import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { useIsApprover } from "./approvals";
 import { needsMateraiHint } from "./invoices-page";
@@ -34,6 +35,8 @@ export function ConvertPage() {
   const [ccForm] = Form.useForm<{ cc: string[] }>();
   const [materai, setMaterai] = useState<Materai>("none");
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("digital");
+  const [poNumber, setPoNumber] = useState("");
+  const [poChange, setPoChange] = useState<PurchaseOrderChange>({ kind: "keep" });
   const isApprover = useIsApprover();
 
   const { data, isLoading } = useQuery({
@@ -92,8 +95,19 @@ export function ConvertPage() {
     } catch {
       return;
     }
+    if (poNumber.trim().length > 60) return setError("The PO number can be 60 characters at most.");
     setPending(true);
     setError(null);
+    // The PO goes up first, under the quotation, so the invoice is created with it.
+    let po: { path: string; name: string } | null = null;
+    if (poChange.kind === "replace") {
+      try {
+        po = await storePurchaseOrder({ quotationId: quotation.id }, poChange.file);
+      } catch (cause) {
+        setPending(false);
+        return setError(errorText(cause as { code?: string; message?: string }, "The purchase order could not be uploaded. Please try again."));
+      }
+    }
     const { data: invoiceId, error: convertError } = await supabase.rpc("convert_quotation_to_invoice", {
       p_quotation_id: quotation.id,
       // Linked, or "no account yet": the database uses the quotation's own account (or none).
@@ -101,8 +115,12 @@ export function ConvertPage() {
       p_cc_emails: cc,
       p_signature_mode: signatureMode,
       p_materai: materai,
+      p_po_number: poNumber.trim() || undefined,
+      p_po_path: po?.path,
+      p_po_file_name: po?.name,
     });
     if (convertError) {
+      if (po) await removeStoredPurchaseOrder(po.path);
       setPending(false);
       return setError(errorText(convertError, "The invoice could not be created. Please try again."));
     }
@@ -178,6 +196,38 @@ export function ConvertPage() {
               The quotation&rsquo;s customer account. To invoice someone else, change the quotation&rsquo;s customer account first.
             </Typography.Paragraph>
           ) : null}
+        </Card>
+
+        <Card
+          title={
+            <Flex align="center" gap={8}>
+              <FileProtectOutlined style={{ color: "var(--ant-color-primary)" }} />
+              Customer's purchase order
+              <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                optional
+              </Typography.Text>
+            </Flex>
+          }
+        >
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            If the customer sent a PO, its number goes on the invoice next to the quotation reference. The PO document is shown after the invoice when the customer opens it — never attached to the email.
+          </Typography.Paragraph>
+          <Row gutter={16}>
+            <Col xs={24} md={10}>
+              <Form layout="vertical" component="div">
+                <Form.Item label="PO number" style={{ marginBottom: 0 }} validateStatus={poNumber.trim().length > 60 ? "error" : undefined} help={poNumber.trim().length > 60 ? "60 characters at most" : undefined}>
+                  <Input value={poNumber} onChange={(event) => setPoNumber(event.target.value)} placeholder="e.g. PO-2026-0412" allowClear disabled={pending} />
+                </Form.Item>
+              </Form>
+            </Col>
+            <Col xs={24} md={14}>
+              <Form layout="vertical" component="div">
+                <Form.Item label="PO document" style={{ marginBottom: 0 }}>
+                  <PurchaseOrderField current={null} change={poChange} onChange={setPoChange} disabled={pending} />
+                </Form.Item>
+              </Form>
+            </Col>
+          </Row>
         </Card>
 
         <Card title="Who is emailed">

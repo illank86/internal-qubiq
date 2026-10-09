@@ -4,6 +4,8 @@ import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { renderQuotationPdf } from "@/lib/quotation-pdf";
 import type { DocumentSignoff } from "@/lib/pdf-theme";
 import type { PdfRequest } from "@/components/pdf-viewer-context";
+import { PDFDocument } from "pdf-lib";
+import { appendAttachment } from "@/lib/append-attachment";
 
 /**
  * Sales writes, all through the database: RLS and the functions' own checks
@@ -192,9 +194,89 @@ export function invoicePdf(id: string, number: string | null, { original = false
       ]);
       fail(error);
       if (!invoice) throw new Error("Invoice not found");
-      if (!original && invoice.signed_copy_path) return signedCopyBlob(invoice.signed_copy_path);
-      if (invoice.approval_status === "approved") return fetchStaffPdf("invoice", id);
-      return renderInvoicePdf(invoice, items ?? [], groups ?? [], localSignoff(invoice, await loadSignatureInfo()));
+      const document =
+        !original && invoice.signed_copy_path
+          ? await signedCopyBlob(invoice.signed_copy_path)
+          : invoice.approval_status === "approved"
+            ? await fetchStaffPdf("invoice", id)
+            : await renderInvoicePdf(invoice, items ?? [], groups ?? [], localSignoff(invoice, await loadSignatureInfo()));
+      // As the customer sees it: their PO after the invoice. Not on the copy to sign,
+      // and not on an e-Meterai stamped copy (adding pages would break its signature).
+      const keepsApart = Boolean(invoice.signed_copy_path) && invoice.materai === "e_meterai";
+      if (original || !invoice.po_path || keepsApart) return document;
+      const po = await purchaseOrderBlob(invoice.po_path).catch(() => null);
+      if (!po) return document;
+      const merged = await appendAttachment(await document.arrayBuffer(), { bytes: await po.arrayBuffer(), type: po.type }, invoice.po_number ? `Purchase order ${invoice.po_number}` : "Purchase order");
+      return new Blob([merged as BlobPart], { type: "application/pdf" });
+    },
+  };
+}
+
+// ---------------------------------------------------------- purchase orders
+
+const PO_BUCKET = "purchase-orders";
+const PO_TYPES: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
+export const PO_MAX_BYTES = 15 * 1024 * 1024;
+
+/** Why a file cannot be a PO, or null when it can. */
+export function purchaseOrderProblem(file: File) {
+  if (!PO_TYPES[file.type]) return "Use a PDF, JPG or PNG.";
+  if (file.size === 0 || file.size > PO_MAX_BYTES) return "Use a file under 15 MB.";
+  return null;
+}
+
+/** The customer's PO file, for staff. */
+export async function purchaseOrderBlob(path: string) {
+  const { data, error } = await supabase.storage.from(PO_BUCKET).download(path);
+  fail(error);
+  if (!data) throw new Error("The purchase order could not be loaded");
+  return data;
+}
+
+/**
+ * Stores a PO file: under the invoice, or — on the convert page, before the
+ * invoice exists — under its quotation. Returns where it is.
+ */
+export async function storePurchaseOrder(owner: { invoiceId: string } | { quotationId: string }, file: File) {
+  const problem = purchaseOrderProblem(file);
+  if (problem) throw { code: "22023", message: problem };
+  const folder = "invoiceId" in owner ? owner.invoiceId : `q/${owner.quotationId}`;
+  const path = `${folder}/${Date.now()}.${PO_TYPES[file.type]}`;
+  const { error } = await supabase.storage.from(PO_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw { code: "22023", message: "The purchase order could not be uploaded. Please try again." };
+  return { path, name: file.name.slice(0, 200) };
+}
+
+export async function removeStoredPurchaseOrder(path: string) {
+  await supabase.storage.from(PO_BUCKET).remove([path]);
+}
+
+/** Attaches (or with null, removes) the invoice's PO file; the old file is deleted. */
+export async function setInvoicePurchaseOrder(invoice: { id: string; po_path: string | null }, file: File | null) {
+  const stored = file ? await storePurchaseOrder({ invoiceId: invoice.id }, file) : null;
+  const { error } = await supabase
+    .from("invoices")
+    .update({ po_path: stored?.path ?? null, po_file_name: stored?.name ?? null })
+    .eq("id", invoice.id);
+  if (error) {
+    if (stored) await removeStoredPurchaseOrder(stored.path);
+    fail(error);
+  }
+  if (invoice.po_path) await removeStoredPurchaseOrder(invoice.po_path);
+}
+
+/** The PO on its own, for the PDF viewer (a JPG or PNG is shown as a one-page PDF). */
+export function purchaseOrderPdf(invoice: { po_path: string; po_number: string | null; po_file_name: string | null; number: string | null }): PdfRequest {
+  return {
+    title: `Purchase order${invoice.po_number ? ` ${invoice.po_number}` : ""}`,
+    fileName: safeName(invoice.po_file_name || `${invoice.number ?? "invoice"}-purchase-order.pdf`),
+    make: async () => {
+      const file = await purchaseOrderBlob(invoice.po_path);
+      if (file.type === "application/pdf") return file;
+      // An image: on a page of its own, after an empty document (no pages).
+      const empty = await (await PDFDocument.create()).save();
+      const pdf = await appendAttachment(empty, { bytes: await file.arrayBuffer(), type: file.type }, invoice.po_number ? `Purchase order ${invoice.po_number}` : "Purchase order");
+      return new Blob([pdf as BlobPart], { type: "application/pdf" });
     },
   };
 }

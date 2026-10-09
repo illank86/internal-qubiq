@@ -10,9 +10,12 @@ import {
   CloseCircleOutlined,
   DownloadOutlined,
   EditOutlined,
+  EyeOutlined,
   FilePdfOutlined,
+  FileProtectOutlined,
   FileTextOutlined,
   MoreOutlined,
+  PaperClipOutlined,
   ProfileOutlined,
   RollbackOutlined,
   SendOutlined,
@@ -31,7 +34,8 @@ import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "
 import { CcNote } from "./quotation-parts";
 import { DocumentHistory } from "./document-history";
 import { SigningActions, SigningTag } from "./signing";
-import { needsSigning, signingHint, signingState } from "./api";
+import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
+import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
 
 type Row = Invoice & {
@@ -105,7 +109,7 @@ export function InvoicesPage() {
       const state = isOverdue(row) ? "overdue" : row.status;
       if (filter !== "all" && !(filter === state || (filter === "unpaid" && row.status === "unpaid"))) return false;
       if (!query) return true;
-      return [row.number, row.bill_to_name, row.bill_to_company, row.quotation_number, row.license?.label].some((value) => (value ?? "").toLowerCase().includes(query));
+      return [row.number, row.bill_to_name, row.bill_to_company, row.quotation_number, row.po_number, row.license?.label].some((value) => (value ?? "").toLowerCase().includes(query));
     });
   }, [data, filter, search]);
 
@@ -122,6 +126,12 @@ export function InvoicesPage() {
           {row.quotation_number ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Quotation ref. {row.quotation_number}
+            </Typography.Text>
+          ) : null}
+          {row.po_number || row.po_path ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {row.po_number ? `PO ref. ${row.po_number}` : "PO attached"}
+              {row.po_number && row.po_path ? <PaperClipOutlined style={{ marginLeft: 4 }} aria-label="PO attached" /> : null}
             </Typography.Text>
           ) : null}
         </Flex>
@@ -225,6 +235,7 @@ export function InvoicesPage() {
         onRow={(row) => ({ onClick: () => setOpenId(row.id), style: { cursor: "pointer" } })}
       />
       <InvoiceDetailsDrawer
+        key={openId ?? "closed"}
         invoice={(openId && data?.find((row) => row.id === openId)) || null}
         onClose={() => setOpenId(null)}
         isApprover={isApprover}
@@ -404,6 +415,7 @@ type DetailValues = {
   bill_to_address: string;
   licensee_name: string;
   licensee_address: string;
+  po_number: string;
   due_date: string;
   tax_rate: number;
   notes: string;
@@ -436,6 +448,8 @@ function InvoiceDetailsDrawer({
   const { message } = App.useApp();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The PO file: kept, replaced or removed when the invoice is saved.
+  const [poChange, setPoChange] = useState<PurchaseOrderChange>({ kind: "keep" });
   const taxRate = Form.useWatch("tax_rate", form);
   const billToEmail = Form.useWatch("bill_to_email", form);
   const materai = Form.useWatch("materai", form) ?? "none";
@@ -475,6 +489,15 @@ function InvoiceDetailsDrawer({
         return setError(errorText(cause as { code?: string; message?: string }, "The materai setting could not be saved."));
       }
     }
+    // Before the details: an "invoice changed" email then already knows about it.
+    if (poChange.kind !== "keep") {
+      try {
+        await setInvoicePurchaseOrder(invoice, poChange.kind === "replace" ? poChange.file : null);
+      } catch (cause) {
+        setPending(false);
+        return setError(errorText(cause as { code?: string; message?: string }, "The purchase order could not be saved. Please try again."));
+      }
+    }
     // First, so an "invoice changed" email (sent after commit) already has it.
     const { error: ccError } = await supabase.from("invoices").update({ cc_emails: normaliseEmails(values.cc_emails) }).eq("id", invoice.id);
     if (ccError) {
@@ -489,6 +512,7 @@ function InvoiceDetailsDrawer({
       p_bill_to_address: values.bill_to_address ?? "",
       p_licensee_name: values.licensee_name,
       p_licensee_address: values.licensee_address ?? "",
+      p_po_number: values.po_number ?? "",
       p_notes: values.notes ?? "",
       p_due_date: values.due_date,
       p_tax_rate: Number(values.tax_rate) || 0,
@@ -560,6 +584,7 @@ function InvoiceDetailsDrawer({
                   bill_to_address: invoice.bill_to_address ?? "",
                   licensee_name: invoice.licensee_name || invoice.bill_to_name,
                   licensee_address: invoice.licensee_address ?? "",
+                  po_number: invoice.po_number ?? "",
                   due_date: invoice.due_date,
                   tax_rate: Number(invoice.tax_rate),
                   notes: invoice.notes ?? "",
@@ -615,6 +640,39 @@ function InvoiceDetailsDrawer({
                     </Form.Item>
                   </Col>
                 </Row>
+                <div style={{ margin: "4px 0 20px", padding: 16, borderRadius: 10, border: "1px solid var(--ant-color-border-secondary)" }}>
+                  <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                    <FileProtectOutlined style={{ color: "var(--ant-color-primary)" }} />
+                    <Typography.Text strong>Customer's purchase order</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      optional
+                    </Typography.Text>
+                  </Flex>
+                  <Row gutter={16}>
+                    <Col xs={24} sm={10}>
+                      <Form.Item
+                        label="PO number"
+                        name="po_number"
+                        rules={[{ max: 60, message: "60 characters at most" }]}
+                        extra="Printed on the invoice and in the emails."
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input placeholder="e.g. PO-2026-0412" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={14}>
+                      <Form.Item label="PO document" style={{ marginBottom: 0 }}>
+                        <PurchaseOrderField
+                          current={invoice.po_path ? { name: invoice.po_file_name || "Purchase order" } : null}
+                          change={poChange}
+                          onChange={setPoChange}
+                          onView={invoice.po_path ? () => viewPdf(purchaseOrderPdf({ ...invoice, po_path: invoice.po_path! })) : undefined}
+                          disabled={pending}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
                 <Row gutter={16}>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Due date" name="due_date" rules={[{ required: true, message: "Choose a due date" }]}>
@@ -696,6 +754,23 @@ function InvoiceDetailsDrawer({
                         {[invoice.licensee_name || invoice.bill_to_name, invoice.licensee_address].filter(Boolean).join("\n")}
                       </span>
                     ),
+                  },
+                  {
+                    key: "po",
+                    label: "Purchase order",
+                    children:
+                      invoice.po_number || invoice.po_path ? (
+                        <Flex gap={8} align="center" wrap>
+                          {invoice.po_number ? <Typography.Text strong>{invoice.po_number}</Typography.Text> : null}
+                          {invoice.po_path ? (
+                            <Button size="small" icon={<EyeOutlined />} onClick={() => viewPdf(purchaseOrderPdf({ ...invoice, po_path: invoice.po_path! }))}>
+                              {invoice.po_file_name || "View PO"}
+                            </Button>
+                          ) : null}
+                        </Flex>
+                      ) : (
+                        "—"
+                      ),
                   },
                   { key: "issued", label: "Issued", children: formatInvoiceDate(invoice.issue_date) },
                   { key: "due", label: "Due", children: formatInvoiceDate(invoice.due_date) },
