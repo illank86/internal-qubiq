@@ -1,5 +1,5 @@
-import { Button, Card, Checkbox, Col, Flex, Input, InputNumber, Radio, Row, Space, Tooltip, Typography } from "antd";
-import { CopyOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Checkbox, Flex, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { CheckCircleFilled, CopyOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { formatMoney } from "@/lib/invoices";
 import { newGroup, type BuilderEdition, type BuilderModule, type GroupDraft } from "@/lib/sales";
 
@@ -28,6 +28,18 @@ export function ServerGroupsEditor({
   const editionTotal = (edition: BuilderEdition) =>
     modules.filter((item) => edition.moduleIds.includes(item.id) && !item.percent).reduce((sum, item) => sum + item.price, 0);
   const update = (key: string, next: Partial<GroupDraft>) => onChange(groups.map((group) => (group.key === key ? { ...group, ...next } : group)));
+  const { token } = theme.useToken();
+  const sectionLabel = { fontSize: 12, textTransform: "uppercase", letterSpacing: 1 } as const;
+  // A table of cells: the 1px gaps over a border-coloured background draw the rules.
+  const grid = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+    gap: 1,
+    background: token.colorBorderSecondary,
+    border: `1px solid ${token.colorBorderSecondary}`,
+    borderRadius: token.borderRadiusLG,
+    overflow: "hidden",
+  } as const;
 
   return (
     <Flex vertical gap={16}>
@@ -87,50 +99,119 @@ export function ServerGroupsEditor({
               </Space>
             }
           >
-            <Typography.Text type="secondary" style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+            <Typography.Text type="secondary" style={sectionLabel}>
               Edition
             </Typography.Text>
-            <Radio.Group value={group.editionId} onChange={(event) => chooseEdition(event.target.value)} style={{ width: "100%", margin: "8px 0 16px" }}>
-              <Row gutter={[8, 8]}>
-                {[...editions, { id: "", name: "No edition — modules only", tagline: "", custom: false, currency: baseCurrency, moduleIds: [] }].map((item) => (
-                  <Col key={item.id || "none"} xs={24} sm={12} xl={8}>
-                    <Radio value={item.id}>
-                      {item.name}
-                      {item.id ? (
-                        <Typography.Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
-                          {formatMoney(editionTotal(item), item.currency)}
-                        </Typography.Text>
-                      ) : null}
-                    </Radio>
-                  </Col>
-                ))}
-              </Row>
-            </Radio.Group>
+            <div role="radiogroup" aria-label="Edition" style={{ ...grid, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", margin: "8px 0 20px" }}>
+              {[...editions, { id: "", name: "Modules only", tagline: "", custom: false, currency: baseCurrency, moduleIds: [] }].map((item) => {
+                const chosen = group.editionId === item.id;
+                return (
+                  <button
+                    key={item.id || "none"}
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen}
+                    onClick={() => chooseEdition(item.id)}
+                    style={{
+                      all: "unset",
+                      boxSizing: "border-box",
+                      cursor: "pointer",
+                      padding: "12px 14px",
+                      background: chosen ? token.colorPrimaryBg : token.colorBgContainer,
+                      boxShadow: chosen ? `inset 0 0 0 2px ${token.colorPrimary}` : undefined,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <Flex justify="space-between" align="center" gap={8}>
+                      <Typography.Text strong>{item.name}</Typography.Text>
+                      {chosen ? <CheckCircleFilled style={{ color: token.colorPrimary }} /> : null}
+                    </Flex>
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      {!item.id
+                        ? "Pick modules below"
+                        : item.custom
+                          ? "Pick any modules"
+                          : `${formatMoney(editionTotal(item), item.currency)} · ${item.moduleIds.length} modules`}
+                    </Typography.Text>
+                  </button>
+                );
+              })}
+            </div>
 
-            <Typography.Text type="secondary" style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
-              Modules · {group.moduleIds.length} ticked
-            </Typography.Text>
-            <Checkbox.Group value={group.moduleIds} onChange={(values) => update(group.key, { moduleIds: values as string[] })} style={{ width: "100%", display: "block", marginTop: 8 }}>
-              {categories.map(([category, items]) => (
-                <div key={category} style={{ marginBottom: 12 }}>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {category}
-                  </Typography.Text>
-                  <Row gutter={[8, 4]} style={{ marginTop: 4 }}>
-                    {items.map((item) => (
-                      <Col key={item.id} xs={24} md={12}>
-                        <Checkbox value={item.id}>
-                          {item.name}
-                          <Typography.Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
-                            {item.percent ? `${item.percent}% of licence${item.recurring ? "/yr" : ""}` : formatMoney(item.price, baseCurrency)}
-                          </Typography.Text>
+            <Flex justify="space-between" align="baseline">
+              <Typography.Text type="secondary" style={sectionLabel}>
+                Modules
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {group.moduleIds.length} of {modules.length} ticked
+              </Typography.Text>
+            </Flex>
+            <Flex vertical gap={12} style={{ marginTop: 8 }}>
+              {categories.map(([category, items]) => {
+                const ticked = items.filter((item) => group.moduleIds.includes(item.id)).length;
+                return (
+                  <div key={category} style={grid}>
+                    <Flex
+                      justify="space-between"
+                      align="center"
+                      style={{ gridColumn: "1 / -1", padding: "8px 14px", background: token.colorFillTertiary }}
+                    >
+                      <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+                        {category}
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {ticked} of {items.length}
+                      </Typography.Text>
+                    </Flex>
+                    {items.map((item) => {
+                      const checked = group.moduleIds.includes(item.id);
+                      const inEdition = Boolean(edition?.moduleIds.includes(item.id));
+                      const price = item.percent
+                        ? `${item.percent}% of licence${item.recurring ? " / yr" : ""}`
+                        : item.price === 0
+                          ? "No charge"
+                          : formatMoney(item.price, baseCurrency);
+                      return (
+                        // The checkbox is the whole cell (antd renders it as a label).
+                        <Checkbox
+                          key={item.id}
+                          checked={checked}
+                          onChange={(event) =>
+                            update(group.key, {
+                              moduleIds: event.target.checked ? [...group.moduleIds, item.id] : group.moduleIds.filter((id) => id !== item.id),
+                            })
+                          }
+                          title={item.description || undefined}
+                          style={{
+                            margin: 0,
+                            alignItems: "flex-start",
+                            padding: "10px 14px",
+                            background: checked ? token.colorPrimaryBg : token.colorBgContainer,
+                            transition: "background 0.15s",
+                          }}
+                        >
+                          <Flex vertical style={{ minWidth: 0 }}>
+                            <Flex align="center" gap={6} wrap>
+                              <Typography.Text strong={checked}>{item.name}</Typography.Text>
+                              {inEdition ? (
+                                <Tag bordered={false} color="orange" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: "16px", paddingInline: 5 }}>
+                                  In edition
+                                </Tag>
+                              ) : null}
+                            </Flex>
+                            <Typography.Text type={checked ? undefined : "secondary"} style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+                              {price}
+                            </Typography.Text>
+                          </Flex>
                         </Checkbox>
-                      </Col>
-                    ))}
-                  </Row>
-                </div>
-              ))}
-            </Checkbox.Group>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </Flex>
           </Card>
         );
       })}
