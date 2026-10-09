@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Popconfirm, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { CheckCircleFilled, DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
 import { formatMoney } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "./use-action";
+import { StatRow } from "./drawer-parts";
 
 type Edition = Database["public"]["Tables"]["license_editions"]["Row"] & { modules: { module_id: string }[] };
 type Module = Database["public"]["Tables"]["license_modules"]["Row"];
@@ -192,15 +193,18 @@ function EditionsTab({ data, loading, run, busy }: TabProps) {
 
 function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition | null; data: NonNullable<TabProps["data"]>; onClose: () => void; run: TabProps["run"]; busy: string | null }) {
   const [form] = Form.useForm<EditionValues>();
-  const custom = Form.useWatch("custom", form);
-  const picked = Form.useWatch("module_ids", form) ?? [];
-  const currency = Form.useWatch("currency", form) ?? "USD";
+  const { token } = theme.useToken();
+  const custom = Form.useWatch("custom", form) ?? edition?.allows_module_selection ?? false;
+  const picked: string[] = Form.useWatch("module_ids", form) ?? edition?.modules.map((link) => link.module_id) ?? [];
+  const currency = String(Form.useWatch("currency", form) ?? edition?.currency ?? "USD").toUpperCase() || "USD";
   const oneOff = data.modules.filter((module) => !module.percent_of_licence && !module.is_recurring);
   const categories = data.categories
     .map((category) => ({ category, modules: oneOff.filter((module) => module.category_id === category.id) }))
     .concat([{ category: { id: "", name: "Other" } as Category, modules: oneOff.filter((module) => !module.category_id) }])
     .filter((group) => group.modules.length > 0);
-  const total = custom ? 0 : oneOff.filter((module) => picked.includes(module.id)).reduce((sum, module) => sum + Number(module.price), 0);
+  const total = oneOff.filter((module) => picked.includes(module.id)).reduce((sum, module) => sum + Number(module.price), 0);
+  const setPicked = (ids: string[]) => form.setFieldValue("module_ids", ids);
+  const visible = Form.useWatch("is_visible", form) ?? edition?.is_visible ?? true;
 
   const save = (values: EditionValues) =>
     run(
@@ -232,7 +236,7 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
       open
       onClose={onClose}
       title={edition ? `Edit ${edition.name}` : "New edition"}
-      size={640}
+      size={760}
       destroyOnHidden
       extra={
         <Button type="primary" loading={busy === "edition"} onClick={() => form.submit()}>
@@ -262,88 +266,133 @@ function EditionDrawer({ edition, data, onClose, run, busy }: { edition: Edition
           if (!edition && "name" in changed) form.setFieldValue("slug", slugify(String(changed.name)));
         }}
       >
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, max: 80 }]}>
-              <Input placeholder="Pro" />
+        <Flex vertical gap={20}>
+          <StatRow
+            stats={[
+              { label: "Price per server", value: custom ? "Customer's pick" : formatMoney(total, currency), strong: true },
+              { label: "Modules", value: custom ? "Any" : picked.length },
+              { label: "On the pricing page", value: visible ? "Visible" : "Hidden" },
+            ]}
+          />
+
+          <FormSection title="Basics">
+            <Row gutter={16}>
+              <Col xs={24} sm={10}>
+                <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, max: 80 }]}>
+                  <Input placeholder="Plant" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={9}>
+                <Form.Item label="Slug" name="slug" rules={[{ required: true }, { pattern: SLUG, message: "Lowercase letters, numbers and dashes" }]}>
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={5}>
+                <Form.Item label="Currency" name="currency" rules={[{ pattern: /^[A-Za-z]{3}$/, message: "e.g. USD" }]}>
+                  <Input maxLength={3} style={{ textTransform: "uppercase" }} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="custom" style={{ marginBottom: 0 }}>
+              <ChoiceCards
+                options={[
+                  { value: false, title: "A fixed set of modules", description: "Tick the modules it includes; its price is their sum." },
+                  { value: true, title: "Custom", description: "The customer picks any modules, each at its own price." },
+                ]}
+              />
             </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Slug" name="slug" rules={[{ required: true }, { pattern: SLUG, message: "Lowercase letters, numbers and dashes" }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Currency" name="currency" rules={[{ pattern: /^[A-Za-z]{3}$/, message: "e.g. USD" }]}>
-              <Input maxLength={3} style={{ textTransform: "uppercase" }} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item name="custom" valuePropName="checked">
-          <Checkbox>Custom — the customer picks the modules</Checkbox>
-        </Form.Item>
-        {custom ? null : (
-          <Form.Item label={`Modules in this edition (${picked.length})`} name="module_ids">
-            <Checkbox.Group style={{ width: "100%", display: "block" }}>
-              {categories.map(({ category, modules }) => (
-                <div key={category.id || "other"} style={{ marginBottom: 12 }}>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {category.name}
-                  </Typography.Text>
-                  <Row gutter={[8, 4]} style={{ marginTop: 4 }}>
-                    {modules.map((module) => (
-                      <Col key={module.id} xs={24} sm={12}>
-                        <Checkbox value={module.id}>
-                          {module.name}{" "}
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {formatMoney(module.price, module.currency)}
+          </FormSection>
+
+          {custom ? null : (
+            <FormSection
+              title="Modules in this edition"
+              extra={
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {picked.length} ticked · {formatMoney(total, currency)}
+                </Typography.Text>
+              }
+              description="On the pricing page these come with the edition; for anything else, customers choose Custom. Maintenance is offered on every edition, so it is not listed here."
+            >
+              {/* Holds the ticked modules; the table below sets it. */}
+              <Form.Item name="module_ids" hidden>
+                <Select mode="multiple" />
+              </Form.Item>
+              <Flex vertical gap={12}>
+                {categories.map(({ category, modules }) => {
+                  const ids = modules.map((module) => module.id);
+                  const ticked = ids.filter((id) => picked.includes(id)).length;
+                  return (
+                    <div key={category.id || "other"} style={tableStyle(token)}>
+                      <Flex align="center" justify="space-between" style={{ padding: "8px 14px", background: token.colorFillTertiary }}>
+                        <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+                          {category.name}{" "}
+                          <Typography.Text type="secondary" style={{ fontSize: 12, textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>
+                            {ticked} of {ids.length}
                           </Typography.Text>
-                        </Checkbox>
-                      </Col>
-                    ))}
-                  </Row>
-                </div>
-              ))}
-            </Checkbox.Group>
-          </Form.Item>
-        )}
-        <Alert
-          type="info"
-          showIcon
-          title={custom ? "Priced by the modules the customer picks" : `Total ${formatMoney(total, String(currency).toUpperCase() || "USD")}`}
-          description={
-            custom
-              ? "On the pricing page, Custom is the only edition where modules can be chosen."
-              : "An edition has no price of its own: it is the sum of the modules ticked. On the pricing page these modules come with it and nothing else can be added — for other modules, customers choose Custom. Maintenance is offered on every edition."
-          }
-          style={{ marginBottom: 16 }}
-        />
-        <Form.Item label="Tagline" name="tagline" rules={[{ max: 200 }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item label="Description" name="description" rules={[{ max: 1000 }]}>
-          <Input.TextArea rows={3} />
-        </Form.Item>
-        <Row gutter={16}>
-          <Col xs={24} sm={8}>
-            <Form.Item label="Badge" name="badge" rules={[{ max: 40 }]}>
-              <Input placeholder="Most popular" />
+                        </Typography.Text>
+                        <Space size={0}>
+                          <Button type="link" size="small" onClick={() => setPicked([...new Set([...picked, ...ids])])}>
+                            All
+                          </Button>
+                          <Button type="link" size="small" onClick={() => setPicked(picked.filter((id) => !ids.includes(id)))}>
+                            None
+                          </Button>
+                        </Space>
+                      </Flex>
+                      <Flex align="center" justify="center" style={{ background: token.colorFillTertiary }}>
+                        <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+                          Include
+                        </Typography.Text>
+                      </Flex>
+                      {modules.map((module) => {
+                        const checked = picked.includes(module.id);
+                        const toggle = (on: boolean) => setPicked(on ? [...picked, module.id] : picked.filter((id) => id !== module.id));
+                        return (
+                          <Fragment key={module.id}>
+                            <div onClick={() => toggle(!checked)} style={{ background: token.colorBgContainer, padding: "10px 14px", cursor: "pointer", minWidth: 0 }}>
+                              <Typography.Text>{module.name}</Typography.Text>
+                              <div>
+                                <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+                                  {Number(module.price) === 0 ? "No charge" : formatMoney(module.price, module.currency)}
+                                </Typography.Text>
+                              </div>
+                            </div>
+                            <Flex align="center" justify="center" style={{ background: token.colorBgContainer }}>
+                              <Checkbox checked={checked} onChange={(event) => toggle(event.target.checked)} aria-label={`Include ${module.name}`} />
+                            </Flex>
+                          </Fragment>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </Flex>
+            </FormSection>
+          )}
+
+          <FormSection title="On the pricing page">
+            <Form.Item label="Tagline" name="tagline" rules={[{ max: 200 }]} extra="One line under the name.">
+              <Input placeholder="For a whole plant, every protocol" />
             </Form.Item>
-          </Col>
-          <Col xs={12} sm={8}>
-            <Form.Item label="Order" name="sort_order">
-              <InputNumber min={0} max={10000} style={{ width: "100%" }} />
+            <Form.Item label="Description" name="description" rules={[{ max: 1000 }]}>
+              <Input.TextArea rows={3} />
             </Form.Item>
-          </Col>
-          <Col xs={12} sm={8}>
-            <Form.Item label=" " name="is_featured" valuePropName="checked">
-              <Checkbox>Featured</Checkbox>
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item name="is_visible" valuePropName="checked">
-          <Checkbox>Visible on the pricing page</Checkbox>
-        </Form.Item>
+            <Row gutter={16}>
+              <Col xs={24} sm={14}>
+                <Form.Item label="Badge" name="badge" rules={[{ max: 40 }]} extra="A short label on the card, e.g. Most popular.">
+                  <Input placeholder="Most popular" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={10}>
+                <Form.Item label="Order" name="sort_order" extra="Lower comes first.">
+                  <InputNumber min={0} max={10000} style={{ width: "100%" }} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <SwitchRow name="is_featured" title="Featured" description="Highlighted among the editions." />
+            <SwitchRow name="is_visible" title="Visible" description="Shown on the pricing page and offered in quotations." last />
+          </FormSection>
+        </Flex>
       </Form>
     </Drawer>
   );
@@ -427,22 +476,47 @@ function ModulesTab({ data, loading, run, busy }: TabProps) {
       </Flex>
       <Table<Module> rowKey="id" size="small" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 50, hideOnSinglePage: true }} scroll={{ x: 760 }} />
       {editing && data ? (
-        <ModuleDrawer module={editing === "new" ? null : editing} categories={data.categories} onClose={() => setEditing(null)} run={run} busy={busy} />
+        <ModuleDrawer module={editing === "new" ? null : editing} modules={data.modules} categories={data.categories} onClose={() => setEditing(null)} run={run} busy={busy} />
       ) : null}
     </>
   );
 }
 
-function ModuleDrawer({ module, categories, onClose, run, busy }: { module: Module | null; categories: Category[]; onClose: () => void; run: TabProps["run"]; busy: string | null }) {
-  const [form] = Form.useForm<ModuleValues>();
-  const save = (values: ModuleValues) =>
+function ModuleDrawer({
+  module,
+  modules,
+  categories,
+  onClose,
+  run,
+  busy,
+}: {
+  module: Module | null;
+  modules: Module[];
+  categories: Category[];
+  onClose: () => void;
+  run: TabProps["run"];
+  busy: string | null;
+}) {
+  const [form] = Form.useForm<ModuleValues & { pricing: "flat" | "percent" }>();
+  const { token } = theme.useToken();
+  const pricing = Form.useWatch("pricing", form) ?? (module?.percent_of_licence ? "percent" : "flat");
+  const name = Form.useWatch("name", form) ?? module?.name ?? "";
+  const price = Form.useWatch("price", form) ?? Number(module?.price ?? 0);
+  const percent = Form.useWatch("percent_of_licence", form) ?? module?.percent_of_licence ?? null;
+  const yearly = Form.useWatch("is_recurring", form) ?? module?.is_recurring ?? false;
+  const currency = String(Form.useWatch("currency", form) ?? module?.currency ?? "USD").toUpperCase() || "USD";
+  const priceText = pricing === "percent" ? `${Number(percent) || 0}% of licence${yearly ? " / yr" : ""}` : Number(price) === 0 ? "No charge" : `${formatMoney(Number(price) || 0, currency)}${yearly ? " / yr" : ""}`;
+
+  const save = ({ pricing: mode, ...values }: ModuleValues & { pricing: "flat" | "percent" }) =>
     run(
       "module",
       async () => {
         const row = {
           ...values,
           currency: (values.currency || "USD").toUpperCase(),
-          percent_of_licence: values.percent_of_licence || null,
+          // One way of pricing: a flat fee, or a share of the licence.
+          price: mode === "percent" ? 0 : Number(values.price) || 0,
+          percent_of_licence: mode === "percent" ? values.percent_of_licence || null : null,
           category_id: values.category_id || null,
           requires: values.requires ?? [],
         };
@@ -457,7 +531,7 @@ function ModuleDrawer({ module, categories, onClose, run, busy }: { module: Modu
       open
       onClose={onClose}
       title={module ? `Edit ${module.name}` : "New module"}
-      size={560}
+      size={680}
       destroyOnHidden
       extra={
         <Button type="primary" loading={busy === "module"} onClick={() => form.submit()}>
@@ -465,7 +539,7 @@ function ModuleDrawer({ module, categories, onClose, run, busy }: { module: Modu
         </Button>
       }
     >
-      <Form<ModuleValues>
+      <Form<ModuleValues & { pricing: "flat" | "percent" }>
         form={form}
         layout="vertical"
         requiredMark="optional"
@@ -477,6 +551,7 @@ function ModuleDrawer({ module, categories, onClose, run, busy }: { module: Modu
           icon: module?.icon ?? null,
           description: module?.description ?? null,
           note: module?.note ?? null,
+          pricing: module?.percent_of_licence ? "percent" : "flat",
           price: Number(module?.price ?? 0),
           currency: module?.currency ?? "USD",
           percent_of_licence: module?.percent_of_licence ?? null,
@@ -490,74 +565,214 @@ function ModuleDrawer({ module, categories, onClose, run, busy }: { module: Modu
           if (!module && "name" in changed) form.setFieldValue("slug", slugify(String(changed.name)));
         }}
       >
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true }]}>
+        <Flex vertical gap={20}>
+          {/* How it reads in the quotation builder and on the pricing page. */}
+          <div>
+            <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+              Preview
+            </Typography.Text>
+            <div style={{ ...tableStyle(token), marginTop: 6 }}>
+              <div style={{ background: token.colorBgContainer, padding: "10px 14px", minWidth: 0 }}>
+                <Typography.Text>{name || "Module name"}</Typography.Text>
+                <div>
+                  <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+                    {priceText}
+                  </Typography.Text>
+                </div>
+              </div>
+              <Flex align="center" justify="center" style={{ background: token.colorBgContainer }}>
+                <Checkbox checked aria-label="Preview" />
+              </Flex>
+            </div>
+          </div>
+
+          <FormSection title="Basics">
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true }]}>
+                  <Input placeholder="Modbus TCP/RTU" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Slug" name="slug" rules={[{ required: true }, { pattern: SLUG, message: "Lowercase letters, numbers and dashes" }]}>
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Group" name="category_id">
+                  <Select allowClear placeholder="Choose a group" options={categories.map((category) => ({ value: category.id, label: category.name }))} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Icon" name="icon" extra="A Lucide icon name, as on the website.">
+                  <Input placeholder="cable" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label="Description" name="description" extra="Shown under the name on the pricing page.">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Form.Item label="Small print" name="note" style={{ marginBottom: 0 }}>
               <Input />
             </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Slug" name="slug" rules={[{ required: true }, { pattern: SLUG, message: "Lowercase letters, numbers and dashes" }]}>
-              <Input />
+          </FormSection>
+
+          <FormSection title="Price">
+            <Form.Item name="pricing" style={{ marginBottom: 16 }}>
+              <Segmented
+                block
+                options={[
+                  { value: "flat", label: "Flat fee per server" },
+                  { value: "percent", label: "% of the licence" },
+                ]}
+              />
             </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Group" name="category_id">
-              <Select allowClear options={categories.map((category) => ({ value: category.id, label: category.name }))} />
+            {pricing === "percent" ? (
+              <Form.Item
+                label="Share of the licence"
+                name="percent_of_licence"
+                rules={[{ required: true, message: "Enter a percentage" }]}
+                extra="Worked out from the one-off licence total — how maintenance is priced."
+              >
+                <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
+              </Form.Item>
+            ) : (
+              <Row gutter={16}>
+                <Col xs={16} sm={18}>
+                  <Form.Item label="Price" name="price" extra="0 shows as “No charge”.">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col xs={8} sm={6}>
+                  <Form.Item label="Currency" name="currency">
+                    <Input maxLength={3} style={{ textTransform: "uppercase" }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            )}
+            <SwitchRow name="is_recurring" title="Billed every year" description="Kept out of the one-off licence total." last />
+          </FormSection>
+
+          <FormSection title="In the builder">
+            <Form.Item label="Requires" name="requires" extra="Ticked automatically, and locked, while this module is ticked.">
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="No other modules needed"
+                optionFilterProp="label"
+                options={modules.filter((other) => other.id !== module?.id).map((other) => ({ value: other.slug, label: other.name }))}
+              />
             </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Icon" name="icon" extra="A Lucide icon name, as on the website.">
-              <Input />
+            <Form.Item label="Order" name="sort_order" extra="Lower comes first in its group.">
+              <InputNumber min={0} style={{ width: 160 }} />
             </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item label="Description" name="description">
-          <Input.TextArea rows={2} />
-        </Form.Item>
-        <Form.Item label="Small print" name="note">
-          <Input />
-        </Form.Item>
-        <Row gutter={16}>
-          <Col xs={12} sm={8}>
-            <Form.Item label="Price" name="price">
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Form.Item label="Currency" name="currency">
-              <Input maxLength={3} style={{ textTransform: "uppercase" }} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={10}>
-            <Form.Item label="Or a % of the licence" name="percent_of_licence" extra="How maintenance is priced. Blank for a flat fee.">
-              <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item name="is_recurring" valuePropName="checked" style={{ marginBottom: 4 }}>
-          <Checkbox>Billed every year (kept out of the one-off total)</Checkbox>
-        </Form.Item>
-        <Form.Item name="is_default" valuePropName="checked">
-          <Checkbox>Preselected in the builder, whatever the edition</Checkbox>
-        </Form.Item>
-        <Form.Item label="Requires modules" name="requires" extra="Ticked automatically and locked while this is selected.">
-          <Select mode="tags" tokenSeparators={[",", " "]} placeholder="Module slugs" />
-        </Form.Item>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item label="Order" name="sort_order">
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label=" " name="is_visible" valuePropName="checked">
-              <Checkbox>Visible</Checkbox>
-            </Form.Item>
-          </Col>
-        </Row>
+            <SwitchRow name="is_default" title="Preselected" description="Ticked in the builder whatever the edition." />
+            <SwitchRow name="is_visible" title="Visible" description="Offered on the pricing page and in quotations." last />
+          </FormSection>
+        </Flex>
       </Form>
     </Drawer>
+  );
+}
+
+// ---------------------------------------------------------------- form parts
+
+/** A table of cells: module and price | checkbox, the rules drawn by 1px gaps. */
+const tableStyle = (token: ReturnType<typeof theme.useToken>["token"]) =>
+  ({
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) 72px",
+    gap: 1,
+    background: token.colorBorderSecondary,
+    border: `1px solid ${token.colorBorderSecondary}`,
+    borderRadius: token.borderRadiusLG,
+    overflow: "hidden",
+  }) as const;
+
+/** A titled part of a form, on a soft panel. */
+function FormSection({ title, description, extra, children }: { title: string; description?: string; extra?: React.ReactNode; children: React.ReactNode }) {
+  const { token } = theme.useToken();
+  return (
+    <section style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: token.borderRadiusLG, padding: "16px 18px 18px" }}>
+      <Flex justify="space-between" align="center" gap={8} style={{ marginBottom: description ? 4 : 14 }}>
+        <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+          {title}
+        </Typography.Text>
+        {extra}
+      </Flex>
+      {description ? (
+        <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 14 }}>
+          {description}
+        </Typography.Paragraph>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+/** A setting as a line: what it does on the left, a switch on the right. */
+function SwitchRow({ name, title, description, last = false }: { name: string; title: string; description: string; last?: boolean }) {
+  const { token } = theme.useToken();
+  return (
+    <Flex justify="space-between" align="center" gap={16} style={{ padding: "10px 0", borderTop: `1px solid ${token.colorBorderSecondary}`, marginBottom: last ? -8 : 0 }}>
+      <div>
+        <Typography.Text>{title}</Typography.Text>
+        <div>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            {description}
+          </Typography.Text>
+        </div>
+      </div>
+      <Form.Item name={name} valuePropName="checked" noStyle>
+        <Switch />
+      </Form.Item>
+    </Flex>
+  );
+}
+
+/** Two or more options as selectable cards (a form control: value / onChange). */
+function ChoiceCards<T extends string | boolean>({
+  value,
+  onChange,
+  options,
+}: {
+  value?: T;
+  onChange?: (value: T) => void;
+  options: { value: T; title: string; description: string }[];
+}) {
+  const { token } = theme.useToken();
+  return (
+    <div role="radiogroup" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+      {options.map((option) => {
+        const chosen = value === option.value;
+        return (
+          <button
+            key={String(option.value)}
+            type="button"
+            role="radio"
+            aria-checked={chosen}
+            onClick={() => onChange?.(option.value)}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              cursor: "pointer",
+              padding: "12px 14px",
+              borderRadius: token.borderRadiusLG,
+              background: chosen ? token.colorPrimaryBg : token.colorFillQuaternary,
+              transition: "background 0.15s",
+            }}
+          >
+            <Flex justify="space-between" align="center" gap={8}>
+              <Typography.Text strong>{option.title}</Typography.Text>
+              {chosen ? <CheckCircleFilled style={{ color: token.colorPrimary }} /> : null}
+            </Flex>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              {option.description}
+            </Typography.Text>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
