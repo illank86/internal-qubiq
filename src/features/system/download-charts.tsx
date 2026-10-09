@@ -60,9 +60,11 @@ export function DownloadTrend({ days, span = 90 }: { days: Day[]; span?: number 
 
 /** Downloads per release, newest versions first. */
 export function DownloadsByRelease({ rows }: { rows: { version: string | null; downloads: number | null }[] }) {
-  const { chartTheme, primary } = useChartTheme();
+  const { chartTheme, primary, token } = useChartTheme();
   const data = rows.filter((row) => row.version).map((row) => ({ version: row.version!, downloads: Number(row.downloads ?? 0) }));
   if (data.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No releases downloaded yet." />;
+  const highest = Math.max(...data.map((row) => row.downloads), 1);
+  const count = (value: number) => value.toLocaleString("en-US");
   return (
     <Column
       data={data}
@@ -72,8 +74,16 @@ export function DownloadsByRelease({ rows }: { rows: { version: string | null; d
       autoFit
       theme={chartTheme}
       style={{ fill: primary, radiusTopLeft: 6, radiusTopRight: 6, maxWidth: 48 }}
-      axis={{ x: { title: false, tick: false }, y: { title: false, gridLineDash: [4, 4] } }}
-      label={{ text: "downloads", position: "top", style: { dy: -4, fontSize: 11 } }}
+      // Room above the tallest bar, so its number is never cut off.
+      scale={{ y: { nice: true, domainMax: Math.ceil(highest * 1.18) } }}
+      axis={{ x: { title: false, tick: false }, y: { title: false, gridLineDash: [4, 4], labelFormatter: count } }}
+      // The count above each bar, in the text colour (readable in light and dark mode).
+      label={{
+        text: (row: { downloads: number }) => count(row.downloads),
+        position: "top",
+        style: { dy: -6, fontSize: 12, fontWeight: 600, fill: token.colorText, fillOpacity: 1, stroke: token.colorBgContainer, lineWidth: 3 },
+      }}
+      tooltip={{ title: (row: { version: string }) => `Version ${row.version}`, items: [{ channel: "y", name: "Downloads", valueFormatter: count }] }}
     />
   );
 }
