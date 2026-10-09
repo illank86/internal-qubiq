@@ -1,4 +1,4 @@
-import { Button, Card, Checkbox, Flex, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { Button, Card, Checkbox, Flex, Grid, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
 import { CheckCircleFilled, CopyOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { formatMoney } from "@/lib/invoices";
 import { newGroup, type BuilderEdition, type BuilderModule, type GroupDraft } from "@/lib/sales";
@@ -29,11 +29,13 @@ export function ServerGroupsEditor({
     modules.filter((item) => edition.moduleIds.includes(item.id) && !item.percent).reduce((sum, item) => sum + item.price, 0);
   const update = (key: string, next: Partial<GroupDraft>) => onChange(groups.map((group) => (group.key === key ? { ...group, ...next } : group)));
   const { token } = theme.useToken();
+  // Modules: a two-column table, one column on narrow screens.
+  const columns = Grid.useBreakpoint().md ? 2 : 1;
   const sectionLabel = { fontSize: 12, textTransform: "uppercase", letterSpacing: 1 } as const;
   // A table of cells: the 1px gaps over a border-coloured background draw the rules.
   const grid = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
     gap: 1,
     background: token.colorBorderSecondary,
     border: `1px solid ${token.colorBorderSecondary}`,
@@ -102,7 +104,11 @@ export function ServerGroupsEditor({
             <Typography.Text type="secondary" style={sectionLabel}>
               Edition
             </Typography.Text>
-            <div role="radiogroup" aria-label="Edition" style={{ ...grid, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", margin: "8px 0 20px" }}>
+            <div
+              role="radiogroup"
+              aria-label="Edition"
+              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8, margin: "8px 0 20px" }}
+            >
               {[...editions, { id: "", name: "Modules only", tagline: "", custom: false, currency: baseCurrency, moduleIds: [] }].map((item) => {
                 const chosen = group.editionId === item.id;
                 return (
@@ -117,8 +123,9 @@ export function ServerGroupsEditor({
                       boxSizing: "border-box",
                       cursor: "pointer",
                       padding: "12px 14px",
-                      background: chosen ? token.colorPrimaryBg : token.colorBgContainer,
-                      boxShadow: chosen ? `inset 0 0 0 2px ${token.colorPrimary}` : undefined,
+                      borderRadius: token.borderRadiusLG,
+                      background: chosen ? token.colorPrimaryBg : token.colorFillQuaternary,
+                      transition: "background 0.15s",
                       display: "flex",
                       flexDirection: "column",
                       gap: 2,
@@ -174,7 +181,7 @@ export function ServerGroupsEditor({
                           ? "No charge"
                           : formatMoney(item.price, baseCurrency);
                       return (
-                        // The checkbox is the whole cell (antd renders it as a label).
+                        // The checkbox is the whole cell (antd renders it as a label): name and price left, box right.
                         <Checkbox
                           key={item.id}
                           checked={checked}
@@ -186,7 +193,11 @@ export function ServerGroupsEditor({
                           title={item.description || undefined}
                           style={{
                             margin: 0,
-                            alignItems: "flex-start",
+                            display: "flex",
+                            flexDirection: "row-reverse",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 12,
                             padding: "10px 14px",
                             background: checked ? token.colorPrimaryBg : token.colorBgContainer,
                             transition: "background 0.15s",
@@ -208,6 +219,7 @@ export function ServerGroupsEditor({
                         </Checkbox>
                       );
                     })}
+                    {items.length % columns ? <div style={{ background: token.colorBgContainer }} aria-hidden /> : null}
                   </div>
                 );
               })}
