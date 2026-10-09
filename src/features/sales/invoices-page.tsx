@@ -690,8 +690,8 @@ function InvoiceDetailsDrawer({
                       optional
                     </Typography.Text>
                   </Flex>
-                  <Row gutter={16}>
-                    <Col xs={24} sm={10}>
+                  <Row gutter={[16, 16]}>
+                    <Col span={24}>
                       <Form.Item
                         label="PO number"
                         name="po_number"
@@ -702,7 +702,7 @@ function InvoiceDetailsDrawer({
                         <Input placeholder="e.g. PO-2026-0412" allowClear />
                       </Form.Item>
                     </Col>
-                    <Col xs={24} sm={14}>
+                    <Col span={24}>
                       <Form.Item label="PO document" style={{ marginBottom: 0 }}>
                         <PurchaseOrderField
                           current={invoice.po_path ? { name: invoice.po_file_name || "Purchase order" } : null}

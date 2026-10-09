@@ -212,15 +212,15 @@ export function ConvertPage() {
           <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
             If the customer sent a PO, its number goes on the invoice next to the quotation reference. The PO document is shown after the invoice when the customer opens it — never attached to the email.
           </Typography.Paragraph>
-          <Row gutter={16}>
-            <Col xs={24} md={10}>
+          <Row gutter={[16, 16]}>
+            <Col span={24}>
               <Form layout="vertical" component="div">
                 <Form.Item label="PO number" style={{ marginBottom: 0 }} validateStatus={poNumber.trim().length > 60 ? "error" : undefined} help={poNumber.trim().length > 60 ? "60 characters at most" : undefined}>
                   <Input value={poNumber} onChange={(event) => setPoNumber(event.target.value)} placeholder="e.g. PO-2026-0412" allowClear disabled={pending} />
                 </Form.Item>
               </Form>
             </Col>
-            <Col xs={24} md={14}>
+            <Col span={24}>
               <Form layout="vertical" component="div">
                 <Form.Item label="PO document" style={{ marginBottom: 0 }}>
                   <PurchaseOrderField current={null} change={poChange} onChange={setPoChange} disabled={pending} />
