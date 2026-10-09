@@ -205,7 +205,7 @@ export function QuotationDrawer({
             { key: "overview", label: "Overview", children: overview },
             {
               key: "lines",
-              label: `Lines${lines ? ` (${lines.items.length})` : ""}`,
+              label: `Modules${lines ? ` (${lines.items.length})` : ""}`,
               children: (
                 <Flex vertical gap={16}>
                   <DocumentLines groups={lines?.groups ?? []} items={lines?.items ?? []} money={money} />

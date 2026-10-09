@@ -818,7 +818,7 @@ function InvoiceDetailsDrawer({
             },
             {
               key: "lines",
-              label: `Lines${lines ? ` (${lines.items.length})` : ""}`,
+              label: `Modules${lines ? ` (${lines.items.length})` : ""}`,
               children: (
                 <Flex vertical gap={16}>
                   <Typography.Text type="secondary" style={{ fontSize: 13 }}>
