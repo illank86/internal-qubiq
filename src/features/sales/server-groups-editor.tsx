@@ -109,7 +109,8 @@ export function ServerGroupsEditor({
               aria-label="Edition"
               style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8, margin: "8px 0 20px" }}
             >
-              {[...editions, { id: "", name: "Modules only", tagline: "", custom: false, currency: baseCurrency, moduleIds: [] }].map((item) => {
+              {/* Every group starts from an edition; Custom is the one with modules picked freely. */}
+              {editions.map((item) => {
                 const chosen = group.editionId === item.id;
                 return (
                   <button
@@ -136,9 +137,7 @@ export function ServerGroupsEditor({
                       {chosen ? <CheckCircleFilled style={{ color: token.colorPrimary }} /> : null}
                     </Flex>
                     <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                      {!item.id
-                        ? "Pick modules below"
-                        : item.custom
+                      {item.custom
                           ? "Pick any modules"
                           : `${formatMoney(editionTotal(item), item.currency)} · ${item.moduleIds.length} modules`}
                     </Typography.Text>

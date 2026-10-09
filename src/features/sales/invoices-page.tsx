@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Checkbox, Col, Descriptions, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -34,6 +34,8 @@ import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "
 import { CcNote } from "./quotation-parts";
 import { DocumentHistory } from "./document-history";
 import { SigningActions, SigningTag } from "./signing";
+import { DocumentLines } from "./document-lines";
+import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
@@ -456,10 +458,17 @@ function InvoiceDetailsDrawer({
   const viewPdf = usePdfViewer();
   const ccWatched = Form.useWatch("cc_emails", form);
 
-  const { data: groups } = useQuery({
-    queryKey: ["invoice-groups", invoice?.id],
+  const [tab, setTab] = useState("overview");
+  const { data: lines } = useQuery({
+    queryKey: ["invoice-lines", invoice?.id],
     enabled: Boolean(invoice),
-    queryFn: async () => (await supabase.from("invoice_groups").select("label, quantity, subtotal").eq("invoice_id", invoice!.id).order("position")).data ?? [],
+    queryFn: async () => {
+      const [{ data: groups }, { data: items }] = await Promise.all([
+        supabase.from("invoice_groups").select("id, label, quantity, subtotal").eq("invoice_id", invoice!.id).order("position"),
+        supabase.from("invoice_items").select("id, group_id, description, detail, amount, edition_id").eq("invoice_id", invoice!.id).order("position"),
+      ]);
+      return { groups: groups ?? [], items: items ?? [] };
+    },
   });
 
   if (!invoice) return <Drawer open={false} onClose={onClose} />;
@@ -559,15 +568,51 @@ function InvoiceDetailsDrawer({
         </Flex>
       }
     >
-      <Row gutter={[24, 16]}>
-        <Col xs={24} lg={14}>
+      <Flex vertical gap={16}>
+        <Typography.Text type="secondary">
+          To <Typography.Text strong>{invoice.bill_to_name}</Typography.Text>
+          {invoice.quotation_number ? ` · from quotation ${invoice.quotation_number}` : ""}
+          {invoice.po_number ? ` · PO ${invoice.po_number}` : ""}
+        </Typography.Text>
+        <StatRow
+          stats={[
+            { label: invoice.status === "paid" ? "Paid" : "Amount due", value: money(Number(invoice.subtotal) + tax), strong: true },
+            { label: "Issued", value: formatInvoiceDate(invoice.issue_date) },
+            { label: invoice.status === "paid" ? "Paid on" : "Due", value: formatInvoiceDate(invoice.status === "paid" ? invoice.paid_at : invoice.due_date) },
+            { label: "Servers", value: lines ? lines.groups.reduce((sum, group) => sum + group.quantity, 0) : "—" },
+          ]}
+        />
+        <StandingPanel>
+          <ApprovalNote
+            state={invoice.approval_status}
+            note={invoice.approval_note}
+            requestedBy={invoice.requester?.full_name}
+            approvedBy={invoice.approved_by ? invoice.approver?.full_name : null}
+            approvedAt={invoice.approved_at}
+          />
+          {invoice.approval_status === "none" && invoice.send_count === 0 ? <Typography.Text type="secondary">Not sent yet.</Typography.Text> : null}
+          {needsSigning(invoice) ? (
+            <>
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                {signingHint(invoice)}
+              </Typography.Text>
+              <SigningActions type="invoice" row={invoice} isApprover={isApprover} run={run} busy={busy} size="middle" showView />
+            </>
+          ) : null}
+        </StandingPanel>
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          items={[
+            {
+              key: "overview",
+              label: editable ? "Details" : "Overview",
+              // Kept mounted, so the form keeps its edits while another tab is open.
+              forceRender: true,
+              children: (
+                <>
           {editable ? (
             <>
-              <Typography.Paragraph type="secondary">
-                {invoice.quotation_number
-                  ? `The lines are as accepted on quotation ${invoice.quotation_number}. To change what is sold, void this invoice, revise the quotation and convert it again.`
-                  : "The lines are as issued. Billing details, due date, tax and notes can be corrected."}
-              </Typography.Paragraph>
               <Form<DetailValues>
                 form={form}
                 layout="vertical"
@@ -737,28 +782,20 @@ function InvoiceDetailsDrawer({
               <Typography.Paragraph type="secondary">
                 {invoice.status === "paid" ? "Paid invoices are kept as issued." : "Void invoices are kept as issued. Restore it to make changes."}
               </Typography.Paragraph>
-              <Descriptions
-                column={1}
-                size="small"
-                bordered
+              <InfoSection
+                title="Details"
                 items={[
-                  { key: "to", label: "Invoiced to", children: [invoice.bill_to_name, invoice.bill_to_company].filter(Boolean).join(" · ") },
-                  { key: "email", label: "Billing email", children: invoice.bill_to_email ?? "—" },
-                  { key: "cc", label: "CC", children: invoice.cc_emails?.length ? invoice.cc_emails.join(", ") : "—" },
-                  { key: "address", label: "Billing address", children: <span style={{ whiteSpace: "pre-line" }}>{invoice.bill_to_address || "—"}</span> },
+                  { label: "Invoiced to", value: [invoice.bill_to_name, invoice.bill_to_company].filter(Boolean).join(" · ") },
+                  { label: "Billing email", value: invoice.bill_to_email ?? "—" },
+                  { label: "CC", value: invoice.cc_emails?.length ? invoice.cc_emails.join(", ") : "—" },
+                  { label: "Billing address", value: <span style={{ whiteSpace: "pre-line" }}>{invoice.bill_to_address || "—"}</span> },
                   {
-                    key: "licensee",
                     label: "Licence issued to",
-                    children: (
-                      <span style={{ whiteSpace: "pre-line" }}>
-                        {[invoice.licensee_name || invoice.bill_to_name, invoice.licensee_address].filter(Boolean).join("\n")}
-                      </span>
-                    ),
+                    value: <span style={{ whiteSpace: "pre-line" }}>{[invoice.licensee_name || invoice.bill_to_name, invoice.licensee_address].filter(Boolean).join("\n")}</span>,
                   },
                   {
-                    key: "po",
                     label: "Purchase order",
-                    children:
+                    value:
                       invoice.po_number || invoice.po_path ? (
                         <Flex gap={8} align="center" wrap>
                           {invoice.po_number ? <Typography.Text strong>{invoice.po_number}</Typography.Text> : null}
@@ -772,72 +809,41 @@ function InvoiceDetailsDrawer({
                         "—"
                       ),
                   },
-                  { key: "issued", label: "Issued", children: formatInvoiceDate(invoice.issue_date) },
-                  { key: "due", label: "Due", children: formatInvoiceDate(invoice.due_date) },
-                  { key: "signature", label: "Signature", children: invoice.signature_mode === "wet" ? "Signed by hand" : "Digital" },
-                  { key: "materai", label: "Materai", children: invoice.materai === "physical" ? "Physical materai" : invoice.materai === "e_meterai" ? "e-Meterai" : "None" },
-                  { key: "notes", label: "Notes", children: <span style={{ whiteSpace: "pre-line" }}>{invoice.notes || "—"}</span> },
+                  { label: "Signature", value: invoice.signature_mode === "wet" ? "Signed by hand" : "Digital" },
+                  { label: "Materai", value: invoice.materai === "physical" ? "Physical materai" : invoice.materai === "e_meterai" ? "e-Meterai" : "None" },
+                  { label: "Notes", wide: true, value: <span style={{ whiteSpace: "pre-line" }}>{invoice.notes || "—"}</span> },
                 ]}
               />
             </>
           )}
-        </Col>
-        <Col xs={24} lg={10}>
-          <Flex vertical gap={16}>
-            <Card size="small" title="Where it stands">
-              <Flex vertical gap={8} align="flex-start">
-                <ApprovalNote
-                  state={invoice.approval_status}
-                  note={invoice.approval_note}
-                  requestedBy={invoice.requester?.full_name}
-                  approvedBy={invoice.approved_by ? invoice.approver?.full_name : null}
-                  approvedAt={invoice.approved_at}
-                />
-                {invoice.approval_status === "none" && invoice.send_count === 0 ? (
-                  <Typography.Text type="secondary">Not sent yet.</Typography.Text>
-                ) : null}
-                {needsSigning(invoice) ? (
-                  <>
-                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                      {signingHint(invoice)}
-                    </Typography.Text>
-                    <SigningActions type="invoice" row={invoice} isApprover={isApprover} run={run} busy={busy} size="middle" showView />
-                  </>
-                ) : null}
-              </Flex>
-            </Card>
-            <Card size="small" title="What is invoiced">
-              <Flex vertical gap={6}>
-                {(groups ?? []).map((group, index) => (
-                  <Flex key={index} justify="space-between">
-                    <Typography.Text type="secondary">
-                      {group.label} × {group.quantity}
-                    </Typography.Text>
-                    <span>{money(Number(group.subtotal))}</span>
-                  </Flex>
-                ))}
-                <Flex justify="space-between">
-                  <Typography.Text type="secondary">Subtotal</Typography.Text>
-                  <span>{money(Number(invoice.subtotal))}</span>
-                </Flex>
-                <Flex justify="space-between">
-                  <Typography.Text type="secondary">
-                    {invoice.tax_label} ({rate}%)
+                </>
+              ),
+            },
+            {
+              key: "lines",
+              label: `Lines${lines ? ` (${lines.items.length})` : ""}`,
+              children: (
+                <Flex vertical gap={16}>
+                  <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                    {invoice.quotation_number
+                      ? `As accepted on quotation ${invoice.quotation_number}. To change what is sold, void this invoice, revise the quotation and convert it again.`
+                      : "As issued."}
                   </Typography.Text>
-                  <span>{money(tax)}</span>
+                  <DocumentLines groups={lines?.groups ?? []} items={lines?.items ?? []} money={money} />
+                  <Totals
+                    rows={[
+                      { label: "Subtotal", value: money(Number(invoice.subtotal)) },
+                      { label: `${invoice.tax_label} (${rate}%)`, value: money(tax) },
+                    ]}
+                    total={{ label: invoice.status === "paid" ? "Paid" : "Total", value: money(Number(invoice.subtotal) + tax) }}
+                  />
                 </Flex>
-                <Flex justify="space-between">
-                  <Typography.Text strong>Total</Typography.Text>
-                  <Typography.Text strong>{money(Number(invoice.subtotal) + tax)}</Typography.Text>
-                </Flex>
-              </Flex>
-            </Card>
-            <Card size="small" title="History">
-              <DocumentHistory type="invoice" id={invoice.id} />
-            </Card>
-          </Flex>
-        </Col>
-      </Row>
+              ),
+            },
+            { key: "history", label: "History", children: <DocumentHistory type="invoice" id={invoice.id} /> },
+          ]}
+        />
+      </Flex>
     </Drawer>
   );
 }

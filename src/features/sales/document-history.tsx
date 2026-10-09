@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Empty, Flex, Spin, Tag, Timeline, Typography } from "antd";
+import { Button, Empty, Flex, Segmented, Skeleton, Typography, theme } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
+  DownOutlined,
   EditOutlined,
   FileAddOutlined,
   FileDoneOutlined,
@@ -11,14 +12,16 @@ import {
   SafetyCertificateOutlined,
   SendOutlined,
   StopOutlined,
+  UpOutlined,
   UploadOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import { loadHistory, type DocumentType, type HistoryEvent } from "./api";
 
 /**
- * Everything that happened to a quotation or invoice, newest first: who made
- * it, every change (and what it changed to), approvals and rejections, signed
- * copies, and every email sent.
+ * Everything that happened to a quotation or invoice, newest first and by
+ * day: who made it, every change (and what it changed to), approvals and
+ * rejections, signed copies, and every email sent.
  */
 
 // Columns the approval and email entries already explain, or that are noise.
@@ -62,9 +65,6 @@ const FIELD: Record<string, string> = {
 };
 const label = (key: string) => FIELD[key] ?? key.replace(/_/g, " ").replace(/^./, (first) => first.toUpperCase());
 
-const when = (value: string) =>
-  new Date(value).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
 const show = (value: unknown) => {
   if (value === null || value === undefined || value === "") return "—";
   if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
@@ -73,117 +73,224 @@ const show = (value: unknown) => {
   return text.length > 160 ? `${text.slice(0, 160)}…` : text;
 };
 
-type Entry = { key: string; at: string; color: string; icon: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; changes?: [string, unknown][] };
+type Kind = "change" | "approval" | "email";
+type Tone = "neutral" | "info" | "success" | "warning" | "danger";
+type Entry = {
+  key: string;
+  at: string;
+  kind: Kind;
+  tone: Tone;
+  icon: React.ReactNode;
+  title: string;
+  actor: string | null;
+  detail?: React.ReactNode;
+  changes?: [string, unknown][];
+};
 
 function describe(event: HistoryEvent, index: number): Entry | null {
-  const by = event.actor ? ` · ${event.actor}` : "";
-  const key = `${event.source}-${event.at}-${index}`;
-  const at = event.at;
-  if (event.source === "created") return { key, at, color: "gray", icon: <FileAddOutlined />, title: `Created${by}` };
+  const base = { key: `${event.source}-${event.at}-${index}`, at: event.at, actor: event.actor };
+  if (event.source === "created") return { ...base, kind: "change", tone: "neutral", icon: <FileAddOutlined />, title: "Created" };
 
   if (event.source === "approval") {
-    const map: Record<string, Omit<Entry, "key" | "at">> = {
-      requested: { color: "gold", icon: <SendOutlined />, title: `Asked for approval${by}` },
-      approved: { color: "green", icon: <CheckCircleOutlined />, title: `Approved${by}` },
-      self_approved: { color: "green", icon: <CheckCircleOutlined />, title: `Approved and sent (approver)${by}` },
-      rejected: { color: "red", icon: <CloseCircleOutlined />, title: `Not approved${by}`, detail: event.note ? `“${event.note}”` : undefined },
-      signed_uploaded: { color: "blue", icon: <UploadOutlined />, title: `Signed copy uploaded${by}`, detail: event.note ?? undefined },
-      signed_confirmed: { color: "blue", icon: <SafetyCertificateOutlined />, title: `Scan checked and confirmed${by}` },
-      signed_sent: { color: "green", icon: <FileDoneOutlined />, title: `Signed copy sent${by}` },
+    const map: Record<string, Pick<Entry, "tone" | "icon" | "title" | "detail">> = {
+      requested: { tone: "warning", icon: <SendOutlined />, title: "Asked for approval" },
+      approved: { tone: "success", icon: <CheckCircleOutlined />, title: "Approved" },
+      self_approved: { tone: "success", icon: <CheckCircleOutlined />, title: "Approved and sent" },
+      rejected: { tone: "danger", icon: <CloseCircleOutlined />, title: "Not approved", detail: event.note ? `“${event.note}”` : undefined },
+      signed_uploaded: { tone: "info", icon: <UploadOutlined />, title: "Signed copy uploaded", detail: event.note ?? undefined },
+      signed_confirmed: { tone: "info", icon: <SafetyCertificateOutlined />, title: "Scan checked and confirmed" },
+      signed_sent: { tone: "success", icon: <FileDoneOutlined />, title: "Signed copy sent" },
     };
     const entry = map[event.action];
-    return entry ? { key, at, ...entry } : null;
+    return entry ? { ...base, kind: "approval", ...entry } : null;
   }
 
   if (event.source === "email") {
-    const failed = event.status && event.status !== "sent";
+    const failed = Boolean(event.status && event.status !== "sent");
     return {
-      key,
-      at,
-      color: failed ? "red" : "cyan",
-      icon: <MailOutlined />,
-      title: failed ? `Email not sent to ${event.recipient ?? "—"}` : `Emailed ${event.recipient ?? ""}`,
+      ...base,
+      kind: "email",
+      tone: failed ? "danger" : "info",
+      icon: failed ? <WarningOutlined /> : <MailOutlined />,
+      title: failed ? "Email not delivered" : "Email sent",
+      actor: null,
       detail: (
-        <>
-          {event.summary}
-          {event.cc?.length ? <div>CC: {event.cc.join(", ")}</div> : null}
-          {failed && event.note ? <div style={{ color: "#cf1322" }}>{event.note}</div> : null}
-        </>
+        <Flex vertical gap={2}>
+          {event.summary ? <Typography.Text style={{ fontSize: 13 }}>{event.summary}</Typography.Text> : null}
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            To {event.recipient ?? "—"}
+            {event.cc?.length ? ` · CC ${event.cc.join(", ")}` : ""}
+          </Typography.Text>
+          {failed && event.note ? (
+            <Typography.Text type="danger" style={{ fontSize: 12 }}>
+              {event.note}
+            </Typography.Text>
+          ) : null}
+        </Flex>
       ),
     };
   }
 
-  // A change to the row.
+  // A change to the record.
   if (event.action === "create") return null;
-  if (event.action === "delete") return { key, at, color: "red", icon: <StopOutlined />, title: `Deleted${by}` };
+  if (event.action === "delete") return { ...base, kind: "change", tone: "danger", icon: <StopOutlined />, title: "Deleted" };
   const changes = Object.entries(event.changes ?? {}).filter(([field]) => !QUIET.has(field));
   if (changes.length === 0) return null;
   const status = changes.find(([field]) => field === "status");
   const priced = changes.some(([field]) => PRICED.has(field));
   const fields = changes.filter(([field]) => field !== "status" && !PRICED.has(field)).map(([field]) => label(field));
   const title = status
-    ? `${STATUS_LABEL[String(status[1])] ?? `Status: ${String(status[1])}`}${by}`
+    ? (STATUS_LABEL[String(status[1])] ?? `Status: ${String(status[1])}`)
     : priced && fields.length === 0
-      ? `Lines or prices changed${by}`
-      : `Edited${by}`;
-  const detail = [priced && (status || fields.length) ? "Lines or prices changed" : null, fields.length ? fields.join(", ") : null].filter(Boolean).join(" · ");
-  const color = status && ["cancelled", "void", "declined"].includes(String(status[1])) ? "red" : status ? "green" : "blue";
-  return { key, at, color, icon: status ? <CheckCircleOutlined /> : <EditOutlined />, title, detail: detail || undefined, changes };
+      ? "Lines or prices changed"
+      : "Edited";
+  const summary = [priced && (status || fields.length) ? "Lines or prices" : null, ...fields].filter(Boolean).join(", ");
+  const tone: Tone = status ? (["cancelled", "void", "declined"].includes(String(status[1])) ? "danger" : "success") : "neutral";
+  return {
+    ...base,
+    kind: "change",
+    tone,
+    icon: status ? <CheckCircleOutlined /> : <EditOutlined />,
+    title,
+    detail: summary ? (
+      <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+        {summary}
+      </Typography.Text>
+    ) : undefined,
+    changes,
+  };
 }
+
+const dayLabel = (iso: string) => {
+  const date = new Date(iso);
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (same(date, new Date())) return "Today";
+  if (same(date, new Date(Date.now() - 86_400_000))) return "Yesterday";
+  return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+};
+const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 function Changes({ changes }: { changes: [string, unknown][] }) {
+  const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   return (
-    <>
-      <Button type="link" size="small" style={{ padding: 0, height: "auto" }} onClick={() => setOpen(!open)}>
-        {open ? "Hide changes" : "Show changes"}
+    <div style={{ marginTop: 4 }}>
+      <Button type="link" size="small" style={{ padding: 0, height: "auto", fontSize: 12 }} onClick={() => setOpen(!open)}>
+        {open ? <UpOutlined /> : <DownOutlined />} {open ? "Hide what changed" : "Show what changed"}
       </Button>
       {open ? (
-        <Flex vertical gap={2} style={{ marginTop: 4, fontSize: 12 }}>
-          {changes.map(([field, value]) => (
-            <div key={field}>
-              <Typography.Text type="secondary">{label(field)} → </Typography.Text>
-              <Typography.Text style={{ fontSize: 12 }}>{show(value)}</Typography.Text>
-            </div>
-          ))}
-        </Flex>
+        <div
+          style={{
+            marginTop: 6,
+            display: "grid",
+            gridTemplateColumns: "minmax(90px, max-content) minmax(0, 1fr)",
+            columnGap: 12,
+            rowGap: 4,
+            padding: "8px 10px",
+            borderRadius: token.borderRadius,
+            background: token.colorFillQuaternary,
+          }}
+        >
+          {changes.flatMap(([field, value]) => [
+            <Typography.Text key={`${field}-label`} type="secondary" style={{ fontSize: 12 }}>
+              {label(field)}
+            </Typography.Text>,
+            <Typography.Text key={`${field}-value`} style={{ fontSize: 12, wordBreak: "break-word" }}>
+              {show(value)}
+            </Typography.Text>,
+          ])}
+        </div>
       ) : null}
-    </>
+    </div>
   );
 }
+
+type Filter = "all" | Kind;
 
 export function DocumentHistory({ type, id }: { type: DocumentType; id: string }) {
+  const { token } = theme.useToken();
+  const [filter, setFilter] = useState<Filter>("all");
   const { data, isLoading } = useQuery({ queryKey: ["history", type, id], queryFn: () => loadHistory(type, id) });
-  if (isLoading) return <Spin />;
+  if (isLoading) return <Skeleton active avatar paragraph={{ rows: 3 }} />;
+
   const entries = (data ?? []).map(describe).filter((entry): entry is Entry => entry !== null);
   if (entries.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nothing recorded yet." />;
+  const count = (kind: Kind) => entries.filter((entry) => entry.kind === kind).length;
+  const shown = filter === "all" ? entries : entries.filter((entry) => entry.kind === filter);
+
+  const tones: Record<Tone, { color: string; background: string }> = {
+    neutral: { color: token.colorTextSecondary, background: token.colorFillSecondary },
+    info: { color: token.colorInfo, background: token.colorInfoBg },
+    success: { color: token.colorSuccess, background: token.colorSuccessBg },
+    warning: { color: token.colorWarning, background: token.colorWarningBg },
+    danger: { color: token.colorError, background: token.colorErrorBg },
+  };
+
+  // By day, newest first (as the list already is).
+  const days: { day: string; entries: Entry[] }[] = [];
+  for (const entry of shown) {
+    const day = dayLabel(entry.at);
+    const current = days.at(-1);
+    if (current?.day === day) current.entries.push(entry);
+    else days.push({ day, entries: [entry] });
+  }
+
   return (
-    <Timeline
-      items={entries.map((entry) => ({
-        key: entry.key,
-        color: entry.color,
-        icon: entry.icon,
-        content: (
-          <>
-            <Typography.Text strong>{entry.title}</Typography.Text>
-            <br />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {when(entry.at)}
-            </Typography.Text>
-            {entry.detail ? <div style={{ marginTop: 2, fontSize: 13 }}>{entry.detail}</div> : null}
-            {entry.changes?.length ? <Changes changes={entry.changes} /> : null}
-          </>
-        ),
-      }))}
-    />
+    <Flex vertical gap={16}>
+      <Segmented<Filter>
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: "all", label: `All ${entries.length}` },
+          { value: "change", label: `Changes ${count("change")}` },
+          { value: "approval", label: `Approvals ${count("approval")}` },
+          { value: "email", label: `Emails ${count("email")}` },
+        ]}
+      />
+      {shown.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nothing of this kind yet." /> : null}
+      {days.map(({ day, entries: list }) => (
+        <div key={day}>
+          <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
+            {day}
+          </Typography.Text>
+          <div style={{ marginTop: 8 }}>
+            {list.map((entry, index) => {
+              const tone = tones[entry.tone];
+              const last = index === list.length - 1;
+              return (
+                <div key={entry.key} style={{ display: "grid", gridTemplateColumns: "32px minmax(0, 1fr)", columnGap: 12 }}>
+                  {/* The icon, and the line down to the next entry of the day. */}
+                  <Flex vertical align="center">
+                    <Flex
+                      align="center"
+                      justify="center"
+                      style={{ width: 32, height: 32, borderRadius: "50%", background: tone.background, color: tone.color, fontSize: 15, flexShrink: 0 }}
+                    >
+                      {entry.icon}
+                    </Flex>
+                    {last ? null : <div style={{ width: 2, flex: 1, minHeight: 12, background: token.colorBorderSecondary, margin: "4px 0" }} />}
+                  </Flex>
+                  <div style={{ paddingBottom: last ? 0 : 16, minWidth: 0 }}>
+                    <Flex justify="space-between" align="center" gap={8} style={{ minHeight: 32 }}>
+                      <Typography.Text strong>{entry.title}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                        {timeLabel(entry.at)}
+                      </Typography.Text>
+                    </Flex>
+                    {entry.actor ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: -4 }}>
+                        by {entry.actor}
+                      </Typography.Text>
+                    ) : null}
+                    {entry.detail ? <div style={{ marginTop: 2 }}>{entry.detail}</div> : null}
+                    {entry.changes?.length ? <Changes changes={entry.changes} /> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </Flex>
   );
 }
-
-export const HistoryLegend = () => (
-  <Flex gap={6} wrap>
-    <Tag>Changes</Tag>
-    <Tag>Approvals</Tag>
-    <Tag>Signed copies</Tag>
-    <Tag>Emails</Tag>
-  </Flex>
-);
