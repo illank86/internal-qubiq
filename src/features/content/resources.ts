@@ -25,6 +25,8 @@ export type FieldType =
   | "tags"
   /** Short texts, one row each (highlights, key points): stored as a text array. */
   | "list"
+  /** Release highlights: each a sentence with a kind (New / Improved / Fixed), stored "Kind: text". */
+  | "release-notes"
   | "json"
   | "date"
   | "datetime"
@@ -1000,7 +1002,7 @@ export const RESOURCES: Resource[] = [
       },
       { name: "title", label: "Title", type: "text" },
       { name: "summary", label: "Summary", type: "textarea", rows: 3 },
-      { name: "highlights", label: "Highlights", type: "list", placeholder: "e.g. Faster tag browsing on large servers", hint: "Press Enter for the next one." },
+      { name: "highlights", label: "Highlights", type: "release-notes", hint: "Grouped on the website as What's new, Improvements and Bug fixes." },
       { name: "notes", label: "Release notes", type: "markdown", rows: 12 },
       { name: "released_at", label: "Release date", type: "date", group: "Display", span: 1 },
       {

@@ -2,6 +2,7 @@ import { Col, Form, Input, InputNumber, Select, Switch } from "antd";
 import type { Field } from "./resources";
 import { GeoField } from "./geo-field";
 import { ListInput } from "./list-input";
+import { ReleaseNotesInput } from "./release-notes-input";
 import { MediaInput } from "./media-picker";
 import { RichTextField } from "./rich-text-field";
 
@@ -10,7 +11,7 @@ export type Lookups = Record<string, { value: string; label: string }[]>;
 /** Long-form fields take the full width; the rest can sit two to a row. */
 function fieldSpan(field: Field) {
   if (field.span) return field.span === 1 ? 12 : 24;
-  return ["textarea", "markdown", "json", "tags", "list", "geo", "image", "file", "video"].includes(field.type) ? 24 : 12;
+  return ["textarea", "markdown", "json", "tags", "list", "release-notes", "geo", "image", "file", "video"].includes(field.type) ? 24 : 12;
 }
 
 /** One field of a generic resource form, as an Ant Design control. */
@@ -42,6 +43,8 @@ export function FieldInput({ field, lookups }: { field: Field; lookups: Lookups 
         return <Select allowClear showSearch optionFilterProp="label" options={lookups[field.name] ?? []} placeholder="Choose…" />;
       case "tags":
         return <Select mode="tags" tokenSeparators={[","]} placeholder="Type and press Enter" suffixIcon={null} notFoundContent={null} />;
+      case "release-notes":
+        return <ReleaseNotesInput />;
       case "list":
         return <ListInput placeholder={field.placeholder} addLabel={`Add ${field.label.toLowerCase().replace(/s$/, "")}`} />;
       case "image":

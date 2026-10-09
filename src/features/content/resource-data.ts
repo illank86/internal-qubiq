@@ -59,6 +59,7 @@ export function toFormValue(field: Field, value: unknown): unknown {
       return typeof value === "string" ? value.slice(0, 16) : "";
     case "tags":
     case "list":
+    case "release-notes":
       return Array.isArray(value) ? value : [];
     case "boolean":
       return Boolean(value);
@@ -99,6 +100,7 @@ export function fromFormValues(resource: Resource, values: Record<string, unknow
         break;
       case "tags":
       case "list":
+      case "release-notes":
         record[field.name] = Array.isArray(raw) ? raw.map((tag) => String(tag).trim()).filter(Boolean) : [];
         break;
       case "json":
