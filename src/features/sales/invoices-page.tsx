@@ -122,8 +122,21 @@ export function InvoicesPage() {
       title: "Invoice",
       key: "number",
       width: 170,
+      // The invoice number, then the quotation and PO numbers it refers to.
       render: (_, row) => (
-        <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{row.number}</Typography.Text>
+        <Flex vertical>
+          <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{row.number}</Typography.Text>
+          {row.quotation_number ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+              {row.quotation_number}
+            </Typography.Text>
+          ) : null}
+          {row.po_number ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {row.po_number}
+            </Typography.Text>
+          ) : null}
+        </Flex>
       ),
     },
     {
