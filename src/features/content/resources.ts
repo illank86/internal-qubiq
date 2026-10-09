@@ -23,6 +23,8 @@ export type FieldType =
   /** Map pin. Writes this column plus the paired longitude column. */
   | "geo"
   | "tags"
+  /** Short texts, one row each (highlights, key points): stored as a text array. */
+  | "list"
   | "json"
   | "date"
   | "datetime"
@@ -582,7 +584,7 @@ export const RESOURCES: Resource[] = [
       { name: "icon", label: "Icon", type: "icon", span: 1 },
       { name: "summary", label: "Summary", type: "textarea", rows: 3, hint: "Shown on cards and grids." },
       { name: "description", label: "Detail page body", type: "markdown", rows: 10 },
-      { name: "bullets", label: "Key points", type: "tags", hint: "One per line." },
+      { name: "bullets", label: "Key points", type: "list", hint: "Press Enter for the next one." },
       { name: "badge", label: "Badge", type: "text", span: 1 },
       ...IMAGE_FIELDS,
       { name: "cta_label", label: "Button label", type: "text", group: "Links", span: 1 },
@@ -616,7 +618,7 @@ export const RESOURCES: Resource[] = [
       { name: "slug", label: "Slug", type: "slug", required: true, span: 1 },
       { name: "summary", label: "Summary", type: "textarea", rows: 2 },
       { name: "description", label: "Longer description", type: "textarea", rows: 4 },
-      { name: "outcomes", label: "Outcomes", type: "tags", hint: "One per line." },
+      { name: "outcomes", label: "Outcomes", type: "list", hint: "Press Enter for the next one." },
       { name: "icon", label: "Icon", type: "icon", span: 1 },
       { name: "industry", label: "Industry", type: "text", span: 1 },
       { name: "metric_value", label: "Headline metric", type: "text", span: 1, placeholder: "+11 pts" },
@@ -998,7 +1000,7 @@ export const RESOURCES: Resource[] = [
       },
       { name: "title", label: "Title", type: "text" },
       { name: "summary", label: "Summary", type: "textarea", rows: 3 },
-      { name: "highlights", label: "Highlights", type: "tags", hint: "One per line." },
+      { name: "highlights", label: "Highlights", type: "list", placeholder: "e.g. Faster tag browsing on large servers", hint: "Press Enter for the next one." },
       { name: "notes", label: "Release notes", type: "markdown", rows: 12 },
       { name: "released_at", label: "Release date", type: "date", group: "Display", span: 1 },
       {
