@@ -7,12 +7,17 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
  *
  * If the attachment cannot be read (damaged, or a protected PDF that will not
  * copy), the document comes back unchanged rather than failing the download.
+ *
+ * A digitally signed document (an e-Meterai stamp, a PDF signature) is never
+ * touched: any change to it, even adding a page, makes its signature fail
+ * verification. It comes back byte for byte as it was.
  */
 export async function appendAttachment(
   document: Uint8Array | ArrayBuffer,
   attachment: { bytes: Uint8Array | ArrayBuffer; type: string },
   caption: string,
 ): Promise<Uint8Array> {
+  if (isDigitallySigned(document)) return new Uint8Array(document);
   const out = await PDFDocument.load(document, { updateMetadata: false });
   try {
     const bytes = new Uint8Array(attachment.bytes);
@@ -38,4 +43,12 @@ export async function appendAttachment(
     return new Uint8Array(document);
   }
   return out.save();
+}
+
+/**
+ * Whether a PDF carries a digital signature: a signature field's byte range,
+ * which every signed PDF (PAdES, e-Meterai, Adobe) has.
+ */
+export function isDigitallySigned(pdf: Uint8Array | ArrayBuffer) {
+  return /\/ByteRange\s*\[/.test(new TextDecoder("latin1").decode(pdf));
 }
