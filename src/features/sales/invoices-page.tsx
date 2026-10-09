@@ -18,6 +18,7 @@ import {
   PaperClipOutlined,
   ProfileOutlined,
   RollbackOutlined,
+  SafetyCertificateOutlined,
   SendOutlined,
   StopOutlined,
   UndoOutlined,
@@ -665,23 +666,26 @@ function InvoiceDetailsDrawer({
                 <Form.Item label="Billing address" name="bill_to_address" rules={[{ max: 500 }]}>
                   <Input.TextArea rows={3} />
                 </Form.Item>
-                <Row gutter={16}>
-                  <Col xs={24} sm={12}>
-                    <Form.Item
-                      label="Licence issued to"
-                      name="licensee_name"
-                      rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
-                      extra="The end user — the same as who pays, unless a reseller or head office pays."
-                    >
-                      <Input />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Form.Item label="Licensee address" name="licensee_address" rules={[{ max: 500 }]}>
-                      <Input.TextArea rows={2} />
-                    </Form.Item>
-                  </Col>
-                </Row>
+                <div style={{ margin: "4px 0 16px", padding: 16, borderRadius: 10, border: "1px solid var(--ant-color-border-secondary)" }}>
+                  <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                    <SafetyCertificateOutlined style={{ color: "var(--ant-color-primary)" }} />
+                    <Typography.Text strong>Licence issued to</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      the end user
+                    </Typography.Text>
+                  </Flex>
+                  <Form.Item
+                    label="Name"
+                    name="licensee_name"
+                    rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
+                    extra="The same as who pays, unless a reseller or head office pays."
+                  >
+                    <Input />
+                  </Form.Item>
+                  <Form.Item label="Address" name="licensee_address" rules={[{ max: 500 }]} style={{ marginBottom: 0 }}>
+                    <Input.TextArea rows={2} />
+                  </Form.Item>
+                </div>
                 <div style={{ margin: "4px 0 20px", padding: 16, borderRadius: 10, border: "1px solid var(--ant-color-border-secondary)" }}>
                   <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
                     <FileProtectOutlined style={{ color: "var(--ant-color-primary)" }} />

@@ -3,7 +3,7 @@ import { RichTextField } from "@/features/content/rich-text-field";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Affix, Alert, App, AutoComplete, Button, Card, Checkbox, Col, Collapse, Divider, Flex, Form, Input, InputNumber, Result, Row, Segmented, Select, Skeleton, Typography } from "antd";
-import { DownloadOutlined, EyeOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
+import { DownloadOutlined, EyeOutlined, SafetyCertificateOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { loadSalesCatalog, newGroup, priceGroups, errorText, type GroupDraft, type SalesCatalog } from "@/lib/sales";
@@ -387,28 +387,33 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 <Form.Item label="Address" name="address" rules={[{ max: 500 }]}>
                   <Input.TextArea rows={2} placeholder={"Street\nCity, postcode"} />
                 </Form.Item>
-                <Form.Item name="for_end_user" valuePropName="checked" style={{ marginBottom: forEndUser ? 12 : 16 }}>
-                  <Checkbox>Licence is for another company — a reseller's or integrator's client, or another site</Checkbox>
-                </Form.Item>
-                {forEndUser ? (
-                  <Row gutter={16} style={{ marginBottom: 4 }}>
-                    <Col xs={24} md={12}>
+                <div style={{ marginBottom: 16, padding: 16, borderRadius: 10, border: "1px solid var(--ant-color-border-secondary)" }}>
+                  <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+                    <SafetyCertificateOutlined style={{ color: "var(--ant-color-primary)" }} />
+                    <Typography.Text strong>Licence issued to</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {forEndUser ? "another company" : "the customer"}
+                    </Typography.Text>
+                  </Flex>
+                  <Form.Item name="for_end_user" valuePropName="checked" style={{ marginBottom: forEndUser ? 12 : 0 }}>
+                    <Checkbox>For another company — a reseller's or integrator's client, or another site</Checkbox>
+                  </Form.Item>
+                  {forEndUser ? (
+                    <>
                       <Form.Item
-                        label="Licensed to (end user)"
+                        label="Name"
                         name="licensee_name"
                         rules={[{ required: true, whitespace: true, message: "Enter who the licence is for" }, { max: 200 }]}
                         extra="Printed on the quotation and the invoice as who the licence is issued to."
                       >
                         <Input placeholder="Company or plant name" />
                       </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="End user address" name="licensee_address" rules={[{ max: 500 }]}>
+                      <Form.Item label="Address" name="licensee_address" rules={[{ max: 500 }]} style={{ marginBottom: 0 }}>
                         <Input.TextArea rows={2} />
                       </Form.Item>
-                    </Col>
-                  </Row>
-                ) : null}
+                    </>
+                  ) : null}
+                </div>
                 <Form.Item label="Internal note" name="internal_note" extra="Only the team sees this — never on the quotation or in emails." rules={[{ max: 4000 }]} style={{ marginBottom: 0 }}>
                   <Input.TextArea rows={2} />
                 </Form.Item>
