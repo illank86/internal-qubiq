@@ -52,11 +52,12 @@ export const styles = StyleSheet.create({
   title: { fontSize: 20, lineHeight: 1.2, fontFamily: "Helvetica-Bold", color: INK, letterSpacing: 1.5 },
   number: { fontSize: 9.5, lineHeight: 1.2, color: MUTED, marginTop: 3 },
   // The references under the title: a small two-column table, right-aligned.
-  refTable: { marginTop: 6, borderWidth: 0.6, borderColor: LINE, borderRadius: 3 },
-  refRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 2.5, paddingHorizontal: 6, gap: 10 },
-  refRowRule: { borderTopWidth: 0.6, borderColor: LINE },
-  refLabel: { fontSize: 6.5, lineHeight: 1.3, color: MUTED },
-  refValue: { fontSize: 7.5, lineHeight: 1.3, color: INK, fontFamily: "Helvetica-Bold" },
+  // The references under the title: one row of columns, label above value.
+  refTable: { marginTop: 6, flexDirection: "row", borderWidth: 0.6, borderColor: LINE, borderRadius: 3 },
+  refCell: { paddingVertical: 4, paddingHorizontal: 8 },
+  refCellRule: { borderLeftWidth: 0.6, borderColor: LINE },
+  refLabel: { fontSize: 7.5, lineHeight: 1.3, color: MUTED },
+  refValue: { fontSize: 8, lineHeight: 1.3, color: INK, fontFamily: "Helvetica-Bold", marginTop: 1 },
   status: { marginTop: 9, borderWidth: 1, borderRadius: 3, paddingTop: 4, paddingBottom: 3, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
   statusText: { fontFamily: "Helvetica-Bold", fontSize: 7.5, lineHeight: 1, letterSpacing: 1, textAlign: "center" },
 
@@ -323,7 +324,7 @@ export function DocumentHeader({
         {rows.length ? (
           <View style={styles.refTable}>
             {rows.map(([label, value], index) => (
-              <View key={label} style={[styles.refRow, index > 0 ? styles.refRowRule : {}]}>
+              <View key={label} style={[styles.refCell, index > 0 ? styles.refCellRule : {}]}>
                 <Text style={styles.refLabel}>{label}</Text>
                 <Text style={styles.refValue}>{value}</Text>
               </View>
