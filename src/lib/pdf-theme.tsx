@@ -51,6 +51,12 @@ export const styles = StyleSheet.create({
   // of the title.
   title: { fontSize: 20, lineHeight: 1.2, fontFamily: "Helvetica-Bold", color: INK, letterSpacing: 1.5 },
   number: { fontSize: 9.5, lineHeight: 1.2, color: MUTED, marginTop: 3 },
+  // The references under the title: a small two-column table, right-aligned.
+  refTable: { marginTop: 6, borderWidth: 0.6, borderColor: LINE, borderRadius: 4, backgroundColor: PANEL, minWidth: 190 },
+  refRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 3.5, paddingHorizontal: 8, gap: 14 },
+  refRowRule: { borderTopWidth: 0.6, borderColor: LINE },
+  refLabel: { fontSize: 7.5, lineHeight: 1.3, color: MUTED },
+  refValue: { fontSize: 8.5, lineHeight: 1.3, color: INK, fontFamily: "Helvetica-Bold" },
   status: { marginTop: 9, borderWidth: 1, borderRadius: 3, paddingTop: 4, paddingBottom: 3, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
   statusText: { fontFamily: "Helvetica-Bold", fontSize: 7.5, lineHeight: 1, letterSpacing: 1, textAlign: "center" },
 
@@ -291,6 +297,7 @@ export function DocumentHeader({
   title,
   number,
   reference,
+  references,
   stamp,
   stampColor,
 }: {
@@ -298,17 +305,36 @@ export function DocumentHeader({
   number: string | null;
   /** A line under the number, e.g. "Quotation ref. QUO-2026-0001". */
   reference?: string | null;
+  /**
+   * The document's references as a small table under the title, in place of
+   * the number line: number, quotation ref., PO ref. Empty values are left out.
+   */
+  references?: [string, string | null | undefined][];
   stamp: string;
   stampColor: string;
 }) {
+  const rows = (references ?? []).filter(([, value]) => value?.trim());
   return (
     <View style={styles.header}>
       {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
       <Image src={INVOICE_LOGO_DATA_URI} style={styles.logo} />
       <View style={styles.titleBlock}>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.number}>{number}</Text>
-        {reference ? <Text style={[styles.number, { marginTop: 1 }]}>{reference}</Text> : null}
+        {rows.length ? (
+          <View style={styles.refTable}>
+            {rows.map(([label, value], index) => (
+              <View key={label} style={[styles.refRow, index > 0 ? styles.refRowRule : {}]}>
+                <Text style={styles.refLabel}>{label}</Text>
+                <Text style={styles.refValue}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <>
+            <Text style={styles.number}>{number}</Text>
+            {reference ? <Text style={[styles.number, { marginTop: 1 }]}>{reference}</Text> : null}
+          </>
+        )}
         <View style={[styles.status, { borderColor: stampColor }]}>
           <Text style={[styles.statusText, { color: stampColor }]}>{stamp}</Text>
         </View>
