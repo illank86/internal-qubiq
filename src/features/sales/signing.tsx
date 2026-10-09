@@ -246,3 +246,77 @@ export function SigningActions({
     </Flex>
   );
 }
+
+/**
+ * The signing steps as menu entries, for a row's ⋯ menu: download to sign,
+ * upload, check a scan (approvers), send. Render `modal` alongside the menu.
+ */
+export function useSigningMenu({
+  type,
+  row,
+  isApprover,
+  run,
+}: {
+  type: DocumentType;
+  row: SignableRow;
+  isApprover: boolean;
+  run: ReturnType<typeof useAction>["run"];
+}) {
+  const viewPdf = usePdfViewer();
+  const [uploading, setUploading] = useState(false);
+  const state = signingState(row);
+  const k = (name: string) => `${name}:${row.id}`;
+  const items: { key: string; icon: React.ReactNode; label: string; onClick: () => void }[] = [];
+  if (state === "to_sign" || state === "needs_check" || state === "ready") {
+    items.push({
+      key: "download-sign",
+      icon: <DownloadOutlined />,
+      label: state === "to_sign" ? "Download to sign" : "Download again",
+      onClick: () => viewPdf({ ...pdfFor(type, row, true), note: "Print and sign it, or stamp it on your e-Meterai provider's site — then upload the signed copy." }),
+    });
+    items.push({ key: "upload-signed", icon: <UploadOutlined />, label: row.signed_copy_path ? "Upload a new signed copy" : "Upload signed copy", onClick: () => setUploading(true) });
+  }
+  if (state === "needs_check" && isApprover) {
+    items.unshift({
+      key: "check-scan",
+      icon: <SafetyCertificateOutlined />,
+      label: "Check scan & send",
+      onClick: () =>
+        viewPdf({
+          ...pdfFor(type, row),
+          note: "A scan of the signed copy. Check it is the right document, signed (and stamped), before it goes to the customer.",
+          action: {
+            label: "Confirm & send",
+            onClick: async () => {
+              await run(k("confirm"), async () => {
+                await confirmSignedCopy(type, row.id);
+                await sendSignedCopy(type, row.id);
+              }, "Confirmed and sent to the customer.");
+            },
+          },
+        }),
+    });
+  }
+  if (state === "ready") {
+    items.unshift({ key: "send-signed", icon: <SendOutlined />, label: "Send signed copy", onClick: () => void run(k("send-signed"), () => sendSignedCopy(type, row.id), "The signed copy was sent to the customer.") });
+  }
+  if (state === "needs_check" || state === "ready" || state === "sent") {
+    items.push({ key: "view-signed", icon: <EyeOutlined />, label: "View signed copy", onClick: () => viewPdf(pdfFor(type, row)) });
+  }
+  const modal = (
+    <UploadSignedModal
+      open={uploading}
+      type={type}
+      row={row}
+      onClose={() => setUploading(false)}
+      onUploaded={(check) =>
+        void run(
+          k("uploaded"),
+          async () => setUploading(false),
+          check === "verified" ? "Checked: it is the approved version. You can send it now." : "Uploaded. An approver checks the scan, then it is sent.",
+        )
+      }
+    />
+  );
+  return { state, items, modal };
+}

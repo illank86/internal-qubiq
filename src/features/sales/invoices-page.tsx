@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -33,7 +33,7 @@ import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice,
 import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { CcNote } from "./quotation-parts";
 import { DocumentHistory } from "./document-history";
-import { SigningActions, SigningTag } from "./signing";
+import { SigningActions, SigningTag, useSigningMenu } from "./signing";
 import { DocumentLines } from "./document-lines";
 import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
@@ -317,63 +317,60 @@ function InvoiceRowActions({
       },
     });
 
-  let primary: React.ReactNode = null;
+  const signingMenu = useSigningMenu({ type: "invoice", row, isApprover, run });
+  type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
+  const markPaid = () =>
+    run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`);
+
+  // What to do next — the step this invoice is waiting for.
+  const next: Item[] = [];
   if (row.status === "void") {
-    primary = (
-      <Button size="small" icon={<RollbackOutlined />} loading={busy === k("restore")} onClick={() => run(k("restore"), () => setInvoiceStatus(row.id, "unpaid"), "Invoice restored.")}>
-        Restore
-      </Button>
-    );
+    next.push({ key: "restore", icon: <RollbackOutlined />, label: "Restore invoice", onClick: () => run(k("restore"), () => setInvoiceStatus(row.id, "unpaid"), "Invoice restored.") });
   } else if (signing === "to_sign" || signing === "needs_check" || signing === "ready") {
-    primary = <SigningActions type="invoice" row={row} isApprover={isApprover} run={run} busy={busy} />;
+    next.push(...signingMenu.items.filter((item) => item.key !== "view-signed"));
   } else if (waiting) {
-    primary = isApprover ? (
-      <>
-        <Button size="small" type="primary" icon={<CheckOutlined />} loading={busy === k("approve")} onClick={reviewAndApprove}>
-          Review
-        </Button>
-        <Tooltip title="Reject">
-          <Button size="small" danger type="text" icon={<CloseCircleOutlined />} loading={busy === k("reject")} onClick={() => setRejecting(true)} aria-label="Reject" />
-        </Tooltip>
-      </>
-    ) : null;
+    if (isApprover) {
+      next.push({ key: "review", icon: <CheckOutlined />, label: "Review & approve", onClick: reviewAndApprove });
+      next.push({ key: "reject", icon: <CloseCircleOutlined />, label: "Reject…", onClick: () => setRejecting(true), danger: true });
+    }
   } else if (unsent) {
-    primary = (
-      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
-        {isApprover ? (toSign ? "Download to sign" : "Send") : "Request approval"}
-      </Button>
-    );
+    next.push({
+      key: "send",
+      icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />,
+      label: isApprover ? (toSign ? "Download to sign" : "Send to customer") : "Request approval",
+      onClick: () => reviewAndSend(false),
+    });
   } else if (row.status === "unpaid") {
-    primary = (
-      <Button
-        size="small"
-        type="primary"
-        icon={<CheckCircleOutlined />}
-        loading={busy === k("paid")}
-        onClick={() =>
-          run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`)
-        }
-      >
-        Mark paid
-      </Button>
-    );
+    next.push({ key: "paid", icon: <CheckCircleOutlined />, label: "Mark paid", onClick: markPaid });
   }
 
-  const more: MenuProps["items"] = [
+  const view: Item[] = [
+    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onEdit },
+    { key: "pdf", icon: <FilePdfOutlined />, label: "View PDF", onClick: () => viewPdf(invoicePdf(row.id, row.number)) },
+    ...signingMenu.items.filter((item) => item.key === "view-signed"),
+    ...(row.po_path ? [{ key: "po", icon: <FileProtectOutlined />, label: "View purchase order", onClick: () => viewPdf(purchaseOrderPdf({ ...row, po_path: row.po_path! })) }] : []),
     ...(row.quotation_id
-      ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`, onClick: () => viewPdf(quotationPdf(row.quotation_id!, row.quotation_number)) }]
+      ? [{ key: "quote", icon: <FileTextOutlined />, label: `Quotation ${row.quotation_number ?? ""}`.trim(), onClick: () => viewPdf(quotationPdf(row.quotation_id!, row.quotation_number)) }]
+      : []),
+    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
+  ];
+
+  const change: Item[] = [
+    ...(row.status === "unpaid" ? [{ key: "edit", icon: <EditOutlined />, label: "Edit details", onClick: onEdit }] : []),
+    ...(approved && row.status === "unpaid" && (signing === "none" || signing === "sent")
+      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
     ...(row.quotation_id && !row.owner_id
       ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
       : []),
-    ...(approved && row.status === "unpaid" && (signing === "none" || signing === "sent")
-      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
-      : []),
-    ...(row.status === "paid"
-      ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }]
-      : []),
-    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onEdit },
-    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
+    ...(row.status === "paid" ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }] : []),
+  ];
+
+  const group = (label: string, items: Item[]) => (items.length ? [{ type: "group" as const, label, children: items }] : []);
+  const menu: MenuProps["items"] = [
+    ...group("Next step", next),
+    ...group("View", view),
+    ...group("Change", change),
     ...(row.status !== "void"
       ? [
           { type: "divider" as const },
@@ -381,20 +378,19 @@ function InvoiceRowActions({
         ]
       : []),
   ];
+  const working = Boolean(busy?.endsWith(`:${row.id}`));
 
   return (
-    <Flex gap={4} justify="flex-end" align="center" wrap={false} onClick={(event) => event.stopPropagation()}>
-      {primary}
-      <Tooltip title="View PDF">
-        <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(invoicePdf(row.id, row.number))} aria-label="View PDF" />
-      </Tooltip>
-      {row.status === "unpaid" ? (
-        <Tooltip title="Edit">
-          <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit} />
-        </Tooltip>
-      ) : null}
-      <Dropdown menu={{ items: more }} trigger={["click"]} placement="bottomRight">
-        <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this invoice"}`} />
+    <Flex justify="flex-end" onClick={(event) => event.stopPropagation()}>
+      <Dropdown menu={{ items: menu }} trigger={["click"]} placement="bottomRight">
+        <Button
+          size="small"
+          type={next.length ? "default" : "text"}
+          icon={<MoreOutlined />}
+          loading={working}
+          aria-label={`Actions for ${row.number ?? "this invoice"}`}
+          style={next.length ? { borderColor: "var(--ant-color-primary)", color: "var(--ant-color-primary)" } : undefined}
+        />
       </Dropdown>
       <RejectModal
         open={rejecting}
@@ -403,6 +399,7 @@ function InvoiceRowActions({
         onReject={(reason) => run(k("reject"), () => rejectDocument("invoice", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
       />
       <ApprovalHistoryModal type="invoice" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
+      {signingMenu.modal}
     </Flex>
   );
 }

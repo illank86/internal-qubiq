@@ -26,12 +26,12 @@ import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { isExpired, quotationState } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { approveDocument, needsSigning, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus, signingState } from "./api";
+import { approveDocument, needsSigning, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus } from "./api";
 import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
 import { useAction } from "./use-action";
 import { CcNote, QuotationStatusTag } from "./quotation-parts";
 import { QuotationDrawer, type QuotationRow } from "./quotation-drawer";
-import { SigningActions, SigningTag } from "./signing";
+import { SigningTag, useSigningMenu } from "./signing";
 
 type Row = QuotationRow;
 
@@ -248,7 +248,6 @@ function RowActions({
   // An approver sends; anyone else asks an approver (the database decides).
   // Signed by hand: an approver's "send" approves it to be downloaded and signed.
   const toSign = needsSigning(row);
-  const signing = signingState(row);
   const sendLabel = isApprover ? (toSign ? "Download to sign" : "Send") : "Request approval";
   const open = row.status === "draft" || row.status === "sent";
   const expired = isExpired(row);
@@ -308,76 +307,63 @@ function RowActions({
       },
     });
 
-  // The one next step for this quotation.
-  let primary: React.ReactNode = null;
-  if (signing === "to_sign" || signing === "needs_check" || signing === "ready") {
-    primary = <SigningActions type="quotation" row={row} isApprover={isApprover} run={run} busy={busy} />;
+  const signingMenu = useSigningMenu({ type: "quotation", row, isApprover, run });
+  type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
+  const go = (path: string) => () => navigate(path);
+
+  // What to do next — the step this quotation is waiting for.
+  const next: Item[] = [];
+  if (signingMenu.state === "to_sign" || signingMenu.state === "needs_check" || signingMenu.state === "ready") {
+    next.push(...signingMenu.items.filter((item) => item.key !== "view-signed"));
   } else if (waiting) {
-    primary = isApprover ? (
-      <>
-        <Button size="small" type="primary" icon={<CheckOutlined />} loading={busy === k("approve")} onClick={reviewAndApprove}>
-          Review
-        </Button>
-        <Tooltip title="Reject">
-          <Button size="small" danger type="text" icon={<CloseCircleOutlined />} loading={busy === k("reject")} onClick={() => setRejecting(true)} aria-label="Reject" />
-        </Tooltip>
-      </>
-    ) : null;
+    if (isApprover) {
+      next.push({ key: "review", icon: <CheckOutlined />, label: toSign ? "Review & approve" : "Review & send", onClick: reviewAndApprove });
+      next.push({ key: "reject", icon: <CloseCircleOutlined />, label: "Reject…", onClick: () => setRejecting(true), danger: true });
+    }
   } else if (row.status === "draft" && row.contact_email) {
-    primary = (
-      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(false)}>
-        {sendLabel}
-      </Button>
-    );
+    next.push({ key: "send", icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />, label: sendLabel, onClick: () => reviewAndSend(false) });
   } else if (row.status === "sent" && row.approval_status !== "approved" && row.contact_email && !expired) {
     // Edited or not approved since it was sent: the customer's link is paused.
-    primary = (
-      <Button size="small" type="primary" icon={isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />} loading={busy === k("send")} onClick={() => reviewAndSend(true)}>
-        {isApprover ? (toSign ? "Download to sign" : "Send again") : "Request approval"}
-      </Button>
-    );
-  } else if (expired) {
-    primary = (
-      <Button size="small" icon={<CalendarOutlined />} onClick={() => navigate(`/sales/quotations/${row.id}/edit`)}>
-        Renew
-      </Button>
-    );
+    next.push({
+      key: "send",
+      icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />,
+      label: isApprover ? (toSign ? "Download to sign" : "Send again") : "Request approval",
+      onClick: () => reviewAndSend(true),
+    });
+  } else if (expired && open) {
+    next.push({ key: "renew", icon: <CalendarOutlined />, label: "Renew", onClick: go(`/sales/quotations/${row.id}/edit`) });
   } else if (row.status === "sent") {
-    primary = (
-      <Button size="small" icon={<CheckOutlined />} loading={busy === k("accept")} onClick={() => run(k("accept"), () => setQuotationStatus(row.id, "accepted"), "Marked accepted.")}>
-        Mark accepted
-      </Button>
-    );
-  } else if (invoice) {
-    primary = (
-      <Button size="small" icon={<TransactionOutlined />} onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
-        {invoice.number}
-      </Button>
-    );
-  } else if (row.status === "accepted" && canInvoice) {
-    primary = (
-      <Button size="small" type="primary" icon={<TransactionOutlined />} onClick={() => navigate(`/sales/quotations/${row.id}/convert`)}>
-        Convert to invoice
-      </Button>
-    );
+    next.push({ key: "accept", icon: <CheckOutlined />, label: "Mark accepted", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted"), "Marked accepted.") });
+  } else if (row.status === "accepted" && !invoice && canInvoice) {
+    next.push({ key: "convert", icon: <TransactionOutlined />, label: "Convert to invoice", onClick: go(`/sales/quotations/${row.id}/convert`) });
   }
 
-  const more: MenuProps["items"] = [
-    ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved" && (signing === "none" || signing === "sent")
+  const view: Item[] = [
+    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onOpen },
+    { key: "pdf", icon: <FilePdfOutlined />, label: "View PDF", onClick: () => viewPdf(quotationPdf(row.id, row.number)) },
+    ...signingMenu.items.filter((item) => item.key === "view-signed"),
+    ...(invoice ? [{ key: "invoice", icon: <TransactionOutlined />, label: `Invoice ${invoice.number ?? ""}`.trim(), onClick: go(`/sales/invoices?invoice=${invoice.id}`) }] : []),
+    ...(row.status !== "draft" ? [{ key: "customer", icon: <UserOutlined />, label: "Customer account", onClick: go(`/sales/quotations/${row.id}/customer`) }] : []),
+    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
+  ];
+
+  const change: Item[] = [
+    ...(open && !next.some((item) => item.key === "renew") ? [{ key: "edit", icon: <EditOutlined />, label: "Edit lines & prices", onClick: go(`/sales/quotations/${row.id}/edit`) }] : []),
+    ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved" && (signingMenu.state === "none" || signingMenu.state === "sent")
       ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
-    { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onOpen },
-    { key: "history", icon: <ClockCircleOutlined />, label: "Approval history", onClick: () => setHistory(true) },
     ...(row.status === "sent" && expired
       ? [{ key: "late", icon: <CheckOutlined />, label: "Accept anyway (expired)", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted", true), "Accepted after expiry.") }]
       : []),
-    ...(row.status === "sent"
-      ? [{ key: "decline", icon: <DislikeOutlined />, label: "Mark declined", onClick: () => run(k("decline"), () => setQuotationStatus(row.id, "declined"), "Marked declined.") }]
-      : []),
-    ...(row.status !== "draft" ? [{ key: "customer", icon: <UserOutlined />, label: "Customer account", onClick: () => navigate(`/sales/quotations/${row.id}/customer`) }] : []),
-    ...(!open && !invoice
-      ? [{ key: "reopen", icon: <RedoOutlined />, label: "Reopen", onClick: () => run(k("reopen"), () => setQuotationStatus(row.id, row.sent_at ? "sent" : "draft"), "Reopened.") }]
-      : []),
+    ...(row.status === "sent" ? [{ key: "decline", icon: <DislikeOutlined />, label: "Mark declined", onClick: () => run(k("decline"), () => setQuotationStatus(row.id, "declined"), "Marked declined.") }] : []),
+    ...(!open && !invoice ? [{ key: "reopen", icon: <RedoOutlined />, label: "Reopen", onClick: () => run(k("reopen"), () => setQuotationStatus(row.id, row.sent_at ? "sent" : "draft"), "Reopened.") }] : []),
+  ];
+
+  const group = (label: string, items: Item[]) => (items.length ? [{ type: "group" as const, label, children: items }] : []);
+  const menu: MenuProps["items"] = [
+    ...group("Next step", next),
+    ...group("View", view),
+    ...group("Change", change),
     ...(open
       ? [
           { type: "divider" as const },
@@ -385,20 +371,19 @@ function RowActions({
         ]
       : []),
   ];
+  const working = Boolean(busy?.endsWith(`:${row.id}`));
 
   return (
-    <Flex gap={4} justify="flex-end" align="center" wrap={false} onClick={(event) => event.stopPropagation()}>
-      {primary}
-      <Tooltip title="View PDF">
-        <Button size="small" type="text" icon={<FilePdfOutlined />} onClick={() => viewPdf(quotationPdf(row.id, row.number))} aria-label="View PDF" />
-      </Tooltip>
-      {open ? (
-        <Tooltip title="Edit">
-          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => navigate(`/sales/quotations/${row.id}/edit`)} />
-        </Tooltip>
-      ) : null}
-      <Dropdown menu={{ items: more }} trigger={["click"]} placement="bottomRight" disabled={more.length === 0}>
-        <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`More actions for ${row.number ?? "this quotation"}`} />
+    <Flex justify="flex-end" onClick={(event) => event.stopPropagation()}>
+      <Dropdown menu={{ items: menu }} trigger={["click"]} placement="bottomRight">
+        <Button
+          size="small"
+          type={next.length ? "default" : "text"}
+          icon={<MoreOutlined />}
+          loading={working}
+          aria-label={`Actions for ${row.number ?? "this quotation"}`}
+          style={next.length ? { borderColor: "var(--ant-color-primary)", color: "var(--ant-color-primary)" } : undefined}
+        />
       </Dropdown>
       <RejectModal
         open={rejecting}
@@ -407,6 +392,8 @@ function RowActions({
         onReject={(reason) => run(k("reject"), () => rejectDocument("quotation", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
       />
       <ApprovalHistoryModal type="quotation" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
+      {signingMenu.modal}
     </Flex>
   );
 }
+
