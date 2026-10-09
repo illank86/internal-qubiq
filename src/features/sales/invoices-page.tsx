@@ -15,7 +15,6 @@ import {
   FileProtectOutlined,
   FileTextOutlined,
   MoreOutlined,
-  PaperClipOutlined,
   ProfileOutlined,
   RollbackOutlined,
   SafetyCertificateOutlined,
@@ -124,20 +123,7 @@ export function InvoicesPage() {
       key: "number",
       width: 170,
       render: (_, row) => (
-        <Flex vertical>
-          <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{row.number}</Typography.Text>
-          {row.quotation_number ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Quotation ref. {row.quotation_number}
-            </Typography.Text>
-          ) : null}
-          {row.po_number || row.po_path ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {row.po_number ? `PO ref. ${row.po_number}` : "PO attached"}
-              {row.po_number && row.po_path ? <PaperClipOutlined style={{ marginLeft: 4 }} aria-label="PO attached" /> : null}
-            </Typography.Text>
-          ) : null}
-        </Flex>
+        <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 13, whiteSpace: "nowrap" }}>{row.number}</Typography.Text>
       ),
     },
     {
