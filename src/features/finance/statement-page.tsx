@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
-import { Alert, App, Button, Flex, Input, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
-import { CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined, LockOutlined } from "@ant-design/icons";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Alert, App, Button, Card, Flex, Input, Result, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { ArrowLeftOutlined, CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined, LockOutlined } from "@ant-design/icons";
+import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
+import { useCan } from "@/auth/use-auth";
 import { errorText } from "@/lib/sales";
 import { downloadBlob, rp, signedOn } from "./ledger-book";
 import { jakartaToday } from "./api";
@@ -13,26 +15,37 @@ import type { Company } from "./exports";
 import { loadStatementBook, statementCsv, statementFileBase, type Statement, type StatementBook, type StatementKey } from "./statement-book";
 
 /**
- * Financial statements: pick the period, look at them as they will print,
- * then download — PDF (opens in the PDF viewer first), Excel (all three
- * sheets) or CSV (the open tab, plain data).
+ * Financial statements as a page (not a dialog, so the PDF viewer is the only
+ * one that opens): pick the period, look at them as they will print, then
+ * download — PDF (opens in the PDF viewer first), Excel (all three sheets)
+ * or CSV (the open tab, plain data). `?from=&to=` opens it on a period.
  */
 
-export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClose }: { from?: string; to?: string; onClose: () => void }) {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function StatementPage() {
+  const can = useCan();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { message } = App.useApp();
   const viewPdf = usePdfViewer();
+  const initialFrom = ISO_DATE.test(params.get("from") ?? "") ? params.get("from")! : null;
+  const initialTo = ISO_DATE.test(params.get("to") ?? "") ? params.get("to")! : null;
   const [preset, setPreset] = useState<Preset>(initialFrom ? "custom" : "year");
   const [custom, setCustom] = useState<[string, string]>(() => [initialFrom ?? rangeOf("year")[0], initialTo ?? jakartaToday()]);
   const [from, to] = preset === "custom" ? custom : rangeOf(preset);
   const [key, setKey] = useState<StatementKey>("laba-rugi");
   const [busy, setBusy] = useState<string | null>(null);
   const valid = Boolean(from && to && from <= to);
+  const allowed = can("accounting.manage");
 
-  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["statement-book", from, to], enabled: valid, queryFn: () => loadStatementBook(from, to) });
+  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["statement-book", from, to], enabled: valid && allowed, queryFn: () => loadStatementBook(from, to) });
   // The date written above the signatures; today unless changed.
   const [signDate, setSignDate] = useState(jakartaToday);
   const book = loaded ? signedOn(loaded, signDate) : undefined;
   const statement = book?.statements.find((item) => item.key === key);
+
+  if (!allowed) return <Result status="403" title="Finance only" subTitle="The financial statements are for the Finance role." />;
 
   const run = async (name: string, work: () => Promise<void>) => {
     setBusy(name);
@@ -57,18 +70,15 @@ export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClos
     book && statement && run("csv", async () => downloadBlob(new Blob([statementCsv(statement)], { type: "text/csv;charset=utf-8" }), `${statement.key}_${book.from}_${book.to}.csv`));
 
   return (
-    <Modal
-      open
-      onCancel={onClose}
-      width={1080}
-      title="Financial statements"
-      styles={{ body: { paddingTop: 4 } }}
-      footer={
-        <Flex justify="space-between" align="center" gap={8} wrap>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            PDF and Excel hold all three statements. CSV is the open tab only, as plain data.
-          </Typography.Text>
+    <>
+      <PageTitle
+        title="Laporan Keuangan"
+        description="Profit and loss, balance sheet and cash flow for a period, as they will print. PDF and Excel hold all three; CSV is the open tab only, as plain data."
+        actions={
           <Flex gap={8} wrap>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+              Back
+            </Button>
             <Tooltip title={statement ? `${statement.title} as plain CSV, no styling` : undefined}>
               <Button icon={<FileTextOutlined />} disabled={!statement} loading={busy === "csv"} onClick={csv}>
                 CSV
@@ -81,39 +91,40 @@ export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClos
               View PDF
             </Button>
           </Flex>
-        </Flex>
-      }
-    >
-      <Flex vertical gap={12}>
-        <Flex gap={8} align="center" justify="space-between" wrap>
-          <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
-          <Flex gap={6} align="center">
-            <Typography.Text type="secondary">Signed on</Typography.Text>
-            <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
-            <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
-              Who signs?
-            </Link>
+        }
+      />
+      <Card>
+        <Flex vertical gap={12}>
+          <Flex gap={8} align="center" justify="space-between" wrap>
+            <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+            <Flex gap={6} align="center">
+              <Typography.Text type="secondary">Signed on</Typography.Text>
+              <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
+              <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
+                Who signs?
+              </Link>
+            </Flex>
           </Flex>
+          {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
+          {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The statements could not be loaded.")} /> : null}
+          {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
+          {book && statement ? (
+            <>
+              <Summary book={book} />
+              <Tabs
+                activeKey={key}
+                onChange={(value) => setKey(value as StatementKey)}
+                items={book.statements.map((item) => ({ key: item.key, label: item.key === "laba-rugi" ? "Laba Rugi" : item.key === "neraca" ? "Neraca" : "Arus Kas" }))}
+                style={{ marginBottom: -12 }}
+              />
+              <PaperSheet scroll={false} company={book.company} title={statement.title} subtitle={statement.subtitle} printed={book.printed}>
+                <StatementTable statement={statement} company={book.company} />
+              </PaperSheet>
+            </>
+          ) : null}
         </Flex>
-        {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
-        {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The statements could not be loaded.")} /> : null}
-        {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
-        {book && statement ? (
-          <>
-            <Summary book={book} />
-            <Tabs
-              activeKey={key}
-              onChange={(value) => setKey(value as StatementKey)}
-              items={book.statements.map((item) => ({ key: item.key, label: item.key === "laba-rugi" ? "Laba Rugi" : item.key === "neraca" ? "Neraca" : "Arus Kas" }))}
-              style={{ marginBottom: -12 }}
-            />
-            <PaperSheet company={book.company} title={statement.title} subtitle={statement.subtitle} printed={book.printed}>
-              <StatementTable statement={statement} company={book.company} />
-            </PaperSheet>
-          </>
-        ) : null}
-      </Flex>
-    </Modal>
+      </Card>
+    </>
   );
 }
 

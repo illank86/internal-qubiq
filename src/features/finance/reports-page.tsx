@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
 import { loadStatements } from "./statement-book";
-import { StatementPreviewModal } from "./statement-preview";
 
 type Line = { code: string; name: string; name_id: string | null; type: string; amount: number; deductible?: boolean };
 
@@ -31,7 +30,6 @@ export function ReportsPage() {
   const [preset, setPreset] = useState<Preset>("this_year");
   const [custom, setCustom] = useState<[string, string]>(range("this_year"));
   const [from, to] = preset === "custom" ? custom : range(preset);
-  const [statementsOpen, setStatementsOpen] = useState(false);
   const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({
     queryKey: ["financial-statements", from, to],
@@ -41,7 +39,7 @@ export function ReportsPage() {
 
   const exportItems = data
     ? [
-        { key: "statements", icon: <FileDoneOutlined />, label: "Laporan Keuangan — preview, then PDF, Excel or CSV", onClick: () => setStatementsOpen(true) },
+        { key: "statements", icon: <FileDoneOutlined />, label: "Laporan Keuangan — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/reports/statements?from=${from}&to=${to}`) },
         { type: "divider" as const },
         { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/journal/book?from=${from}&to=${to}`) },
       ]
@@ -203,7 +201,6 @@ export function ReportsPage() {
           <MonthClosing />
         </Flex>
       )}
-      {statementsOpen ? <StatementPreviewModal from={from} to={to} onClose={() => setStatementsOpen(false)} /> : null}
     </>
   );
 }
