@@ -50,6 +50,8 @@ export const SOURCE_ID: Record<string, string> = {
   tax_payment: "Setoran pajak",
   manual: "Memorial",
   reversal: "Pembalik",
+  payroll: "Penggajian",
+  bpjs_payment: "Setoran BPJS",
 };
 
 export const TYPE_ID: Record<string, string> = { asset: "Aset", liability: "Kewajiban", equity: "Ekuitas", income: "Pendapatan", expense: "Beban" };

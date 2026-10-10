@@ -29,6 +29,7 @@ import {
   SettingOutlined,
   StarOutlined,
   TagsOutlined,
+  SolutionOutlined,
   TeamOutlined,
   TransactionOutlined,
 } from "@ant-design/icons";
@@ -76,6 +77,7 @@ export const NAV: NavGroup[] = [
       { path: "/sales/invoices", label: "Invoices", icon: TransactionOutlined, permissions: ["accounting.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "Invoices made from accepted quotations: approval, sending, payments, faktur pajak." },
       { path: "/finance/money-in", label: "Money in", icon: VerticalAlignBottomOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Payments received: what arrived, tax withheld (bukti potong), charges." },
       { path: "/finance/money-out", label: "Money out", icon: VerticalAlignTopOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Expenses, paid now or owed, with receipts." },
+      { path: "/finance/payroll", label: "Payroll", icon: SolutionOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Employees, monthly salaries with PPh 21 and BPJS, payslips." },
       { path: "/finance/tax", label: "Tax", icon: AccountBookOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Each tax month: what is due, what was paid, lists for Coretax." },
       { path: "/finance/reports", label: "Reports", icon: BarChartOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Profit and loss, balance sheet, cash flow, ledger; closing months." },
       { path: "/finance/journal", label: "Journal", icon: ReadOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Every booking, debit and credit." },

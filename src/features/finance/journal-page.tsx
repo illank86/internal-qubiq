@@ -29,6 +29,8 @@ const SOURCE: Record<string, { label: string; color: string }> = {
   expense: { label: "Expense", color: "orange" },
   expense_payment: { label: "Expense paid", color: "gold" },
   tax_payment: { label: "Tax paid", color: "purple" },
+  payroll: { label: "Payroll", color: "cyan" },
+  bpjs_payment: { label: "BPJS paid", color: "geekblue" },
   manual: { label: "Manual", color: "default" },
   reversal: { label: "Reversal", color: "red" },
 };

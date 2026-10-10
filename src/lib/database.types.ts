@@ -15,10 +15,33 @@ export type Database = {
   public: {
     Tables: {
       accounting_periods: {
-        Row: { closed_at: string; closed_by: string | null; month: string; note: string | null }
-        Insert: { closed_at?: string; closed_by?: string | null; month: string; note?: string | null }
-        Update: { closed_at?: string; closed_by?: string | null; month?: string; note?: string | null }
-        Relationships: []
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          month: string
+          note: string | null
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          month: string
+          note?: string | null
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          month?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_periods_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       accounting_settings: {
         Row: {
@@ -143,564 +166,6 @@ export type Database = {
         }
         Relationships: []
       }
-      bank_accounts: {
-        Row: {
-          account_id: string | null
-          account_last4: string | null
-          active: boolean
-          bank_name: string | null
-          created_at: string
-          currency: string
-          id: string
-          name: string
-        }
-        Insert: {
-          account_id?: string | null
-          account_last4?: string | null
-          active?: boolean
-          bank_name?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          name: string
-        }
-        Update: {
-          account_id?: string | null
-          account_last4?: string | null
-          active?: boolean
-          bank_name?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      expenses: {
-        Row: {
-          account_id: string
-          amount: number
-          attachment_name: string | null
-          attachment_path: string | null
-          bank_account_id: string | null
-          created_at: string
-          created_by: string | null
-          currency: string
-          deductible: boolean
-          description: string
-          faktur_number: string | null
-          id: string
-          idr_paid: number | null
-          journal_id: string | null
-          number: string
-          paid_on: string | null
-          payment_journal_id: string | null
-          ppn_in_amount: number
-          spent_on: string
-          status: string
-          vendor_name: string
-          vendor_npwp: string | null
-          void_reason: string | null
-          voided_at: string | null
-        }
-        Insert: {
-          account_id: string
-          amount: number
-          attachment_name?: string | null
-          attachment_path?: string | null
-          bank_account_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          deductible?: boolean
-          description: string
-          faktur_number?: string | null
-          id?: string
-          idr_paid?: number | null
-          journal_id?: string | null
-          number: string
-          paid_on?: string | null
-          payment_journal_id?: string | null
-          ppn_in_amount?: number
-          spent_on: string
-          status?: string
-          vendor_name: string
-          vendor_npwp?: string | null
-          void_reason?: string | null
-          voided_at?: string | null
-        }
-        Update: {
-          account_id?: string
-          amount?: number
-          attachment_name?: string | null
-          attachment_path?: string | null
-          bank_account_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          deductible?: boolean
-          description?: string
-          faktur_number?: string | null
-          id?: string
-          idr_paid?: number | null
-          journal_id?: string | null
-          number?: string
-          paid_on?: string | null
-          payment_journal_id?: string | null
-          ppn_in_amount?: number
-          spent_on?: string
-          status?: string
-          vendor_name?: string
-          vendor_npwp?: string | null
-          void_reason?: string | null
-          voided_at?: string | null
-        }
-        Relationships: []
-      }
-      journal_entries: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          entry_date: string
-          id: string
-          memo: string | null
-          number: string
-          rate_estimated: boolean
-          reversal_of: string | null
-          reversed_by: string | null
-          source_id: string | null
-          source_type: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          entry_date: string
-          id?: string
-          memo?: string | null
-          number: string
-          rate_estimated?: boolean
-          reversal_of?: string | null
-          reversed_by?: string | null
-          source_id?: string | null
-          source_type: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          entry_date?: string
-          id?: string
-          memo?: string | null
-          number?: string
-          rate_estimated?: boolean
-          reversal_of?: string | null
-          reversed_by?: string | null
-          source_id?: string | null
-          source_type?: string
-        }
-        Relationships: []
-      }
-      journal_lines: {
-        Row: {
-          account_id: string
-          amount_fc: number | null
-          credit: number
-          currency: string
-          debit: number
-          description: string | null
-          entry_id: string
-          id: string
-          rate: number | null
-        }
-        Insert: {
-          account_id: string
-          amount_fc?: number | null
-          credit?: number
-          currency?: string
-          debit?: number
-          description?: string | null
-          entry_id: string
-          id?: string
-          rate?: number | null
-        }
-        Update: {
-          account_id?: string
-          amount_fc?: number | null
-          credit?: number
-          currency?: string
-          debit?: number
-          description?: string | null
-          entry_id?: string
-          id?: string
-          rate?: number | null
-        }
-        Relationships: []
-      }
-      kmk_rates: {
-        Row: {
-          currency: string
-          rate: number
-          reference: string | null
-          valid_from: string
-          valid_to: string
-        }
-        Insert: {
-          currency: string
-          rate: number
-          reference?: string | null
-          valid_from: string
-          valid_to: string
-        }
-        Update: {
-          currency?: string
-          rate?: number
-          reference?: string | null
-          valid_from?: string
-          valid_to?: string
-        }
-        Relationships: []
-      }
-      receipts: {
-        Row: {
-          bank_account_id: string
-          bank_charges: number
-          bukti_potong_date: string | null
-          bukti_potong_number: string | null
-          bukti_potong_path: string | null
-          created_at: string
-          created_by: string | null
-          credit_account_id: string | null
-          currency: string
-          difference_reason: string | null
-          id: string
-          idr_credited: number | null
-          invoice_id: string | null
-          journal_id: string | null
-          net_received: number
-          note: string | null
-          number: string
-          other_difference: number
-          received_on: string
-          reference: string | null
-          settled: number | null
-          void_reason: string | null
-          voided_at: string | null
-          voided_by: string | null
-          withholding_amount: number
-          withholding_type: string | null
-        }
-        Insert: {
-          bank_account_id: string
-          bank_charges?: number
-          bukti_potong_date?: string | null
-          bukti_potong_number?: string | null
-          bukti_potong_path?: string | null
-          created_at?: string
-          created_by?: string | null
-          credit_account_id?: string | null
-          currency: string
-          difference_reason?: string | null
-          id?: string
-          idr_credited?: number | null
-          invoice_id?: string | null
-          journal_id?: string | null
-          net_received: number
-          note?: string | null
-          number: string
-          other_difference?: number
-          received_on: string
-          reference?: string | null
-          settled?: never
-          void_reason?: string | null
-          voided_at?: string | null
-          voided_by?: string | null
-          withholding_amount?: number
-          withholding_type?: string | null
-        }
-        Update: {
-          bank_account_id?: string
-          bank_charges?: number
-          bukti_potong_date?: string | null
-          bukti_potong_number?: string | null
-          bukti_potong_path?: string | null
-          created_at?: string
-          created_by?: string | null
-          credit_account_id?: string | null
-          currency?: string
-          difference_reason?: string | null
-          id?: string
-          idr_credited?: number | null
-          invoice_id?: string | null
-          journal_id?: string | null
-          net_received?: number
-          note?: string | null
-          number?: string
-          other_difference?: number
-          received_on?: string
-          reference?: string | null
-          settled?: never
-          void_reason?: string | null
-          voided_at?: string | null
-          voided_by?: string | null
-          withholding_amount?: number
-          withholding_type?: string | null
-        }
-        Relationships: []
-      }
-      tax_payments: {
-        Row: {
-          amount: number
-          bank_account_id: string
-          billing_code: string | null
-          created_at: string
-          created_by: string | null
-          id: string
-          journal_id: string | null
-          masa: string
-          note: string | null
-          ntpn: string | null
-          paid_on: string
-          tax_type: string
-          void_reason: string | null
-          voided_at: string | null
-        }
-        Insert: {
-          amount: number
-          bank_account_id: string
-          billing_code?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          journal_id?: string | null
-          masa: string
-          note?: string | null
-          ntpn?: string | null
-          paid_on: string
-          tax_type: string
-          void_reason?: string | null
-          voided_at?: string | null
-        }
-        Update: {
-          amount?: number
-          bank_account_id?: string
-          billing_code?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          journal_id?: string | null
-          masa?: string
-          note?: string | null
-          ntpn?: string | null
-          paid_on?: string
-          tax_type?: string
-          void_reason?: string | null
-          voided_at?: string | null
-        }
-        Relationships: []
-      }
-      delivery_order_files: {
-        Row: {
-          id: string
-          delivery_order_id: string
-          kind: string
-          path: string
-          file_name: string | null
-          uploaded_by: string | null
-          uploaded_at: string
-        }
-        Insert: {
-          id?: string
-          delivery_order_id?: string
-          kind?: string
-          path?: string
-          file_name?: string | null
-          uploaded_by?: string | null
-          uploaded_at?: string
-        }
-        Update: {
-          id?: string
-          delivery_order_id?: string
-          kind?: string
-          path?: string
-          file_name?: string | null
-          uploaded_by?: string | null
-          uploaded_at?: string
-        }
-        Relationships: []
-      }
-      delivery_order_items: {
-        Row: {
-          id: string
-          delivery_order_id: string
-          position: number
-          invoice_group_id: string | null
-          description: string
-          detail: string | null
-          quantity: number
-          unit: string
-        }
-        Insert: {
-          id?: string
-          delivery_order_id?: string
-          position?: number
-          invoice_group_id?: string | null
-          description?: string
-          detail?: string | null
-          quantity?: number
-          unit?: string
-        }
-        Update: {
-          id?: string
-          delivery_order_id?: string
-          position?: number
-          invoice_group_id?: string | null
-          description?: string
-          detail?: string | null
-          quantity?: number
-          unit?: string
-        }
-        Relationships: []
-      }
-      delivery_orders: {
-        Row: {
-          id: string
-          number: string | null
-          invoice_id: string
-          quotation_id: string | null
-          owner_id: string | null
-          prepared_by_name: string | null
-          prepared_by_title: string | null
-          status: string
-          issue_date: string
-          delivery_date: string | null
-          method: string
-          invoice_number: string | null
-          quotation_number: string | null
-          po_number: string | null
-          ship_to_name: string
-          ship_to_company: string | null
-          ship_to_address: string | null
-          contact_name: string | null
-          contact_email: string | null
-          contact_phone: string | null
-          cc_emails: string[]
-          software_version: string | null
-          notes: string | null
-          signature_mode: string
-          signature_id: string | null
-          delivered_by_name: string | null
-          delivered_by_same: boolean
-          delivered_by_title: string | null
-          seller: Json | null
-          public_token: string
-          send_count: number
-          issued_at: string | null
-          issued_by: string | null
-          received_at: string | null
-          received_by_name: string | null
-          received_by_title: string | null
-          received_via: string | null
-          cancelled_at: string | null
-          cancel_reason: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          number?: string | null
-          invoice_id?: string
-          quotation_id?: string | null
-          owner_id?: string | null
-          prepared_by_name?: string | null
-          prepared_by_title?: string | null
-          status?: string
-          issue_date?: string
-          delivery_date?: string | null
-          method?: string
-          invoice_number?: string | null
-          quotation_number?: string | null
-          po_number?: string | null
-          ship_to_name?: string
-          ship_to_company?: string | null
-          ship_to_address?: string | null
-          contact_name?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          cc_emails?: string[]
-          software_version?: string | null
-          notes?: string | null
-          signature_mode?: string
-          signature_id?: string | null
-          delivered_by_name?: string | null
-          delivered_by_same?: boolean
-          delivered_by_title?: string | null
-          seller?: Json | null
-          public_token?: string
-          send_count?: number
-          issued_at?: string | null
-          issued_by?: string | null
-          received_at?: string | null
-          received_by_name?: string | null
-          received_by_title?: string | null
-          received_via?: string | null
-          cancelled_at?: string | null
-          cancel_reason?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          number?: string | null
-          invoice_id?: string
-          quotation_id?: string | null
-          owner_id?: string | null
-          prepared_by_name?: string | null
-          prepared_by_title?: string | null
-          status?: string
-          issue_date?: string
-          delivery_date?: string | null
-          method?: string
-          invoice_number?: string | null
-          quotation_number?: string | null
-          po_number?: string | null
-          ship_to_name?: string
-          ship_to_company?: string | null
-          ship_to_address?: string | null
-          contact_name?: string | null
-          contact_email?: string | null
-          contact_phone?: string | null
-          cc_emails?: string[]
-          software_version?: string | null
-          notes?: string | null
-          signature_mode?: string
-          signature_id?: string | null
-          delivered_by_name?: string | null
-          delivered_by_same?: boolean
-          delivered_by_title?: string | null
-          seller?: Json | null
-          public_token?: string
-          send_count?: number
-          issued_at?: string | null
-          issued_by?: string | null
-          received_at?: string | null
-          received_by_name?: string | null
-          received_by_title?: string | null
-          received_via?: string | null
-          cancelled_at?: string | null
-          cancel_reason?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      staff_session_settings: {
-        Row: { id: boolean; idle_minutes: number; max_session_hours: number; updated_at: string }
-        Insert: { id?: boolean; idle_minutes?: number; max_session_hours?: number; updated_at?: string }
-        Update: { id?: boolean; idle_minutes?: number; max_session_hours?: number; updated_at?: string }
-        Relationships: []
-      }
       audit_log: {
         Row: {
           action: string
@@ -741,6 +206,47 @@ export type Database = {
             columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_accounts: {
+        Row: {
+          account_id: string | null
+          account_last4: string | null
+          active: boolean
+          bank_name: string | null
+          created_at: string
+          currency: string
+          id: string
+          name: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_last4?: string | null
+          active?: boolean
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          account_id?: string | null
+          account_last4?: string | null
+          active?: boolean
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1087,6 +593,277 @@ export type Database = {
           },
         ]
       }
+      delivery_order_files: {
+        Row: {
+          delivery_order_id: string
+          file_name: string | null
+          id: string
+          kind: string
+          path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          delivery_order_id: string
+          file_name?: string | null
+          id?: string
+          kind: string
+          path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          delivery_order_id?: string
+          file_name?: string | null
+          id?: string
+          kind?: string
+          path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_order_files_delivery_order_id_fkey"
+            columns: ["delivery_order_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_order_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_order_items: {
+        Row: {
+          delivery_order_id: string
+          description: string
+          detail: string | null
+          id: string
+          invoice_group_id: string | null
+          position: number
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          delivery_order_id: string
+          description: string
+          detail?: string | null
+          id?: string
+          invoice_group_id?: string | null
+          position?: number
+          quantity: number
+          unit?: string
+        }
+        Update: {
+          delivery_order_id?: string
+          description?: string
+          detail?: string | null
+          id?: string
+          invoice_group_id?: string | null
+          position?: number
+          quantity?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_order_items_delivery_order_id_fkey"
+            columns: ["delivery_order_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_order_items_invoice_group_id_fkey"
+            columns: ["invoice_group_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_orders: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cc_emails: string[]
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          delivered_by_name: string | null
+          delivered_by_same: boolean
+          delivered_by_title: string | null
+          delivery_date: string | null
+          id: string
+          invoice_id: string
+          invoice_number: string | null
+          issue_date: string
+          issued_at: string | null
+          issued_by: string | null
+          method: string
+          notes: string | null
+          number: string | null
+          owner_id: string | null
+          po_number: string | null
+          prepared_by_name: string | null
+          prepared_by_title: string | null
+          public_token: string
+          quotation_id: string | null
+          quotation_number: string | null
+          received_at: string | null
+          received_by_name: string | null
+          received_by_title: string | null
+          received_via: string | null
+          seller: Json | null
+          send_count: number
+          ship_to_address: string | null
+          ship_to_company: string | null
+          ship_to_name: string
+          signature_id: string | null
+          signature_mode: string
+          software_version: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cc_emails?: string[]
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_by_name?: string | null
+          delivered_by_same?: boolean
+          delivered_by_title?: string | null
+          delivery_date?: string | null
+          id?: string
+          invoice_id: string
+          invoice_number?: string | null
+          issue_date?: string
+          issued_at?: string | null
+          issued_by?: string | null
+          method?: string
+          notes?: string | null
+          number?: string | null
+          owner_id?: string | null
+          po_number?: string | null
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
+          public_token?: string
+          quotation_id?: string | null
+          quotation_number?: string | null
+          received_at?: string | null
+          received_by_name?: string | null
+          received_by_title?: string | null
+          received_via?: string | null
+          seller?: Json | null
+          send_count?: number
+          ship_to_address?: string | null
+          ship_to_company?: string | null
+          ship_to_name: string
+          signature_id?: string | null
+          signature_mode?: string
+          software_version?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cc_emails?: string[]
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_by_name?: string | null
+          delivered_by_same?: boolean
+          delivered_by_title?: string | null
+          delivery_date?: string | null
+          id?: string
+          invoice_id?: string
+          invoice_number?: string | null
+          issue_date?: string
+          issued_at?: string | null
+          issued_by?: string | null
+          method?: string
+          notes?: string | null
+          number?: string | null
+          owner_id?: string | null
+          po_number?: string | null
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
+          public_token?: string
+          quotation_id?: string | null
+          quotation_number?: string | null
+          received_at?: string | null
+          received_by_name?: string | null
+          received_by_title?: string | null
+          received_via?: string | null
+          seller?: Json | null
+          send_count?: number
+          ship_to_address?: string | null
+          ship_to_company?: string | null
+          ship_to_name?: string
+          signature_id?: string | null
+          signature_mode?: string
+          software_version?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_signature_id_fkey"
+            columns: ["signature_id"]
+            isOneToOne: false
+            referencedRelation: "document_signatures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_approvals: {
         Row: {
           action: string
@@ -1124,7 +901,22 @@ export type Database = {
           note?: string | null
           requester_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "document_approvals_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_approvals_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_approvers: {
         Row: {
@@ -1142,7 +934,73 @@ export type Database = {
           added_by?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "document_approvers_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_approvers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_signatures: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          image: string
+          place: string | null
+          retired_at: string | null
+          retired_by: string | null
+          signatory_name: string
+          signatory_title: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image: string
+          place?: string | null
+          retired_at?: string | null
+          retired_by?: string | null
+          signatory_name: string
+          signatory_title?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image?: string
+          place?: string | null
+          retired_at?: string | null
+          retired_by?: string | null
+          signatory_name?: string
+          signatory_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_signatures_retired_by_fkey"
+            columns: ["retired_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       download_events: {
         Row: {
@@ -1231,6 +1089,195 @@ export type Database = {
             columns: ["release_id"]
             isOneToOne: false
             referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          base_salary: number
+          bpjs_kesehatan: boolean
+          bpjs_kesehatan_number: string | null
+          bpjs_ketenagakerjaan: boolean
+          bpjs_ketenagakerjaan_number: string | null
+          created_at: string
+          email: string | null
+          fixed_allowance: number
+          full_name: string
+          id: string
+          joined_on: string
+          left_on: string | null
+          nik: string | null
+          notes: string | null
+          npwp: string | null
+          position: string | null
+          ptkp_status: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          base_salary?: number
+          bpjs_kesehatan?: boolean
+          bpjs_kesehatan_number?: string | null
+          bpjs_ketenagakerjaan?: boolean
+          bpjs_ketenagakerjaan_number?: string | null
+          created_at?: string
+          email?: string | null
+          fixed_allowance?: number
+          full_name: string
+          id?: string
+          joined_on: string
+          left_on?: string | null
+          nik?: string | null
+          notes?: string | null
+          npwp?: string | null
+          position?: string | null
+          ptkp_status?: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          base_salary?: number
+          bpjs_kesehatan?: boolean
+          bpjs_kesehatan_number?: string | null
+          bpjs_ketenagakerjaan?: boolean
+          bpjs_ketenagakerjaan_number?: string | null
+          created_at?: string
+          email?: string | null
+          fixed_allowance?: number
+          full_name?: string
+          id?: string
+          joined_on?: string
+          left_on?: string | null
+          nik?: string | null
+          notes?: string | null
+          npwp?: string | null
+          position?: string | null
+          ptkp_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          account_id: string
+          amount: number
+          attachment_name: string | null
+          attachment_path: string | null
+          bank_account_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          deductible: boolean
+          description: string
+          faktur_number: string | null
+          id: string
+          idr_paid: number | null
+          journal_id: string | null
+          number: string
+          paid_on: string | null
+          payment_journal_id: string | null
+          ppn_in_amount: number
+          spent_on: string
+          status: string
+          vendor_name: string
+          vendor_npwp: string | null
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          attachment_name?: string | null
+          attachment_path?: string | null
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deductible?: boolean
+          description: string
+          faktur_number?: string | null
+          id?: string
+          idr_paid?: number | null
+          journal_id?: string | null
+          number: string
+          paid_on?: string | null
+          payment_journal_id?: string | null
+          ppn_in_amount?: number
+          spent_on: string
+          status?: string
+          vendor_name: string
+          vendor_npwp?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          attachment_name?: string | null
+          attachment_path?: string | null
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deductible?: boolean
+          description?: string
+          faktur_number?: string | null
+          id?: string
+          idr_paid?: number | null
+          journal_id?: string | null
+          number?: string
+          paid_on?: string | null
+          payment_journal_id?: string | null
+          ppn_in_amount?: number
+          spent_on?: string
+          status?: string
+          vendor_name?: string
+          vendor_npwp?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_payment_journal_id_fkey"
+            columns: ["payment_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -1383,6 +1430,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fx_rates: {
+        Row: {
+          currency: string
+          fetched_at: string
+          per_usd: number
+          rate_date: string
+          source: string
+        }
+        Insert: {
+          currency: string
+          fetched_at?: string
+          per_usd: number
+          rate_date: string
+          source?: string
+        }
+        Update: {
+          currency?: string
+          fetched_at?: string
+          per_usd?: number
+          rate_date?: string
+          source?: string
+        }
+        Relationships: []
       }
       integrator_tiers: {
         Row: {
@@ -1547,6 +1618,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "integrators_tier_fkey"
+            columns: ["tier"]
+            isOneToOne: false
+            referencedRelation: "integrator_tiers"
+            referencedColumns: ["slug"]
+          },
         ]
       }
       invoice_groups: {
@@ -1677,82 +1755,82 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
-          do_number_prefix: string
-          tax_id_label: string
-          require_second_approver: boolean
+          bank_details: string | null
           company_address: string | null
           company_email: string | null
           company_name: string | null
           company_phone: string | null
-          local_company_name: string | null
-          payment_methods: Json
-          bank_details: string | null
           decimal_places: number
+          do_number_prefix: string
           footer_note: string | null
           id: boolean
+          local_company_name: string | null
           number_prefix: string
+          payment_methods: Json
           payment_terms_days: number
           quote_closing: string | null
           quote_number_prefix: string
-          reporting_currency: string
           quote_signoff: string
           quote_terms: string | null
           quote_validity_days: number
+          reporting_currency: string
+          require_second_approver: boolean
           tax_id: string | null
+          tax_id_label: string
           tax_label: string
           tax_rate: number
           updated_at: string
         }
         Insert: {
-          do_number_prefix?: string
-          tax_id_label?: string
-          require_second_approver?: boolean
+          bank_details?: string | null
           company_address?: string | null
           company_email?: string | null
           company_name?: string | null
           company_phone?: string | null
-          local_company_name?: string | null
-          payment_methods?: Json
-          bank_details?: string | null
           decimal_places?: number
+          do_number_prefix?: string
           footer_note?: string | null
           id?: boolean
+          local_company_name?: string | null
           number_prefix?: string
+          payment_methods?: Json
           payment_terms_days?: number
           quote_closing?: string | null
           quote_number_prefix?: string
-          reporting_currency?: string
           quote_signoff?: string
           quote_terms?: string | null
           quote_validity_days?: number
+          reporting_currency?: string
+          require_second_approver?: boolean
           tax_id?: string | null
+          tax_id_label?: string
           tax_label?: string
           tax_rate?: number
           updated_at?: string
         }
         Update: {
-          do_number_prefix?: string
-          tax_id_label?: string
-          require_second_approver?: boolean
+          bank_details?: string | null
           company_address?: string | null
           company_email?: string | null
           company_name?: string | null
           company_phone?: string | null
-          local_company_name?: string | null
-          payment_methods?: Json
-          bank_details?: string | null
           decimal_places?: number
+          do_number_prefix?: string
           footer_note?: string | null
           id?: boolean
+          local_company_name?: string | null
           number_prefix?: string
+          payment_methods?: Json
           payment_terms_days?: number
           quote_closing?: string | null
           quote_number_prefix?: string
-          reporting_currency?: string
           quote_signoff?: string
           quote_terms?: string | null
           quote_validity_days?: number
+          reporting_currency?: string
+          require_second_approver?: boolean
           tax_id?: string | null
+          tax_id_label?: string
           tax_label?: string
           tax_rate?: number
           updated_at?: string
@@ -1761,63 +1839,47 @@ export type Database = {
       }
       invoices: {
         Row: {
-          po_file_name: string | null
-          po_number: string | null
-          po_path: string | null
-          signed_copy_path: string | null
-          signed_copy_uploaded_by: string | null
-          signed_copy_uploaded_at: string | null
-          signed_copy_check: string | null
-          signed_copy_confirmed_by: string | null
-          signed_copy_confirmed_at: string | null
-          signed_copy_sent_at: string | null
-          emeterai_serial: string | null
-          signature_mode: string
-          approval_status: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by: string | null
-          approval_requested_at: string | null
-          approved_by: string | null
-          approved_at: string | null
           approval_note: string | null
+          approval_requested_at: string | null
+          approval_requested_by: string | null
           approval_sends: boolean
-          signature_id: string | null
-          send_count: number
-          materai: string
-          stamped_pdf_path: string | null
-          cc_emails: string[]
+          approval_status: Database["public"]["Enums"]["approval_state"]
+          approved_at: string | null
+          approved_by: string | null
           base_currency: string | null
           bill_to_address: string | null
-          buyer_nitku: string | null
-          buyer_npwp: string | null
-          book_rate: number | null
           bill_to_company: string | null
           bill_to_email: string | null
           bill_to_name: string
+          book_rate: number | null
+          buyer_nitku: string | null
+          buyer_npwp: string | null
+          cc_emails: string[]
           created_at: string
           created_by: string | null
           currency: string
           customer_revision: number
           decimal_places: number
-          partner_discount_percent: number
-          partner_tier_name: string | null
+          discount_amount: number
+          discount_label: string | null
           discount_type: string
           discount_value: number
-          discount_label: string | null
-          discount_amount: number
           due_date: string
+          emeterai_serial: string | null
+          exchange_rate: number | null
           faktur_date: string | null
           faktur_file_name: string | null
           faktur_number: string | null
           faktur_path: string | null
           faktur_uploaded_at: string | null
           faktur_uploaded_by: string | null
-          exchange_rate: number | null
           id: string
           integrator_id: string | null
           issue_date: string
           license_id: string | null
           licensee_address: string | null
           licensee_name: string | null
+          materai: string
           notes: string | null
           number: string | null
           owner_id: string | null
@@ -1825,10 +1887,26 @@ export type Database = {
           paid_recorded_at: string | null
           paid_recorded_by: string | null
           paid_reference: string | null
+          partner_discount_percent: number
+          partner_tier_name: string | null
+          po_file_name: string | null
+          po_number: string | null
+          po_path: string | null
           public_token: string
           quotation_id: string | null
           quotation_number: string | null
           seller: Json
+          send_count: number
+          signature_id: string | null
+          signature_mode: string
+          signed_copy_check: string | null
+          signed_copy_confirmed_at: string | null
+          signed_copy_confirmed_by: string | null
+          signed_copy_path: string | null
+          signed_copy_sent_at: string | null
+          signed_copy_uploaded_at: string | null
+          signed_copy_uploaded_by: string | null
+          stamped_pdf_path: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           subtotal: number
           tax_amount: number
@@ -1838,63 +1916,47 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          po_file_name?: string | null
-          po_number?: string | null
-          po_path?: string | null
-          signed_copy_path?: string | null
-          signed_copy_uploaded_by?: string | null
-          signed_copy_uploaded_at?: string | null
-          signed_copy_check?: string | null
-          signed_copy_confirmed_by?: string | null
-          signed_copy_confirmed_at?: string | null
-          signed_copy_sent_at?: string | null
-          emeterai_serial?: string | null
-          signature_mode?: string
-          approval_status?: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by?: string | null
-          approval_requested_at?: string | null
-          approved_by?: string | null
-          approved_at?: string | null
           approval_note?: string | null
+          approval_requested_at?: string | null
+          approval_requested_by?: string | null
           approval_sends?: boolean
-          signature_id?: string | null
-          send_count?: number
-          materai?: string
-          stamped_pdf_path?: string | null
-          cc_emails?: string[]
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approved_at?: string | null
+          approved_by?: string | null
           base_currency?: string | null
           bill_to_address?: string | null
-          buyer_nitku?: string | null
-          buyer_npwp?: string | null
-          book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
           bill_to_name: string
+          book_rate?: number | null
+          buyer_nitku?: string | null
+          buyer_npwp?: string | null
+          cc_emails?: string[]
           created_at?: string
           created_by?: string | null
           currency?: string
           customer_revision?: number
           decimal_places?: number
-          partner_discount_percent?: number
-          partner_tier_name?: string | null
+          discount_amount?: number
+          discount_label?: string | null
           discount_type?: string
           discount_value?: number
-          discount_label?: string | null
-          discount_amount?: number
           due_date: string
-          faktur_date: string | null
-          faktur_file_name: string | null
-          faktur_number: string | null
-          faktur_path: string | null
-          faktur_uploaded_at: string | null
-          faktur_uploaded_by: string | null
+          emeterai_serial?: string | null
           exchange_rate?: number | null
+          faktur_date?: string | null
+          faktur_file_name?: string | null
+          faktur_number?: string | null
+          faktur_path?: string | null
+          faktur_uploaded_at?: string | null
+          faktur_uploaded_by?: string | null
           id?: string
           integrator_id?: string | null
           issue_date?: string
           license_id?: string | null
           licensee_address?: string | null
           licensee_name?: string | null
+          materai?: string
           notes?: string | null
           number?: string | null
           owner_id?: string | null
@@ -1902,10 +1964,26 @@ export type Database = {
           paid_recorded_at?: string | null
           paid_recorded_by?: string | null
           paid_reference?: string | null
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          po_file_name?: string | null
+          po_number?: string | null
+          po_path?: string | null
           public_token?: string
           quotation_id?: string | null
           quotation_number?: string | null
           seller?: Json
+          send_count?: number
+          signature_id?: string | null
+          signature_mode?: string
+          signed_copy_check?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_path?: string | null
+          signed_copy_sent_at?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_uploaded_by?: string | null
+          stamped_pdf_path?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tax_amount?: number
@@ -1915,63 +1993,47 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          po_file_name?: string | null
-          po_number?: string | null
-          po_path?: string | null
-          signed_copy_path?: string | null
-          signed_copy_uploaded_by?: string | null
-          signed_copy_uploaded_at?: string | null
-          signed_copy_check?: string | null
-          signed_copy_confirmed_by?: string | null
-          signed_copy_confirmed_at?: string | null
-          signed_copy_sent_at?: string | null
-          emeterai_serial?: string | null
-          signature_mode?: string
-          approval_status?: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by?: string | null
-          approval_requested_at?: string | null
-          approved_by?: string | null
-          approved_at?: string | null
           approval_note?: string | null
+          approval_requested_at?: string | null
+          approval_requested_by?: string | null
           approval_sends?: boolean
-          signature_id?: string | null
-          send_count?: number
-          materai?: string
-          stamped_pdf_path?: string | null
-          cc_emails?: string[]
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approved_at?: string | null
+          approved_by?: string | null
           base_currency?: string | null
           bill_to_address?: string | null
-          buyer_nitku?: string | null
-          buyer_npwp?: string | null
-          book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
           bill_to_name?: string
+          book_rate?: number | null
+          buyer_nitku?: string | null
+          buyer_npwp?: string | null
+          cc_emails?: string[]
           created_at?: string
           created_by?: string | null
           currency?: string
           customer_revision?: number
           decimal_places?: number
-          partner_discount_percent?: number
-          partner_tier_name?: string | null
+          discount_amount?: number
+          discount_label?: string | null
           discount_type?: string
           discount_value?: number
-          discount_label?: string | null
-          discount_amount?: number
           due_date?: string
+          emeterai_serial?: string | null
+          exchange_rate?: number | null
           faktur_date?: string | null
           faktur_file_name?: string | null
           faktur_number?: string | null
           faktur_path?: string | null
           faktur_uploaded_at?: string | null
           faktur_uploaded_by?: string | null
-          exchange_rate?: number | null
           id?: string
           integrator_id?: string | null
           issue_date?: string
           license_id?: string | null
           licensee_address?: string | null
           licensee_name?: string | null
+          materai?: string
           notes?: string | null
           number?: string | null
           owner_id?: string | null
@@ -1979,10 +2041,26 @@ export type Database = {
           paid_recorded_at?: string | null
           paid_recorded_by?: string | null
           paid_reference?: string | null
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          po_file_name?: string | null
+          po_number?: string | null
+          po_path?: string | null
           public_token?: string
           quotation_id?: string | null
           quotation_number?: string | null
           seller?: Json
+          send_count?: number
+          signature_id?: string | null
+          signature_mode?: string
+          signed_copy_check?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_path?: string | null
+          signed_copy_sent_at?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_uploaded_by?: string | null
+          stamped_pdf_path?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tax_amount?: number
@@ -1993,10 +2071,38 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoices_approval_requested_by_fkey"
+            columns: ["approval_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_faktur_uploaded_by_fkey"
+            columns: ["faktur_uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_integrator_id_fkey"
+            columns: ["integrator_id"]
+            isOneToOne: false
+            referencedRelation: "integrators"
             referencedColumns: ["id"]
           },
           {
@@ -2014,13 +2120,180 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_paid_recorded_by_fkey"
+            columns: ["paid_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_quotation_id_fkey"
             columns: ["quotation_id"]
             isOneToOne: false
             referencedRelation: "quotations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invoices_signature_id_fkey"
+            columns: ["signature_id"]
+            isOneToOne: false
+            referencedRelation: "document_signatures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_signed_copy_confirmed_by_fkey"
+            columns: ["signed_copy_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_signed_copy_uploaded_by_fkey"
+            columns: ["signed_copy_uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          id: string
+          memo: string | null
+          number: string
+          rate_estimated: boolean
+          reversal_of: string | null
+          reversed_by: string | null
+          source_id: string | null
+          source_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entry_date: string
+          id?: string
+          memo?: string | null
+          number: string
+          rate_estimated?: boolean
+          reversal_of?: string | null
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          id?: string
+          memo?: string | null
+          number?: string
+          rate_estimated?: boolean
+          reversal_of?: string | null
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_reversed_by_fkey"
+            columns: ["reversed_by"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          amount_fc: number | null
+          credit: number
+          currency: string
+          debit: number
+          description: string | null
+          entry_id: string
+          id: string
+          rate: number | null
+        }
+        Insert: {
+          account_id: string
+          amount_fc?: number | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_id: string
+          id?: string
+          rate?: number | null
+        }
+        Update: {
+          account_id?: string
+          amount_fc?: number | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_id?: string
+          id?: string
+          rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kmk_rates: {
+        Row: {
+          currency: string
+          rate: number
+          reference: string | null
+          valid_from: string
+          valid_to: string
+        }
+        Insert: {
+          currency: string
+          rate: number
+          reference?: string | null
+          valid_from: string
+          valid_to: string
+        }
+        Update: {
+          currency?: string
+          rate?: number
+          reference?: string | null
+          valid_from?: string
+          valid_to?: string
+        }
+        Relationships: []
       }
       leads: {
         Row: {
@@ -2300,6 +2573,8 @@ export type Database = {
           note: string | null
           owner_id: string
           quotation_group_id: string | null
+          reissue_requested_at: string | null
+          reissue_requested_by: string | null
           revoked_at: string | null
           status: Database["public"]["Enums"]["license_status"]
           updated_at: string
@@ -2321,6 +2596,8 @@ export type Database = {
           note?: string | null
           owner_id?: string
           quotation_group_id?: string | null
+          reissue_requested_at?: string | null
+          reissue_requested_by?: string | null
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["license_status"]
           updated_at?: string
@@ -2342,6 +2619,8 @@ export type Database = {
           note?: string | null
           owner_id?: string
           quotation_group_id?: string | null
+          reissue_requested_at?: string | null
+          reissue_requested_by?: string | null
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["license_status"]
           updated_at?: string
@@ -2373,6 +2652,13 @@ export type Database = {
             columns: ["quotation_group_id"]
             isOneToOne: false
             referencedRelation: "quotation_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licenses_reissue_requested_by_fkey"
+            columns: ["reissue_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2703,8 +2989,8 @@ export type Database = {
       }
       notification_log: {
         Row: {
-          cc: string[] | null
           audience: string
+          cc: string[] | null
           channel: string
           created_at: string
           error: string | null
@@ -2716,8 +3002,8 @@ export type Database = {
           subject: string | null
         }
         Insert: {
-          cc?: string[] | null
           audience?: string
+          cc?: string[] | null
           channel?: string
           created_at?: string
           error?: string | null
@@ -2729,8 +3015,8 @@ export type Database = {
           subject?: string | null
         }
         Update: {
-          cc?: string[] | null
           audience?: string
+          cc?: string[] | null
           channel?: string
           created_at?: string
           error?: string | null
@@ -2874,6 +3160,253 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_lines: {
+        Row: {
+          allowance: number
+          annual: Json | null
+          base_salary: number
+          employee_id: string
+          employee_name: string
+          gross: number
+          id: string
+          jht_employee: number
+          jht_employer: number
+          jkk: number
+          jkm: number
+          jp_employee: number
+          jp_employer: number
+          kes_employee: number
+          kes_employer: number
+          net_pay: number
+          nik: string | null
+          npwp: string | null
+          other_income: number
+          other_income_note: string | null
+          position: string | null
+          pph21: number
+          pph21_method: string
+          ptkp_status: string
+          run_id: string
+          ter_category: string
+          ter_rate: number | null
+        }
+        Insert: {
+          allowance?: number
+          annual?: Json | null
+          base_salary?: number
+          employee_id: string
+          employee_name: string
+          gross?: number
+          id?: string
+          jht_employee?: number
+          jht_employer?: number
+          jkk?: number
+          jkm?: number
+          jp_employee?: number
+          jp_employer?: number
+          kes_employee?: number
+          kes_employer?: number
+          net_pay?: number
+          nik?: string | null
+          npwp?: string | null
+          other_income?: number
+          other_income_note?: string | null
+          position?: string | null
+          pph21?: number
+          pph21_method?: string
+          ptkp_status: string
+          run_id: string
+          ter_category: string
+          ter_rate?: number | null
+        }
+        Update: {
+          allowance?: number
+          annual?: Json | null
+          base_salary?: number
+          employee_id?: string
+          employee_name?: string
+          gross?: number
+          id?: string
+          jht_employee?: number
+          jht_employer?: number
+          jkk?: number
+          jkm?: number
+          jp_employee?: number
+          jp_employer?: number
+          kes_employee?: number
+          kes_employer?: number
+          net_pay?: number
+          nik?: string | null
+          npwp?: string | null
+          other_income?: number
+          other_income_note?: string | null
+          position?: string | null
+          pph21?: number
+          pph21_method?: string
+          ptkp_status?: string
+          run_id?: string
+          ter_category?: string
+          ter_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_lines_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          bank_account_id: string | null
+          bpjs_bank_account_id: string | null
+          bpjs_journal_entry_id: string | null
+          bpjs_paid_on: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          note: string | null
+          paid_on: string | null
+          period: string
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          void_reason: string | null
+        }
+        Insert: {
+          bank_account_id?: string | null
+          bpjs_bank_account_id?: string | null
+          bpjs_journal_entry_id?: string | null
+          bpjs_paid_on?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          paid_on?: string | null
+          period: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          void_reason?: string | null
+        }
+        Update: {
+          bank_account_id?: string | null
+          bpjs_bank_account_id?: string | null
+          bpjs_journal_entry_id?: string | null
+          bpjs_paid_on?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          note?: string | null
+          paid_on?: string | null
+          period?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          void_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_bpjs_bank_account_id_fkey"
+            columns: ["bpjs_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_bpjs_journal_entry_id_fkey"
+            columns: ["bpjs_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_posted_by_fkey"
+            columns: ["posted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: {
+          id: boolean
+          jht_employee: number
+          jht_employer: number
+          jkk_rate: number
+          jkm_rate: number
+          jp_employee: number
+          jp_employer: number
+          jp_wage_cap: number
+          kes_employee: number
+          kes_employer: number
+          kes_wage_cap: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          jht_employee?: number
+          jht_employer?: number
+          jkk_rate?: number
+          jkm_rate?: number
+          jp_employee?: number
+          jp_employer?: number
+          jp_wage_cap?: number
+          kes_employee?: number
+          kes_employer?: number
+          kes_wage_cap?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          jht_employee?: number
+          jht_employer?: number
+          jkk_rate?: number
+          jkm_rate?: number
+          jp_employee?: number
+          jp_employer?: number
+          jp_wage_cap?: number
+          kes_employee?: number
+          kes_employer?: number
+          kes_wage_cap?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plan_features: {
         Row: {
           created_at: string
@@ -2918,6 +3451,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pph21_ter: {
+        Row: {
+          category: string
+          rate: number
+          upto: number | null
+        }
+        Insert: {
+          category: string
+          rate: number
+          upto?: number | null
+        }
+        Update: {
+          category?: string
+          rate?: number
+          upto?: number | null
+        }
+        Relationships: []
       }
       pricing_feature_groups: {
         Row: {
@@ -3234,29 +3785,18 @@ export type Database = {
       }
       quotations: {
         Row: {
-          licensee_address: string | null
-          licensee_name: string | null
-          signed_copy_path: string | null
-          signed_copy_uploaded_by: string | null
-          signed_copy_uploaded_at: string | null
-          signed_copy_check: string | null
-          signed_copy_confirmed_by: string | null
-          signed_copy_confirmed_at: string | null
-          signed_copy_sent_at: string | null
-          signature_mode: string
-          approval_status: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by: string | null
-          approval_requested_at: string | null
-          approved_by: string | null
-          approved_at: string | null
-          approval_note: string | null
-          approval_sends: boolean
-          signature_id: string | null
-          cc_emails: string[]
           accepted_at: string | null
           accepted_late: boolean
           address: string | null
+          approval_note: string | null
+          approval_requested_at: string | null
+          approval_requested_by: string | null
+          approval_sends: boolean
+          approval_status: Database["public"]["Enums"]["approval_state"]
+          approved_at: string | null
+          approved_by: string | null
           base_currency: string | null
+          cc_emails: string[]
           claim_token: string
           claimed_at: string | null
           claimed_via: string | null
@@ -3270,13 +3810,11 @@ export type Database = {
           currency: string
           customer_id: string | null
           decimal_places: number
-          partner_discount_percent: number
-          partner_tier_name: string | null
+          declined_at: string | null
+          discount_amount: number
+          discount_label: string | null
           discount_type: string
           discount_value: number
-          discount_label: string | null
-          discount_amount: number
-          declined_at: string | null
           exchange_rate: number | null
           id: string
           integrator_id: string | null
@@ -3284,7 +3822,11 @@ export type Database = {
           introduction: string | null
           issue_date: string
           job_title: string | null
+          licensee_address: string | null
+          licensee_name: string | null
           number: string | null
+          partner_discount_percent: number
+          partner_tier_name: string | null
           phone: string | null
           public_token: string
           quote_request_id: string | null
@@ -3296,6 +3838,15 @@ export type Database = {
           seller: Json
           send_count: number
           sent_at: string | null
+          signature_id: string | null
+          signature_mode: string
+          signed_copy_check: string | null
+          signed_copy_confirmed_at: string | null
+          signed_copy_confirmed_by: string | null
+          signed_copy_path: string | null
+          signed_copy_sent_at: string | null
+          signed_copy_uploaded_at: string | null
+          signed_copy_uploaded_by: string | null
           signoff: string | null
           source: string
           status: Database["public"]["Enums"]["quotation_status"]
@@ -3309,29 +3860,18 @@ export type Database = {
           valid_until: string
         }
         Insert: {
-          licensee_address?: string | null
-          licensee_name?: string | null
-          signed_copy_path?: string | null
-          signed_copy_uploaded_by?: string | null
-          signed_copy_uploaded_at?: string | null
-          signed_copy_check?: string | null
-          signed_copy_confirmed_by?: string | null
-          signed_copy_confirmed_at?: string | null
-          signed_copy_sent_at?: string | null
-          signature_mode?: string
-          approval_status?: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by?: string | null
-          approval_requested_at?: string | null
-          approved_by?: string | null
-          approved_at?: string | null
-          approval_note?: string | null
-          approval_sends?: boolean
-          signature_id?: string | null
-          cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
           address?: string | null
+          approval_note?: string | null
+          approval_requested_at?: string | null
+          approval_requested_by?: string | null
+          approval_sends?: boolean
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approved_at?: string | null
+          approved_by?: string | null
           base_currency?: string | null
+          cc_emails?: string[]
           claim_token?: string
           claimed_at?: string | null
           claimed_via?: string | null
@@ -3345,13 +3885,11 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           decimal_places?: number
-          partner_discount_percent?: number
-          partner_tier_name?: string | null
+          declined_at?: string | null
+          discount_amount?: number
+          discount_label?: string | null
           discount_type?: string
           discount_value?: number
-          discount_label?: string | null
-          discount_amount?: number
-          declined_at?: string | null
           exchange_rate?: number | null
           id?: string
           integrator_id?: string | null
@@ -3359,7 +3897,11 @@ export type Database = {
           introduction?: string | null
           issue_date?: string
           job_title?: string | null
+          licensee_address?: string | null
+          licensee_name?: string | null
           number?: string | null
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
           phone?: string | null
           public_token?: string
           quote_request_id?: string | null
@@ -3371,6 +3913,15 @@ export type Database = {
           seller?: Json
           send_count?: number
           sent_at?: string | null
+          signature_id?: string | null
+          signature_mode?: string
+          signed_copy_check?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_path?: string | null
+          signed_copy_sent_at?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_uploaded_by?: string | null
           signoff?: string | null
           source?: string
           status?: Database["public"]["Enums"]["quotation_status"]
@@ -3384,29 +3935,18 @@ export type Database = {
           valid_until: string
         }
         Update: {
-          licensee_address?: string | null
-          licensee_name?: string | null
-          signed_copy_path?: string | null
-          signed_copy_uploaded_by?: string | null
-          signed_copy_uploaded_at?: string | null
-          signed_copy_check?: string | null
-          signed_copy_confirmed_by?: string | null
-          signed_copy_confirmed_at?: string | null
-          signed_copy_sent_at?: string | null
-          signature_mode?: string
-          approval_status?: Database["public"]["Enums"]["approval_state"]
-          approval_requested_by?: string | null
-          approval_requested_at?: string | null
-          approved_by?: string | null
-          approved_at?: string | null
-          approval_note?: string | null
-          approval_sends?: boolean
-          signature_id?: string | null
-          cc_emails?: string[]
           accepted_at?: string | null
           accepted_late?: boolean
           address?: string | null
+          approval_note?: string | null
+          approval_requested_at?: string | null
+          approval_requested_by?: string | null
+          approval_sends?: boolean
+          approval_status?: Database["public"]["Enums"]["approval_state"]
+          approved_at?: string | null
+          approved_by?: string | null
           base_currency?: string | null
+          cc_emails?: string[]
           claim_token?: string
           claimed_at?: string | null
           claimed_via?: string | null
@@ -3420,13 +3960,11 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           decimal_places?: number
-          partner_discount_percent?: number
-          partner_tier_name?: string | null
+          declined_at?: string | null
+          discount_amount?: number
+          discount_label?: string | null
           discount_type?: string
           discount_value?: number
-          discount_label?: string | null
-          discount_amount?: number
-          declined_at?: string | null
           exchange_rate?: number | null
           id?: string
           integrator_id?: string | null
@@ -3434,7 +3972,11 @@ export type Database = {
           introduction?: string | null
           issue_date?: string
           job_title?: string | null
+          licensee_address?: string | null
+          licensee_name?: string | null
           number?: string | null
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
           phone?: string | null
           public_token?: string
           quote_request_id?: string | null
@@ -3446,6 +3988,15 @@ export type Database = {
           seller?: Json
           send_count?: number
           sent_at?: string | null
+          signature_id?: string | null
+          signature_mode?: string
+          signed_copy_check?: string | null
+          signed_copy_confirmed_at?: string | null
+          signed_copy_confirmed_by?: string | null
+          signed_copy_path?: string | null
+          signed_copy_sent_at?: string | null
+          signed_copy_uploaded_at?: string | null
+          signed_copy_uploaded_by?: string | null
           signoff?: string | null
           source?: string
           status?: Database["public"]["Enums"]["quotation_status"]
@@ -3460,6 +4011,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "quotations_approval_requested_by_fkey"
+            columns: ["approval_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotations_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -3471,6 +4036,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_integrator_id_fkey"
+            columns: ["integrator_id"]
+            isOneToOne: false
+            referencedRelation: "integrators"
             referencedColumns: ["id"]
           },
           {
@@ -3487,12 +4059,31 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quotations_signature_id_fkey"
+            columns: ["signature_id"]
+            isOneToOne: false
+            referencedRelation: "document_signatures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_signed_copy_confirmed_by_fkey"
+            columns: ["signed_copy_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_signed_copy_uploaded_by_fkey"
+            columns: ["signed_copy_uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       quote_requests: {
         Row: {
-          licensee_address: string | null
-          licensee_name: string | null
           company: string | null
           contact_email: string
           contact_name: string
@@ -3508,6 +4099,8 @@ export type Database = {
           is_custom: boolean
           job_title: string | null
           licence_total: number
+          licensee_address: string | null
+          licensee_name: string | null
           maintenance_total: number
           message: string | null
           module_count: number
@@ -3520,8 +4113,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          licensee_address?: string | null
-          licensee_name?: string | null
           company?: string | null
           contact_email: string
           contact_name: string
@@ -3537,6 +4128,8 @@ export type Database = {
           is_custom?: boolean
           job_title?: string | null
           licence_total?: number
+          licensee_address?: string | null
+          licensee_name?: string | null
           maintenance_total?: number
           message?: string | null
           module_count?: number
@@ -3549,8 +4142,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          licensee_address?: string | null
-          licensee_name?: string | null
           company?: string | null
           contact_email?: string
           contact_name?: string
@@ -3566,6 +4157,8 @@ export type Database = {
           is_custom?: boolean
           job_title?: string | null
           licence_total?: number
+          licensee_address?: string | null
+          licensee_name?: string | null
           maintenance_total?: number
           message?: string | null
           module_count?: number
@@ -3577,7 +4170,145 @@ export type Database = {
           status?: Database["public"]["Enums"]["quote_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "quote_requests_integrator_id_fkey"
+            columns: ["integrator_id"]
+            isOneToOne: false
+            referencedRelation: "integrators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipts: {
+        Row: {
+          bank_account_id: string
+          bank_charges: number
+          bukti_potong_date: string | null
+          bukti_potong_number: string | null
+          bukti_potong_path: string | null
+          created_at: string
+          created_by: string | null
+          credit_account_id: string | null
+          currency: string
+          difference_reason: string | null
+          id: string
+          idr_credited: number | null
+          invoice_id: string | null
+          journal_id: string | null
+          net_received: number
+          note: string | null
+          number: string
+          other_difference: number
+          received_on: string
+          reference: string | null
+          settled: number | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          withholding_amount: number
+          withholding_type: string | null
+        }
+        Insert: {
+          bank_account_id: string
+          bank_charges?: number
+          bukti_potong_date?: string | null
+          bukti_potong_number?: string | null
+          bukti_potong_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          currency: string
+          difference_reason?: string | null
+          id?: string
+          idr_credited?: number | null
+          invoice_id?: string | null
+          journal_id?: string | null
+          net_received: number
+          note?: string | null
+          number: string
+          other_difference?: number
+          received_on: string
+          reference?: string | null
+          settled?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          withholding_amount?: number
+          withholding_type?: string | null
+        }
+        Update: {
+          bank_account_id?: string
+          bank_charges?: number
+          bukti_potong_date?: string | null
+          bukti_potong_number?: string | null
+          bukti_potong_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          currency?: string
+          difference_reason?: string | null
+          id?: string
+          idr_credited?: number | null
+          invoice_id?: string | null
+          journal_id?: string | null
+          net_received?: number
+          note?: string | null
+          number?: string
+          other_difference?: number
+          received_on?: string
+          reference?: string | null
+          settled?: number | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          withholding_amount?: number
+          withholding_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_credit_account_id_fkey"
+            columns: ["credit_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       release_artifacts: {
         Row: {
@@ -3803,6 +4534,27 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_session_settings: {
+        Row: {
+          id: boolean
+          idle_minutes: number
+          max_session_hours: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          idle_minutes?: number
+          max_session_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          idle_minutes?: number
+          max_session_hours?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stats: {
         Row: {
           created_at: string
@@ -3886,6 +4638,79 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tax_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          billing_code: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_id: string | null
+          masa: string
+          note: string | null
+          ntpn: string | null
+          paid_on: string
+          tax_type: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          billing_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          masa: string
+          note?: string | null
+          ntpn?: string | null
+          paid_on: string
+          tax_type: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          billing_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          masa?: string
+          note?: string | null
+          ntpn?: string | null
+          paid_on?: string
+          tax_type?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_payments_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       testimonials: {
         Row: {
@@ -4217,73 +5042,78 @@ export type Database = {
       }
     }
     Functions: {
-      attach_delivery_file: { Args: { p_file_name: string; p_id: string; p_kind: string; p_path: string; p_received_name: string; p_received_on: string; p_received_title: string }; Returns: undefined }
-      cancel_delivery_order: { Args: { p_id: string; p_reason: string }; Returns: undefined }
-      confirm_delivery_by_token: { Args: { p_name: string; p_title: string; p_token: string }; Returns: string }
-      create_delivery_order: { Args: { p_details: Json; p_invoice_id: string; p_lines: Json }; Returns: string }
-      delivery_order_by_token: { Args: { p_token: string }; Returns: Json }
-      delivery_remaining: { Args: { p_invoice_id: string }; Returns: Json }
-      issue_delivery_order: { Args: { p_id: string }; Returns: undefined }
-      remove_delivery_file: { Args: { p_file_id: string }; Returns: string }
-      staff_delivery_signoff: { Args: { p_id: string }; Returns: Json }
-      update_delivery_order: { Args: { p_details: Json; p_id: string; p_lines: Json }; Returns: undefined }
-      update_delivery_signers: { Args: { p_details: Json; p_id: string }; Returns: undefined }
-      invoice_licence_issued: { Args: { p_invoice_id: string }; Returns: boolean }
-      sign_out_everywhere: { Args: { p_user: string }; Returns: number }
-      sends_directly: { Args: { p_type: string }; Returns: boolean }
-      approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }
-      approval_link_view: { Args: { p_token_hash: string }; Returns: Json }
-      create_approval_links: { Args: { p_id: string; p_links: Json; p_type: string }; Returns: undefined }
-      has_approval_pin: { Args: never; Returns: boolean }
-      set_approval_pin: { Args: { p_pin: string }; Returns: undefined }
-      confirm_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }
-      document_history: { Args: { p_id: string; p_type: string }; Returns: Json }
-      send_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }
-      staff_document_signoff: { Args: { p_id: string; p_type: string }; Returns: Json }
-      approve_document: { Args: { p_id: string; p_type: string }; Returns: string }
-      document_signature_info: { Args: never; Returns: Json }
-      reject_document: {
-        Args: { p_id: string; p_reason: string; p_type: string }
-        Returns: undefined
-      }
-      remove_document_signature: { Args: never; Returns: undefined }
-      send_invoice: { Args: { p_invoice_id: string }; Returns: string }
-      set_document_approver: {
-        Args: { p_approver: boolean; p_user_id: string }
-        Returns: undefined
-      }
-      set_document_signature: {
+      accounting_dashboard: { Args: { p_year?: number }; Returns: Json }
+      approval_link_decide: {
         Args: {
-          p_image: string
-          p_place: string
-          p_signatory_name: string
-          p_signatory_title: string
+          p_decision: string
+          p_pin: string
+          p_reason: string
+          p_token_hash: string
         }
-        Returns: string
+        Returns: Json
       }
-      set_invoice_materai: {
-        Args: { p_invoice_id: string; p_materai: string }
-        Returns: undefined
+      approval_link_view: { Args: { p_token_hash: string }; Returns: Json }
+      approve_document: {
+        Args: { p_id: string; p_type: string }
+        Returns: string
       }
       assign_quotation_customer: {
         Args: { p_customer_id: string; p_quotation_id: string }
         Returns: undefined
       }
+      attach_delivery_file: {
+        Args: {
+          p_file_name: string
+          p_id: string
+          p_kind: string
+          p_path: string
+          p_received_name: string
+          p_received_on: string
+          p_received_title: string
+        }
+        Returns: undefined
+      }
+      cancel_delivery_order: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       claim_quotation: { Args: { p_token: string }; Returns: Json }
+      close_month: {
+        Args: { p_month: string; p_note?: string }
+        Returns: undefined
+      }
+      confirm_delivery_by_token: {
+        Args: { p_name: string; p_title: string; p_token: string }
+        Returns: string
+      }
+      confirm_signed_copy: {
+        Args: { p_id: string; p_type: string }
+        Returns: undefined
+      }
       convert_quotation_to_invoice: {
         Args: {
-          p_materai?: string
-          p_signature_mode?: string
           p_cc_emails?: string[]
           p_license_id?: string
+          p_materai?: string
           p_owner_id?: string
           p_po_file_name?: string
           p_po_number?: string
           p_po_path?: string
           p_quotation_id: string
+          p_signature_mode?: string
         }
         Returns: string
       }
+      coretax_faktur_rows: { Args: { p_masa: string }; Returns: Json }
+      create_approval_links: {
+        Args: { p_id: string; p_links: Json; p_type: string }
+        Returns: undefined
+      }
+      create_delivery_order: {
+        Args: { p_details: Json; p_invoice_id: string; p_lines: Json }
+        Returns: string
+      }
+      create_payroll_run: { Args: { p_period: string }; Returns: string }
       current_user_permissions: {
         Args: never
         Returns: Database["public"]["Enums"]["app_permission"][]
@@ -4291,6 +5121,18 @@ export type Database = {
       current_user_roles: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      delete_payroll_run: { Args: { p_run: string }; Returns: undefined }
+      delivery_order_by_token: { Args: { p_token: string }; Returns: Json }
+      delivery_remaining: { Args: { p_invoice_id: string }; Returns: Json }
+      document_history: {
+        Args: { p_id: string; p_type: string }
+        Returns: Json
+      }
+      document_signature_info: { Args: never; Returns: Json }
+      document_storage_folder: {
+        Args: { p_id: string; p_type: string }
+        Returns: string
       }
       file_bug_report: {
         Args: {
@@ -4312,12 +5154,56 @@ export type Database = {
         }
         Returns: string
       }
+      financial_statements: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      has_approval_pin: { Args: never; Returns: boolean }
       increment_post_views: { Args: { post_slug: string }; Returns: undefined }
       invoice_by_token: { Args: { p_token: string }; Returns: Json }
+      invoice_licence_issued: {
+        Args: { p_invoice_id: string }
+        Returns: boolean
+      }
+      invoice_open_balance: { Args: { p_invoice: string }; Returns: number }
+      issue_delivery_order: { Args: { p_id: string }; Returns: undefined }
       issue_license: {
         Args: { p_file_name: string; p_file_size: number; p_license_id: string }
         Returns: undefined
       }
+      monthly_tax_report: { Args: { p_masa: string }; Returns: Json }
+      move_document_path: {
+        Args: { p_from: string; p_id: string; p_kind: string; p_to: string }
+        Returns: undefined
+      }
+      my_integrator: { Args: never; Returns: string }
+      order_overview: { Args: never; Returns: Json }
+      order_storage_folder: {
+        Args: { p_id: string; p_type: string }
+        Returns: string
+      }
+      pay_expense: {
+        Args: {
+          p_bank: string
+          p_id: string
+          p_idr_paid?: number
+          p_paid_on: string
+        }
+        Returns: undefined
+      }
+      pay_payroll_bpjs: {
+        Args: { p_bank: string; p_paid_on: string; p_run: string }
+        Returns: string
+      }
+      post_manual_journal: {
+        Args: { p_date: string; p_lines: Json; p_memo: string }
+        Returns: string
+      }
+      post_payroll_run: {
+        Args: { p_bank: string; p_paid_on: string; p_run: string }
+        Returns: string
+      }
+      ppn_recap: { Args: { p_masa: string }; Returns: Json }
       purge_download_ips: { Args: { p_days?: number }; Returns: number }
       quotation_by_token: { Args: { p_token: string }; Returns: Json }
       quotation_claim_preview: { Args: { p_token: string }; Returns: Json }
@@ -4337,6 +5223,36 @@ export type Database = {
         }
         Returns: string
       }
+      record_expense: { Args: { p: Json }; Returns: string }
+      record_receipt: { Args: { p: Json }; Returns: string }
+      record_signed_copy: {
+        Args: {
+          p_actor: string
+          p_check: string
+          p_id: string
+          p_path: string
+          p_serial: string
+          p_type: string
+        }
+        Returns: undefined
+      }
+      record_tax_payment: { Args: { p: Json }; Returns: string }
+      refresh_payroll_run: { Args: { p_run: string }; Returns: undefined }
+      reject_document: {
+        Args: { p_id: string; p_reason: string; p_type: string }
+        Returns: undefined
+      }
+      remove_delivery_file: { Args: { p_file_id: string }; Returns: string }
+      remove_document_signature: { Args: never; Returns: undefined }
+      reopen_month: {
+        Args: { p_month: string; p_reason: string }
+        Returns: undefined
+      }
+      reverse_manual_journal: {
+        Args: { p_entry: string; p_reason: string }
+        Returns: string
+      }
+      sales_money: { Args: { p_currency?: string }; Returns: Json }
       save_license_edition: {
         Args: {
           p_badge?: string
@@ -4387,7 +5303,70 @@ export type Database = {
         }
         Returns: string
       }
+      send_invoice: { Args: { p_invoice_id: string }; Returns: string }
       send_quotation: { Args: { p_quotation_id: string }; Returns: string }
+      send_signed_copy: {
+        Args: { p_id: string; p_type: string }
+        Returns: undefined
+      }
+      sends_directly: { Args: { p_type: string }; Returns: boolean }
+      set_approval_pin: { Args: { p_pin: string }; Returns: undefined }
+      set_document_approver: {
+        Args: { p_approver: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      set_document_signature: {
+        Args: {
+          p_image: string
+          p_place: string
+          p_signatory_name: string
+          p_signatory_title: string
+        }
+        Returns: string
+      }
+      set_invoice_faktur: {
+        Args: {
+          p_date: string
+          p_file_name?: string
+          p_id: string
+          p_number: string
+          p_path: string
+        }
+        Returns: undefined
+      }
+      set_invoice_materai: {
+        Args: { p_invoice_id: string; p_materai: string }
+        Returns: undefined
+      }
+      set_invoice_status: {
+        Args: {
+          p_id: string
+          p_paid_on?: string
+          p_reference?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
+      set_quotation_discount: {
+        Args: {
+          p_id: string
+          p_label?: string
+          p_partner: boolean
+          p_type: string
+          p_value: number
+        }
+        Returns: undefined
+      }
+      sign_out_everywhere: { Args: { p_user: string }; Returns: number }
+      staff_delivery_signoff: { Args: { p_id: string }; Returns: Json }
+      staff_document_signoff: {
+        Args: { p_id: string; p_type: string }
+        Returns: Json
+      }
+      start_license_reissue: {
+        Args: { p_license_id: string }
+        Returns: undefined
+      }
       submit_quote_request: {
         Args: {
           p_company?: string
@@ -4397,6 +5376,7 @@ export type Database = {
           p_currency?: string
           p_edition_name?: string
           p_edition_slug?: string
+          p_integrator_name?: string
           p_is_custom?: boolean
           p_job_title?: string
           p_licence_total?: number
@@ -4408,39 +5388,19 @@ export type Database = {
           p_page_path?: string
           p_phone?: string
           p_requester_type?: string
-          p_integrator_name?: string
         }
         Returns: string
       }
-      my_integrator: { Args: never; Returns: string | null }
-      order_overview: { Args: never; Returns: Json }
-      set_quotation_discount: { Args: { p_id: string; p_partner: boolean; p_type: string; p_value: number; p_label?: string }; Returns: undefined }
-      document_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
-      order_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
-      move_document_path: { Args: { p_kind: string; p_id: string; p_from: string; p_to: string }; Returns: undefined }
-      record_receipt: { Args: { p: Json }; Returns: string }
-      void_receipt: { Args: { p_id: string; p_reason: string }; Returns: undefined }
-      record_expense: { Args: { p: Json }; Returns: string }
-      pay_expense: { Args: { p_id: string; p_paid_on: string; p_bank: string; p_idr_paid?: number }; Returns: undefined }
-      void_expense: { Args: { p_id: string; p_reason: string }; Returns: undefined }
-      record_tax_payment: { Args: { p: Json }; Returns: string }
-      void_tax_payment: { Args: { p_id: string; p_reason: string }; Returns: undefined }
-      post_manual_journal: { Args: { p_date: string; p_memo: string; p_lines: Json }; Returns: string }
-      reverse_manual_journal: { Args: { p_entry: string; p_reason: string }; Returns: string }
-      accounting_dashboard: { Args: { p_year?: number }; Returns: Json }
-      monthly_tax_report: { Args: { p_masa: string }; Returns: Json }
-      invoice_open_balance: { Args: { p_invoice: string }; Returns: number }
       tax_before_pkp_documents: { Args: never; Returns: Json }
-      set_invoice_faktur: { Args: { p_id: string; p_number: string; p_date: string; p_path: string; p_file_name?: string }; Returns: undefined }
-      ppn_recap: { Args: { p_masa: string }; Returns: Json }
-      coretax_faktur_rows: { Args: { p_masa: string }; Returns: Json }
-      financial_statements: { Args: { p_from: string; p_to: string }; Returns: Json }
-      close_month: { Args: { p_month: string; p_note?: string }; Returns: undefined }
-      reopen_month: { Args: { p_month: string; p_reason: string }; Returns: undefined }
-      set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
-      sales_money: { Args: { p_currency?: string }; Returns: Json }
-      start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }
+      update_delivery_order: {
+        Args: { p_details: Json; p_id: string; p_lines: Json }
+        Returns: undefined
+      }
+      update_delivery_signers: {
+        Args: { p_details: Json; p_id: string }
+        Returns: undefined
+      }
       update_invoice_details: {
         Args: {
           p_bill_to_address?: string
@@ -4459,9 +5419,28 @@ export type Database = {
         }
         Returns: string
       }
+      update_payroll_line: {
+        Args: { p: Json; p_line: string }
+        Returns: undefined
+      }
+      void_expense: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      void_payroll_run: {
+        Args: { p_reason: string; p_run: string }
+        Returns: undefined
+      }
+      void_receipt: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      void_tax_payment: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      approval_state: "none" | "pending" | "approved" | "rejected"
       app_permission:
         | "admin.access"
         | "content.manage"
@@ -4473,7 +5452,14 @@ export type Database = {
         | "licenses.manage"
         | "quotations.manage"
         | "accounting.manage"
-      app_role: "admin" | "editor" | "viewer" | "licensing" | "sales" | "finance"
+      app_role:
+        | "admin"
+        | "editor"
+        | "viewer"
+        | "licensing"
+        | "sales"
+        | "finance"
+      approval_state: "none" | "pending" | "approved" | "rejected"
       bug_severity: "low" | "medium" | "high" | "critical"
       bug_status:
         | "new"
@@ -4630,7 +5616,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      approval_state: ["none", "pending", "approved", "rejected"],
       app_permission: [
         "admin.access",
         "content.manage",
@@ -4644,6 +5629,7 @@ export const Constants = {
         "accounting.manage",
       ],
       app_role: ["admin", "editor", "viewer", "licensing", "sales", "finance"],
+      approval_state: ["none", "pending", "approved", "rejected"],
       bug_severity: ["low", "medium", "high", "critical"],
       bug_status: [
         "new",

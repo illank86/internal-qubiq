@@ -30,6 +30,8 @@ const ReportsPage = lazy(() => import("@/features/finance/reports-page").then((m
 const JournalPage = lazy(() => import("@/features/finance/journal-page").then((module) => ({ default: module.JournalPage })));
 const LedgerBookPage = lazy(() => import("@/features/finance/ledger-book-page").then((module) => ({ default: module.LedgerBookPage })));
 const StatementPage = lazy(() => import("@/features/finance/statement-page").then((module) => ({ default: module.StatementPage })));
+const PayrollPage = lazy(() => import("@/features/finance/payroll-page").then((module) => ({ default: module.PayrollPage })));
+const PayrollRunPage = lazy(() => import("@/features/finance/payroll-run-page").then((module) => ({ default: module.PayrollRunPage })));
 const FinanceSettingsPage = lazy(() => import("@/features/finance/settings-page").then((module) => ({ default: module.FinanceSettingsPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
@@ -60,6 +62,7 @@ const READY: Record<string, React.ReactNode> = {
   "/finance/tax": <TaxPage />,
   "/finance/reports": <ReportsPage />,
   "/finance/journal": <JournalPage />,
+  "/finance/payroll": <PayrollPage />,
   "/finance/settings": <FinanceSettingsPage />,
   "/sales/delivery-orders": <DeliveryOrdersPage />,
   "/sales/orders": <OrdersPage />,
@@ -116,6 +119,7 @@ export const router = createBrowserRouter([
           { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
           { path: "/finance/journal/book", element: <LedgerBookPage /> },
           { path: "/finance/reports/statements", element: <StatementPage /> },
+          { path: "/finance/payroll/:id", element: <PayrollRunPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },
