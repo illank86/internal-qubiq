@@ -386,9 +386,9 @@ export async function loadHistory(type: HistoryType, id: string) {
 export type InvoiceStatus = "paid" | "unpaid" | "void";
 
 /** Paid / not paid / void. `paidOn`: the day the money arrived (Jakarta date), default today. */
-export async function setInvoiceStatus(id: string, status: InvoiceStatus, paidOn?: string) {
+export async function setInvoiceStatus(id: string, status: InvoiceStatus, paidOn?: string, reference?: string) {
   // Recorded by the database (who and when), never written directly.
-  const { error } = await supabase.rpc("set_invoice_status", { p_id: id, p_status: status, ...(paidOn ? { p_paid_on: paidOn } : {}) });
+  const { error } = await supabase.rpc("set_invoice_status", { p_id: id, p_status: status, ...(paidOn ? { p_paid_on: paidOn } : {}), ...(reference ? { p_reference: reference } : {}) });
   if (error?.code === "23505") {
     throw { code: "22023", message: "That quotation already has another live invoice; void that one first." };
   }

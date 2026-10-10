@@ -1294,6 +1294,9 @@ export type Database = {
           number: string | null
           owner_id: string | null
           paid_at: string | null
+          paid_recorded_at: string | null
+          paid_recorded_by: string | null
+          paid_reference: string | null
           public_token: string
           quotation_id: string | null
           quotation_number: string | null
@@ -1353,6 +1356,9 @@ export type Database = {
           number?: string | null
           owner_id?: string | null
           paid_at?: string | null
+          paid_recorded_at?: string | null
+          paid_recorded_by?: string | null
+          paid_reference?: string | null
           public_token?: string
           quotation_id?: string | null
           quotation_number?: string | null
@@ -1412,6 +1418,9 @@ export type Database = {
           number?: string | null
           owner_id?: string | null
           paid_at?: string | null
+          paid_recorded_at?: string | null
+          paid_recorded_by?: string | null
+          paid_reference?: string | null
           public_token?: string
           quotation_id?: string | null
           quotation_number?: string | null
@@ -3829,7 +3838,7 @@ export type Database = {
       }
       my_integrator: { Args: never; Returns: string | null }
       order_overview: { Args: never; Returns: Json }
-      set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string }; Returns: undefined }
+      set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }

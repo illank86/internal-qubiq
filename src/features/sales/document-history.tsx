@@ -30,7 +30,7 @@ const QUIET = new Set([
   "signature_id", "send_count", "sent_at", "customer_revision", "updated_at", "created_at", "signed_copy_path", "signed_copy_uploaded_by",
   "signed_copy_uploaded_at", "signed_copy_check", "signed_copy_confirmed_by", "signed_copy_confirmed_at", "signed_copy_sent_at", "emeterai_serial",
   "public_token", "claim_token", "id", "number", "seller", "po_file_name",
-  "issued_at", "issued_by", "issue_date", "received_at", "received_via", "cancelled_at",
+  "issued_at", "issued_by", "issue_date", "received_at", "received_via", "cancelled_at", "paid_recorded_at", "paid_recorded_by",
 ]);
 const PRICED = new Set(["subtotal", "tax_amount", "total"]);
 const STATUS_LABEL: Record<string, string> = {
@@ -66,6 +66,8 @@ const FIELD: Record<string, string> = {
   licensee_name: "Licensed to",
   licensee_address: "Licensee address",
   integrator_id: "Integrator (order via)",
+  paid_at: "Payment date",
+  paid_reference: "Payment reference",
   ship_to_name: "Deliver to",
   ship_to_company: "Company",
   ship_to_address: "Delivery address",

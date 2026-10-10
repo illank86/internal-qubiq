@@ -47,6 +47,7 @@ type Row = Invoice & {
   license: { label: string } | null;
   approver: { full_name: string | null } | null;
   requester: { full_name: string | null } | null;
+  recorder: { full_name: string | null; email: string | null } | null;
 };
 
 /** Over this, an IDR document usually carries a Rp10.000 materai (UU 10/2020). */
@@ -80,7 +81,7 @@ export function InvoicesPage() {
       const { data: rows, error: loadError } = await supabase
         .from("invoices")
         .select(
-          "*, license:licenses!invoices_license_id_fkey(label), approver:profiles!invoices_approved_by_fkey(full_name), requester:profiles!invoices_approval_requested_by_fkey(full_name)",
+          "*, license:licenses!invoices_license_id_fkey(label), approver:profiles!invoices_approved_by_fkey(full_name), requester:profiles!invoices_approval_requested_by_fkey(full_name), recorder:profiles!invoices_paid_recorded_by_fkey(full_name, email)",
         )
         .order("created_at", { ascending: false })
         .limit(1000);
@@ -331,8 +332,8 @@ function InvoiceRowActions({
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   // Asks the day the money arrived: received money is reported at that day's rate.
   const markPaid = () => setPaying(true);
-  const confirmPaid = (paidOn: string) =>
-    run(k("paid"), () => setInvoiceStatus(row.id, "paid", paidOn), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`).then(
+  const confirmPaid = (paidOn: string, reference: string) =>
+    run(k("paid"), () => setInvoiceStatus(row.id, "paid", paidOn, reference), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`).then(
       (ok) => ok && setPaying(false),
     );
 
@@ -620,6 +621,7 @@ function InvoiceDetailsDrawer({
             approvedAt={invoice.approved_at}
           />
           {invoice.approval_status === "none" && invoice.send_count === 0 ? <Typography.Text type="secondary">Not sent yet.</Typography.Text> : null}
+          {invoice.status === "paid" && invoice.paid_at ? <PaymentRecord invoice={invoice} /> : null}
           {needsSigning(invoice) ? (
             <>
               <Typography.Text type="secondary" style={{ fontSize: 13 }}>
@@ -928,11 +930,14 @@ function MarkPaidModal({
   open: boolean;
   busy: boolean;
   onCancel: () => void;
-  onConfirm: (paidOn: string) => void;
+  onConfirm: (paidOn: string, reference: string) => void;
 }) {
   const [paidOn, setPaidOn] = useState(jakartaToday);
+  const [reference, setReference] = useState("");
   const today = jakartaToday();
-  const valid = Boolean(paidOn) && paidOn <= today;
+  // A payment in an earlier month changes revenue already reported: it needs a reason.
+  const earlierMonth = Boolean(paidOn) && paidOn.slice(0, 7) < today.slice(0, 7);
+  const valid = Boolean(paidOn) && paidOn <= today && paidOn >= invoice.issue_date && (!earlierMonth || reference.trim().length > 0);
   return (
     <Modal
       open={open}
@@ -940,7 +945,7 @@ function MarkPaidModal({
       title={`Mark ${invoice.number ?? "invoice"} paid`}
       okText="Mark paid"
       okButtonProps={{ disabled: !valid, loading: busy, icon: <CheckCircleOutlined /> }}
-      onOk={() => valid && onConfirm(paidOn)}
+      onOk={() => valid && onConfirm(paidOn, reference.trim())}
       destroyOnHidden
     >
       <Flex vertical gap={12}>
@@ -951,13 +956,58 @@ function MarkPaidModal({
           <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
             Payment received on
           </Typography.Text>
-          <Input type="date" value={paidOn} max={today} onChange={(event) => setPaidOn(event.target.value)} style={{ maxWidth: 200 }} />
+          <Input type="date" value={paidOn} min={invoice.issue_date} max={today} onChange={(event) => setPaidOn(event.target.value)} style={{ maxWidth: 200 }} />
           <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: "6px 0 0" }}>
             The day the money arrived in the bank (Jakarta time). Revenue is counted in that month, converted at that day&rsquo;s
-            exchange rate.
+            exchange rate. Not before the invoice date or after today.
           </Typography.Paragraph>
+        </div>
+        <div>
+          <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+            Bank reference or note {earlierMonth ? <Typography.Text type="danger">(required)</Typography.Text> : <Typography.Text type="secondary">(optional)</Typography.Text>}
+          </Typography.Text>
+          <Input
+            value={reference}
+            maxLength={300}
+            onChange={(event) => setReference(event.target.value)}
+            placeholder="e.g. BCA transfer 2026-10-03, ref 8812"
+            status={earlierMonth && !reference.trim() ? "error" : undefined}
+          />
+          {earlierMonth ? (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 8 }}
+              title={`Backdated to ${new Date(`${paidOn}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`}
+              description="This changes that month's revenue, which may already have been reported. Say where the payment is shown (bank statement, transfer reference)."
+            />
+          ) : null}
         </div>
       </Flex>
     </Modal>
+  );
+}
+
+/** "Paid 3 Oct · recorded 10 Oct by Nur (7 days later) · Ref …": a backdate is visible on the invoice itself. */
+function PaymentRecord({ invoice }: { invoice: Row }) {
+  const jakartaDay = (iso: string) => new Date(Date.parse(iso) + 7 * 3_600_000).toISOString().slice(0, 10);
+  const paid = jakartaDay(invoice.paid_at!);
+  const recorded = invoice.paid_recorded_at ? jakartaDay(invoice.paid_recorded_at) : null;
+  const late = recorded ? Math.round((Date.parse(recorded) - Date.parse(paid)) / 86_400_000) : 0;
+  const who = invoice.recorder?.full_name || invoice.recorder?.email;
+  return (
+    <Typography.Text style={{ fontSize: 13 }}>
+      <CheckCircleOutlined style={{ color: "var(--ant-color-success)" }} /> Paid {formatInvoiceDate(paid)}
+      {recorded && late > 0 ? (
+        <Typography.Text type={late > 7 ? "warning" : "secondary"} style={{ fontSize: 13 }}>
+          {" "}
+          · recorded {formatInvoiceDate(recorded)}
+          {who ? ` by ${who}` : ""} ({late} day{late === 1 ? "" : "s"} later)
+        </Typography.Text>
+      ) : who ? (
+        <Typography.Text type="secondary" style={{ fontSize: 13 }}> · recorded by {who}</Typography.Text>
+      ) : null}
+      {invoice.paid_reference ? <Typography.Text type="secondary" style={{ fontSize: 13 }}> · Ref: {invoice.paid_reference}</Typography.Text> : null}
+    </Typography.Text>
   );
 }
