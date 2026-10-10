@@ -62,7 +62,7 @@ export function CompanySettings() {
           </Form.Item>
         </Col>
         <Col xs={24} md={12}>
-          <Form.Item label="Email" name="company_email" rules={[{ type: "email", message: "Enter a valid email" }]} extra="Printed under our address, e.g. sales@goqubiq.com.">
+          <Form.Item label="Email" name="company_email" rules={[{ type: "email", message: "Enter a valid email" }]} extra="Printed under our address, e.g. sales@goqubiq.com. Invoices show the Finance email from Site settings instead, when one is set.">
             <Input />
           </Form.Item>
           <Form.Item label="Phone" name="company_phone" rules={[{ max: 60 }]}>
