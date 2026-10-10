@@ -11,12 +11,13 @@ import type { AppRole, Profile } from "@/lib/types";
 import { useAction } from "@/features/sales/use-action";
 import { SessionSettingsCard } from "./session-settings-card";
 
-const ROLES: AppRole[] = ["admin", "sales", "editor", "licensing", "viewer"];
+const ROLES: AppRole[] = ["admin", "sales", "licensing", "finance", "editor", "viewer"];
 const ROLE_HINT: Record<AppRole, string> = {
   admin: "Everything, including users and roles",
   sales: "Quotations, and the inbox: leads, quote requests, bug reports, newsletters",
   editor: "Website content, blog, pricing, downloads and the inbox",
   licensing: "Licences, invoices and Sales settings",
+  finance: "Finance: money in and out, journal, tax and tax settings",
   viewer: "Can sign in and look around",
 };
 type User = Profile & { roles: AppRole[]; approver: boolean };

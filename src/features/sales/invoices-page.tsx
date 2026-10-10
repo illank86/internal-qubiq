@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Modal, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -41,6 +41,7 @@ import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
+import { RecordPaymentModal } from "@/features/finance/record-payment-modal";
 import { discountLines } from "@/lib/pdf-theme";
 import { InvoiceDeliveries } from "./delivery-orders-page";
 
@@ -333,10 +334,6 @@ function InvoiceRowActions({
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   // Asks the day the money arrived: received money is reported at that day's rate.
   const markPaid = () => setPaying(true);
-  const confirmPaid = (paidOn: string, reference: string) =>
-    run(k("paid"), () => setInvoiceStatus(row.id, "paid", paidOn, reference), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`).then(
-      (ok) => ok && setPaying(false),
-    );
 
   // What to do next — the step this invoice is waiting for.
   const next: Item[] = [];
@@ -358,7 +355,7 @@ function InvoiceRowActions({
       onClick: () => reviewAndSend(false),
     });
   } else if (row.status === "unpaid") {
-    next.push({ key: "paid", icon: <CheckCircleOutlined />, label: "Mark paid", onClick: markPaid });
+    next.push({ key: "paid", icon: <CheckCircleOutlined />, label: "Record payment", onClick: markPaid });
   } else if (row.status === "paid") {
     // Paid: what was bought goes out on a delivery order (the server refuses once all is delivered).
     next.push({ key: "deliver", icon: <CarOutlined />, label: "Create delivery order", onClick: () => navigate(`/sales/delivery-orders?new=${row.id}`) });
@@ -419,7 +416,7 @@ function InvoiceRowActions({
         onReject={(reason) => run(k("reject"), () => rejectDocument("invoice", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
       />
       <ApprovalHistoryModal type="invoice" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
-      <MarkPaidModal invoice={row} open={paying} busy={busy === k("paid")} onCancel={() => setPaying(false)} onConfirm={confirmPaid} />
+      {paying ? <RecordPaymentModal invoice={row} open onClose={() => setPaying(false)} /> : null}
       {signingMenu.modal}
     </Flex>
   );
@@ -913,82 +910,6 @@ function InvoiceDetailsDrawer({
         />
       </Flex>
     </Drawer>
-  );
-}
-
-/** Today in Jakarta (the business day), as YYYY-MM-DD. */
-const jakartaToday = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-
-/**
- * "When did the money arrive?" — recorded as the payment date: the receipt
- * shows it, and revenue converts at that day's exchange rate.
- */
-function MarkPaidModal({
-  invoice,
-  open,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  invoice: Pick<Invoice, "number" | "total" | "currency" | "decimal_places" | "issue_date">;
-  open: boolean;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: (paidOn: string, reference: string) => void;
-}) {
-  const [paidOn, setPaidOn] = useState(jakartaToday);
-  const [reference, setReference] = useState("");
-  const today = jakartaToday();
-  // A payment in an earlier month changes revenue already reported: it needs a reason.
-  const earlierMonth = Boolean(paidOn) && paidOn.slice(0, 7) < today.slice(0, 7);
-  const valid = Boolean(paidOn) && paidOn <= today && paidOn >= invoice.issue_date && (!earlierMonth || reference.trim().length > 0);
-  return (
-    <Modal
-      open={open}
-      onCancel={onCancel}
-      title={`Mark ${invoice.number ?? "invoice"} paid`}
-      okText="Mark paid"
-      okButtonProps={{ disabled: !valid, loading: busy, icon: <CheckCircleOutlined /> }}
-      onOk={() => valid && onConfirm(paidOn, reference.trim())}
-      destroyOnHidden
-    >
-      <Flex vertical gap={12}>
-        <Typography.Text>
-          {formatMoney(invoice.total, invoice.currency, invoice.decimal_places)} received. The customer is emailed a receipt.
-        </Typography.Text>
-        <div>
-          <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
-            Payment received on
-          </Typography.Text>
-          <Input type="date" value={paidOn} min={invoice.issue_date} max={today} onChange={(event) => setPaidOn(event.target.value)} style={{ maxWidth: 200 }} />
-          <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: "6px 0 0" }}>
-            The day the money arrived in the bank (Jakarta time). Revenue is counted in that month, converted at that day&rsquo;s
-            exchange rate. Not before the invoice date or after today.
-          </Typography.Paragraph>
-        </div>
-        <div>
-          <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
-            Bank reference or note {earlierMonth ? <Typography.Text type="danger">(required)</Typography.Text> : <Typography.Text type="secondary">(optional)</Typography.Text>}
-          </Typography.Text>
-          <Input
-            value={reference}
-            maxLength={300}
-            onChange={(event) => setReference(event.target.value)}
-            placeholder="e.g. BCA transfer 2026-10-03, ref 8812"
-            status={earlierMonth && !reference.trim() ? "error" : undefined}
-          />
-          {earlierMonth ? (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginTop: 8 }}
-              title={`Backdated to ${new Date(`${paidOn}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`}
-              description="This changes that month's revenue, which may already have been reported. Say where the payment is shown (bank statement, transfer reference)."
-            />
-          ) : null}
-        </div>
-      </Flex>
-    </Modal>
   );
 }
 

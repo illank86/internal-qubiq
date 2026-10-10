@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Select, Skeleton, Space, Switch, Tabs, Typography } from "antd";
+import { Alert, App, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Switch, Tabs, Typography } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { useCan } from "@/auth/use-auth";
@@ -154,35 +154,10 @@ export function SalesSettingsPage() {
                       </Flex>
                     </Col>
                     <Col span={24}>
-                      <Divider titlePlacement="start">Reporting</Divider>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Reporting currency"
-                        name="reporting_currency"
-                        extra="The dashboard adds everything up in this currency (anyone can switch to IDR or USD there). Quotations and invoices keep their own currency."
-                        rules={[{ required: true }]}
-                      >
-                        <Select
-                          options={[
-                            { value: "IDR", label: "IDR — Indonesian rupiah" },
-                            { value: "USD", label: "USD — US dollar" },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
                       <Divider titlePlacement="start">Tax and documents</Divider>
                     </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="Tax name" name="tax_label" extra="As printed, e.g. PPN or VAT." rules={[{ required: true }]}>
-                        <Input />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="Tax rate" name="tax_rate" extra="Applied to every new invoice and quotation; can be changed on each." rules={[{ required: true }]}>
-                        <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
-                      </Form.Item>
+                    <Col span={24}>
+                      <TaxSummary settings={data} />
                     </Col>
                     <Col xs={24} md={12}>
                       <Form.Item
@@ -192,25 +167,6 @@ export function SalesSettingsPage() {
                         rules={[{ max: 160 }]}
                       >
                         <Input placeholder="PT. QUBIQ Teknologi Indonesia" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="Our tax number" extra="Printed under our address on invoices and quotations, e.g. NPWP 01.234.567.8-901.000.">
-                        <Space.Compact block>
-                          <Form.Item name="tax_id_label" noStyle rules={[{ required: true, whitespace: true }, { max: 40 }]}>
-                            {/* What it is called in your country; pick one or type your own. */}
-                            <AutoComplete
-                              style={{ width: 150 }}
-                              options={["NPWP", "Tax ID", "VAT No.", "GST No.", "TIN", "EIN", "ABN", "UEN", "SST No.", "TRN"].map((value) => ({ value }))}
-                              filterOption={false}
-                              placeholder="Tax ID"
-                              aria-label="Name of the tax number"
-                            />
-                          </Form.Item>
-                          <Form.Item name="tax_id" noStyle>
-                            <Input placeholder="e.g. 01.234.567.8-901.000" aria-label="Tax number" />
-                          </Form.Item>
-                        </Space.Compact>
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={12}>
@@ -325,5 +281,26 @@ export function SalesSettingsPage() {
       </Form>
       {licensing ? <SignatureCard /> : null}
     </>
+  );
+}
+
+/** Tax is set in Finance → Settings: shown here, read-only. */
+function TaxSummary({ settings }: { settings: Settings }) {
+  const canFinance = useCan()("accounting.manage");
+  const navigate = useNavigate();
+  const charging = Number(settings.tax_rate) > 0;
+  return (
+    <Alert
+      type="info"
+      showIcon
+      style={{ marginBottom: 16 }}
+      title={charging ? `${settings.tax_label} ${Number(settings.tax_rate)}% on new quotations and invoices` : "No PPN on new quotations and invoices (not PKP)"}
+      description={
+        <>
+          {settings.tax_id ? `${settings.tax_id_label ?? "Tax ID"} ${settings.tax_id} · ` : ""}Reporting in {settings.reporting_currency ?? "IDR"}. Tax settings are managed in Finance.
+        </>
+      }
+      action={canFinance ? <Button size="small" onClick={() => navigate("/finance/settings")}>Open Finance settings</Button> : undefined}
+    />
   );
 }

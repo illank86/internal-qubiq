@@ -26,6 +26,7 @@ import {
   documentFingerprint,
   FingerprintMark,
   discountLines,
+  NOT_PKP_NOTE,
 } from "@/lib/pdf-theme";
 import {
   INVOICE_STATUS_LABEL,
@@ -169,6 +170,7 @@ function InvoiceDocument({
           notes={invoice.notes}
           subtotal={invoice.subtotal}
           discounts={discountLines(invoice)}
+          taxNote={seller.pkp === false && Number(invoice.tax_rate) === 0 ? NOT_PKP_NOTE : undefined}
           taxLabel={invoice.tax_label}
           taxRate={invoice.tax_rate}
           taxAmount={invoice.tax_amount}

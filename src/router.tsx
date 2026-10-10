@@ -22,6 +22,12 @@ const ConvertPage = lazy(() => import("@/features/sales/convert-page").then((mod
 const CustomerPage = lazy(() => import("@/features/sales/customer-page").then((module) => ({ default: module.CustomerPage })));
 const DeliveryOrdersPage = lazy(() => import("@/features/sales/delivery-orders-page").then((module) => ({ default: module.DeliveryOrdersPage })));
 const OrdersPage = lazy(() => import("@/features/sales/orders-page").then((module) => ({ default: module.OrdersPage })));
+const FinanceDashboardPage = lazy(() => import("@/features/finance/dashboard-page").then((module) => ({ default: module.FinanceDashboardPage })));
+const MoneyInPage = lazy(() => import("@/features/finance/money-in-page").then((module) => ({ default: module.MoneyInPage })));
+const MoneyOutPage = lazy(() => import("@/features/finance/money-out-page").then((module) => ({ default: module.MoneyOutPage })));
+const TaxPage = lazy(() => import("@/features/finance/tax-page").then((module) => ({ default: module.TaxPage })));
+const JournalPage = lazy(() => import("@/features/finance/journal-page").then((module) => ({ default: module.JournalPage })));
+const FinanceSettingsPage = lazy(() => import("@/features/finance/settings-page").then((module) => ({ default: module.FinanceSettingsPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
 const ContentPage = lazy(() => import("@/features/content/content-page").then((module) => ({ default: module.ContentPage })));
@@ -45,6 +51,12 @@ import { CONTENT_SCREENS } from "@/features/content/content-screens";
 const READY: Record<string, React.ReactNode> = {
   "/sales/quotations": <QuotationsPage />,
   "/sales/invoices": <InvoicesPage />,
+  "/finance": <FinanceDashboardPage />,
+  "/finance/money-in": <MoneyInPage />,
+  "/finance/money-out": <MoneyOutPage />,
+  "/finance/tax": <TaxPage />,
+  "/finance/journal": <JournalPage />,
+  "/finance/settings": <FinanceSettingsPage />,
   "/sales/delivery-orders": <DeliveryOrdersPage />,
   "/sales/orders": <OrdersPage />,
   "/sales/quote-requests": <QuoteRequestsPage />,

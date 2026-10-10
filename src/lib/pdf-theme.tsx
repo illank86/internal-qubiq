@@ -132,6 +132,8 @@ export const styles = StyleSheet.create({
 
 /** Our seller block, as stored on each document (from Site and Sales settings). */
 export type SellerBlock = {
+  /** Whether we were PKP (VAT-registered) when the document was made. */
+  pkp?: boolean | null;
   company_name?: string | null;
   address?: string | null;
   tax_id?: string | null;
@@ -533,6 +535,9 @@ export function ItemsTable({
   );
 }
 
+/** The line printed instead of the tax when we were not PKP and charged none. */
+export const NOT_PKP_NOTE = "Not VAT-registered (belum PKP): prices do not include PPN.";
+
 /** A document's discounts as printed lines: the partner (tier) discount, then its own. */
 export type DiscountLine = { label: string; amount: number };
 export function discountLines(doc: {
@@ -577,6 +582,7 @@ export function Summary({
   money,
   struck = false,
   discounts = [],
+  taxNote,
 }: {
   notesLabel: string;
   notes: string | null;
@@ -591,6 +597,8 @@ export function Summary({
   struck?: boolean;
   /** Partner and own discounts, between the subtotal and the tax (see discountLines). */
   discounts?: DiscountLine[];
+  /** Instead of the tax line: we are not PKP, so no PPN is charged. */
+  taxNote?: string;
 }) {
   const strike = struck ? { color: MUTED, textDecoration: "line-through" as const } : {};
   return (
@@ -614,12 +622,18 @@ export function Summary({
             <Text style={{ fontSize: fit(`−${money(line.amount)}`, 9, 150) }}>−{money(line.amount)}</Text>
           </View>
         ))}
-        <View style={styles.totalRow}>
-          <Text style={styles.muted}>
-            {taxLabel} {Number(taxRate)}%
-          </Text>
-          <Text style={{ fontSize: fit(money(taxAmount), 9, 150) }}>{money(taxAmount)}</Text>
-        </View>
+        {taxNote ? (
+          <View style={styles.totalRow}>
+            <Text style={[styles.muted, { fontSize: 7.5 }]}>{taxNote}</Text>
+          </View>
+        ) : (
+          <View style={styles.totalRow}>
+            <Text style={styles.muted}>
+              {taxLabel} {Number(taxRate)}%
+            </Text>
+            <Text style={{ fontSize: fit(money(taxAmount), 9, 150) }}>{money(taxAmount)}</Text>
+          </View>
+        )}
         <View style={[styles.grandTotal, struck ? { backgroundColor: PANEL } : {}]}>
           <Text style={styles.grandLabel}>Total {currency}</Text>
           <Text style={[styles.grandValue, { fontSize: fit(money(total), 12.5, 150) }, strike]}>{money(total)}</Text>

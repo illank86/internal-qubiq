@@ -14,6 +14,456 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_settings: {
+        Row: {
+          corporate_rate: number
+          facility_31e_threshold: number
+          fiscal_year_start_month: number
+          id: boolean
+          income_tax_regime: string
+          legal_name: string | null
+          nitku: string | null
+          npwp: string | null
+          pkp: boolean
+          pkp_since: string | null
+          pp55_until: string | null
+          pph25_monthly: number
+          ppn_dpp_denominator: number
+          ppn_dpp_numerator: number
+          ppn_rate: number
+          tax_registered_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          corporate_rate?: number
+          facility_31e_threshold?: number
+          fiscal_year_start_month?: number
+          id?: boolean
+          income_tax_regime?: string
+          legal_name?: string | null
+          nitku?: string | null
+          npwp?: string | null
+          pkp?: boolean
+          pkp_since?: string | null
+          pp55_until?: string | null
+          pph25_monthly?: number
+          ppn_dpp_denominator?: number
+          ppn_dpp_numerator?: number
+          ppn_rate?: number
+          tax_registered_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          corporate_rate?: number
+          facility_31e_threshold?: number
+          fiscal_year_start_month?: number
+          id?: boolean
+          income_tax_regime?: string
+          legal_name?: string | null
+          nitku?: string | null
+          npwp?: string | null
+          pkp?: boolean
+          pkp_since?: string | null
+          pp55_until?: string | null
+          pph25_monthly?: number
+          ppn_dpp_denominator?: number
+          ppn_dpp_numerator?: number
+          ppn_rate?: number
+          tax_registered_on?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      accounts: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          deductible: boolean
+          id: string
+          name: string
+          name_id: string | null
+          role: string | null
+          type: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          deductible?: boolean
+          id?: string
+          name: string
+          name_id?: string | null
+          role?: string | null
+          type: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          deductible?: boolean
+          id?: string
+          name?: string
+          name_id?: string | null
+          role?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      bank_accounts: {
+        Row: {
+          account_id: string | null
+          account_last4: string | null
+          active: boolean
+          bank_name: string | null
+          created_at: string
+          currency: string
+          id: string
+          name: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_last4?: string | null
+          active?: boolean
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          account_id?: string | null
+          account_last4?: string | null
+          active?: boolean
+          bank_name?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          account_id: string
+          amount: number
+          attachment_name: string | null
+          attachment_path: string | null
+          bank_account_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          deductible: boolean
+          description: string
+          faktur_number: string | null
+          id: string
+          idr_paid: number | null
+          journal_id: string | null
+          number: string
+          paid_on: string | null
+          payment_journal_id: string | null
+          ppn_in_amount: number
+          spent_on: string
+          status: string
+          vendor_name: string
+          vendor_npwp: string | null
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          attachment_name?: string | null
+          attachment_path?: string | null
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deductible?: boolean
+          description: string
+          faktur_number?: string | null
+          id?: string
+          idr_paid?: number | null
+          journal_id?: string | null
+          number: string
+          paid_on?: string | null
+          payment_journal_id?: string | null
+          ppn_in_amount?: number
+          spent_on: string
+          status?: string
+          vendor_name: string
+          vendor_npwp?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          attachment_name?: string | null
+          attachment_path?: string | null
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deductible?: boolean
+          description?: string
+          faktur_number?: string | null
+          id?: string
+          idr_paid?: number | null
+          journal_id?: string | null
+          number?: string
+          paid_on?: string | null
+          payment_journal_id?: string | null
+          ppn_in_amount?: number
+          spent_on?: string
+          status?: string
+          vendor_name?: string
+          vendor_npwp?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: []
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          id: string
+          memo: string | null
+          number: string
+          rate_estimated: boolean
+          reversal_of: string | null
+          reversed_by: string | null
+          source_id: string | null
+          source_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entry_date: string
+          id?: string
+          memo?: string | null
+          number: string
+          rate_estimated?: boolean
+          reversal_of?: string | null
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          id?: string
+          memo?: string | null
+          number?: string
+          rate_estimated?: boolean
+          reversal_of?: string | null
+          reversed_by?: string | null
+          source_id?: string | null
+          source_type?: string
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          amount_fc: number | null
+          credit: number
+          currency: string
+          debit: number
+          description: string | null
+          entry_id: string
+          id: string
+          rate: number | null
+        }
+        Insert: {
+          account_id: string
+          amount_fc?: number | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_id: string
+          id?: string
+          rate?: number | null
+        }
+        Update: {
+          account_id?: string
+          amount_fc?: number | null
+          credit?: number
+          currency?: string
+          debit?: number
+          description?: string | null
+          entry_id?: string
+          id?: string
+          rate?: number | null
+        }
+        Relationships: []
+      }
+      kmk_rates: {
+        Row: {
+          currency: string
+          rate: number
+          reference: string | null
+          valid_from: string
+          valid_to: string
+        }
+        Insert: {
+          currency: string
+          rate: number
+          reference?: string | null
+          valid_from: string
+          valid_to: string
+        }
+        Update: {
+          currency?: string
+          rate?: number
+          reference?: string | null
+          valid_from?: string
+          valid_to?: string
+        }
+        Relationships: []
+      }
+      receipts: {
+        Row: {
+          bank_account_id: string
+          bank_charges: number
+          bukti_potong_date: string | null
+          bukti_potong_number: string | null
+          bukti_potong_path: string | null
+          created_at: string
+          created_by: string | null
+          credit_account_id: string | null
+          currency: string
+          difference_reason: string | null
+          id: string
+          idr_credited: number | null
+          invoice_id: string | null
+          journal_id: string | null
+          net_received: number
+          note: string | null
+          number: string
+          other_difference: number
+          received_on: string
+          reference: string | null
+          settled: number | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          withholding_amount: number
+          withholding_type: string | null
+        }
+        Insert: {
+          bank_account_id: string
+          bank_charges?: number
+          bukti_potong_date?: string | null
+          bukti_potong_number?: string | null
+          bukti_potong_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          currency: string
+          difference_reason?: string | null
+          id?: string
+          idr_credited?: number | null
+          invoice_id?: string | null
+          journal_id?: string | null
+          net_received: number
+          note?: string | null
+          number: string
+          other_difference?: number
+          received_on: string
+          reference?: string | null
+          settled?: never
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          withholding_amount?: number
+          withholding_type?: string | null
+        }
+        Update: {
+          bank_account_id?: string
+          bank_charges?: number
+          bukti_potong_date?: string | null
+          bukti_potong_number?: string | null
+          bukti_potong_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          currency?: string
+          difference_reason?: string | null
+          id?: string
+          idr_credited?: number | null
+          invoice_id?: string | null
+          journal_id?: string | null
+          net_received?: number
+          note?: string | null
+          number?: string
+          other_difference?: number
+          received_on?: string
+          reference?: string | null
+          settled?: never
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          withholding_amount?: number
+          withholding_type?: string | null
+        }
+        Relationships: []
+      }
+      tax_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          billing_code: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_id: string | null
+          masa: string
+          note: string | null
+          ntpn: string | null
+          paid_on: string
+          tax_type: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          billing_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          masa: string
+          note?: string | null
+          ntpn?: string | null
+          paid_on: string
+          tax_type: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          billing_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          masa?: string
+          note?: string | null
+          ntpn?: string | null
+          paid_on?: string
+          tax_type?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: []
+      }
       delivery_order_files: {
         Row: {
           id: string
@@ -1304,6 +1754,7 @@ export type Database = {
           cc_emails: string[]
           base_currency: string | null
           bill_to_address: string | null
+          book_rate: number | null
           bill_to_company: string | null
           bill_to_email: string | null
           bill_to_name: string
@@ -1372,6 +1823,7 @@ export type Database = {
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
+          book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
           bill_to_name: string
@@ -1440,6 +1892,7 @@ export type Database = {
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
+          book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
           bill_to_name?: string
@@ -3908,6 +4361,19 @@ export type Database = {
       document_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
       order_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
       move_document_path: { Args: { p_kind: string; p_id: string; p_from: string; p_to: string }; Returns: undefined }
+      record_receipt: { Args: { p: Json }; Returns: string }
+      void_receipt: { Args: { p_id: string; p_reason: string }; Returns: undefined }
+      record_expense: { Args: { p: Json }; Returns: string }
+      pay_expense: { Args: { p_id: string; p_paid_on: string; p_bank: string; p_idr_paid?: number }; Returns: undefined }
+      void_expense: { Args: { p_id: string; p_reason: string }; Returns: undefined }
+      record_tax_payment: { Args: { p: Json }; Returns: string }
+      void_tax_payment: { Args: { p_id: string; p_reason: string }; Returns: undefined }
+      post_manual_journal: { Args: { p_date: string; p_memo: string; p_lines: Json }; Returns: string }
+      reverse_manual_journal: { Args: { p_entry: string; p_reason: string }; Returns: string }
+      accounting_dashboard: { Args: { p_year?: number }; Returns: Json }
+      monthly_tax_report: { Args: { p_masa: string }; Returns: Json }
+      invoice_open_balance: { Args: { p_invoice: string }; Returns: number }
+      tax_before_pkp_documents: { Args: never; Returns: Json }
       set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
@@ -3943,7 +4409,8 @@ export type Database = {
         | "users.manage"
         | "licenses.manage"
         | "quotations.manage"
-      app_role: "admin" | "editor" | "viewer" | "licensing" | "sales"
+        | "accounting.manage"
+      app_role: "admin" | "editor" | "viewer" | "licensing" | "sales" | "finance"
       bug_severity: "low" | "medium" | "high" | "critical"
       bug_status:
         | "new"
@@ -4111,8 +4578,9 @@ export const Constants = {
         "users.manage",
         "licenses.manage",
         "quotations.manage",
+        "accounting.manage",
       ],
-      app_role: ["admin", "editor", "viewer", "licensing", "sales"],
+      app_role: ["admin", "editor", "viewer", "licensing", "sales", "finance"],
       bug_severity: ["low", "medium", "high", "critical"],
       bug_status: [
         "new",

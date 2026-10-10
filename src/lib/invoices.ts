@@ -11,6 +11,8 @@ export type InvoiceStatus = Database["public"]["Enums"]["invoice_status"];
 
 /** The seller snapshot stored on each invoice (invoice_settings at issue time). */
 export type InvoiceSeller = {
+  /** Whether we were PKP (VAT-registered) when the invoice was made. */
+  pkp?: boolean | null;
   company_name?: string | null;
   address?: string | null;
   tax_id?: string | null;

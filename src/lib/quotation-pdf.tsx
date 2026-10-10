@@ -27,6 +27,7 @@ import {
   documentFingerprint,
   FingerprintMark,
   discountLines,
+  NOT_PKP_NOTE,
 } from "@/lib/pdf-theme";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { quotationState, type Quotation, type QuotationTone } from "@/lib/quotations";
@@ -199,6 +200,7 @@ function QuotationDocument({
           notes={null}
           subtotal={quotation.subtotal}
           discounts={discountLines(quotation)}
+          taxNote={seller.pkp === false && Number(quotation.tax_rate) === 0 ? NOT_PKP_NOTE : undefined}
           taxLabel={quotation.tax_label}
           taxRate={quotation.tax_rate}
           taxAmount={quotation.tax_amount}
