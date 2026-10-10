@@ -1181,6 +1181,7 @@ export type Database = {
           payment_terms_days: number
           quote_closing: string | null
           quote_number_prefix: string
+          reporting_currency: string
           quote_signoff: string
           quote_terms: string | null
           quote_validity_days: number
@@ -1207,6 +1208,7 @@ export type Database = {
           payment_terms_days?: number
           quote_closing?: string | null
           quote_number_prefix?: string
+          reporting_currency?: string
           quote_signoff?: string
           quote_terms?: string | null
           quote_validity_days?: number
@@ -1233,6 +1235,7 @@ export type Database = {
           payment_terms_days?: number
           quote_closing?: string | null
           quote_number_prefix?: string
+          reporting_currency?: string
           quote_signoff?: string
           quote_terms?: string | null
           quote_validity_days?: number
@@ -3827,6 +3830,7 @@ export type Database = {
       my_integrator: { Args: never; Returns: string | null }
       order_overview: { Args: never; Returns: Json }
       set_invoice_status: { Args: { p_id: string; p_status: string }; Returns: undefined }
+      sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }
       update_invoice_details: {

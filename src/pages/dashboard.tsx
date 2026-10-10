@@ -15,6 +15,7 @@ import { useCan, useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/invoices";
+import { CurrencySwitch, PipelineFlow, RatesNote, RevenueCard, formatCompact, formatExact, useSalesMoney } from "@/features/dashboard/sales-money";
 import { supabase } from "@/lib/supabase";
 import type { AppPermission } from "@/lib/types";
 
@@ -123,7 +124,7 @@ function Kpi({ label, value, hint, icon, color, to, alert }: { label: string; va
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
             {label}
           </Typography.Text>
-          <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1.25, margin: "6px 0 4px", fontVariantNumeric: "tabular-nums", color: alert ? token.colorError : token.colorText, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ fontSize: "clamp(20px, 1vw + 14px, 28px)", fontWeight: 600, lineHeight: 1.25, margin: "6px 0 4px", fontVariantNumeric: "tabular-nums", color: alert ? token.colorError : token.colorText, overflowWrap: "anywhere" }}>
             {value}
           </div>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -155,56 +156,6 @@ function Panel({ title, to, children, extra }: { title: string; to?: string; chi
     >
       {children}
     </Card>
-  );
-}
-
-/** Quotations by stage, as one bar and a legend. */
-function Pipeline({ data }: { data: Data["quotations"] }) {
-  const { token } = theme.useToken();
-  const stages = [
-    { label: "Draft", count: data.draft, color: token.colorTextQuaternary },
-    { label: "Awaiting reply", count: data.open, color: token.colorPrimary },
-    { label: "Expired", count: data.expired, color: token.colorWarning },
-    { label: "Accepted", count: data.accepted, color: token.colorSuccess },
-    { label: "Declined or cancelled", count: data.lost, color: token.colorTextDisabled },
-  ];
-  const total = stages.reduce((sum, stage) => sum + stage.count, 0);
-  if (total === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No quotations yet." />;
-  return (
-    <Flex vertical gap={16}>
-      <div>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Open pipeline
-        </Typography.Text>
-        <div style={{ fontSize: 22, fontWeight: 600 }}>
-          <MoneyLine money={data.pipeline} empty="Nothing awaiting reply" />
-        </div>
-      </div>
-      <Flex style={{ height: 10, borderRadius: 6, overflow: "hidden", background: token.colorFillSecondary }}>
-        {stages
-          .filter((stage) => stage.count > 0)
-          .map((stage) => (
-            <Tooltip key={stage.label} title={`${stage.label}: ${stage.count}`}>
-              <div style={{ width: `${(stage.count / total) * 100}%`, background: stage.color }} />
-            </Tooltip>
-          ))}
-      </Flex>
-      <Row gutter={[12, 8]}>
-        {stages.map((stage) => (
-          <Col key={stage.label} xs={12} sm={8}>
-            <Flex align="center" gap={8}>
-              <span style={{ width: 8, height: 8, borderRadius: 4, background: stage.color, flexShrink: 0 }} />
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {stage.label}
-              </Typography.Text>
-              <Typography.Text strong style={{ marginLeft: "auto" }}>
-                {stage.count}
-              </Typography.Text>
-            </Flex>
-          </Col>
-        ))}
-      </Row>
-    </Flex>
   );
 }
 
@@ -278,6 +229,9 @@ export function DashboardPage() {
   const first = staff.profile?.full_name?.split(/\s+/)[0];
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
+  // Money in one currency (IDR or USD), for sales or licensing.
+  const seesMoney = licensing || can("quotations.manage");
+  const { money, currency, choose } = useSalesMoney(seesMoney);
 
   return (
     <>
@@ -285,9 +239,12 @@ export function DashboardPage() {
         title={first ? `Welcome back, ${first}` : "Welcome back"}
         description="What needs attention across sales, licensing and support."
         actions={
-          <Button icon={<ExportOutlined />} href={env.siteUrl} target="_blank" rel="noreferrer">
-            View site
-          </Button>
+          <Flex gap={12} align="center" wrap>
+            {seesMoney ? <CurrencySwitch value={currency} onChange={choose} /> : null}
+            <Button icon={<ExportOutlined />} href={env.siteUrl} target="_blank" rel="noreferrer">
+              View site
+            </Button>
+          </Flex>
         }
       />
       {isLoading || !data ? (
@@ -299,8 +256,39 @@ export function DashboardPage() {
               <Col xs={24} sm={12} xl={6}>
                 <Kpi
                   label="Outstanding invoices"
-                  value={<MoneyLine money={data.invoices.outstanding} empty="All paid" />}
-                  hint={data.invoices.unpaid ? `${data.invoices.unpaid} unpaid${data.invoices.overdue ? ` · ${data.invoices.overdue} overdue` : ""}` : "Nothing waiting for payment"}
+                  value={
+                    money?.outstanding ? (
+                      money.outstanding.count ? (
+                        <Tooltip
+                          title={
+                            <>
+                              {formatExact(money.outstanding.amount, money.currency)}
+                              {money.outstanding.by_currency.some((entry) => entry.currency !== money.currency) ? (
+                                <div style={{ opacity: 0.8 }}>
+                                  As invoiced: {money.outstanding.by_currency.map((entry) => formatMoney(entry.amount, entry.currency, entry.decimals)).join(" · ")}
+                                </div>
+                              ) : null}
+                            </>
+                          }
+                        >
+                          <span>{formatCompact(money.outstanding.amount, money.currency)}</span>
+                        </Tooltip>
+                      ) : (
+                        "All paid"
+                      )
+                    ) : (
+                      <MoneyLine money={data.invoices.outstanding} empty="All paid" />
+                    )
+                  }
+                  hint={
+                    data.invoices.unpaid
+                      ? `${data.invoices.unpaid} unpaid${
+                          data.invoices.overdue
+                            ? ` · ${data.invoices.overdue} overdue${money?.outstanding?.overdue_amount ? ` (${formatCompact(money.outstanding.overdue_amount, money.currency)})` : ""}`
+                            : ""
+                        }`
+                      : "Nothing waiting for payment"
+                  }
                   icon={<TransactionOutlined />}
                   color="#c2410c"
                   to="/sales/invoices"
@@ -343,17 +331,21 @@ export function DashboardPage() {
             ) : null}
           </Row>
 
+          {licensing && money?.months ? (
+            <Panel title="Revenue" to="/sales/invoices">
+              <RevenueCard money={money} />
+              <div style={{ marginTop: 8 }}>
+                <RatesNote money={money} />
+              </div>
+            </Panel>
+          ) : null}
+
           {sales || licensing ? (
             <Row gutter={[16, 16]}>
               {sales ? (
                 <Col xs={24} lg={14}>
                   <Panel title="Sales pipeline" to="/sales/quotations">
-                    <Pipeline data={data.quotations} />
-                    {licensing && data.invoices.paidMonth.length ? (
-                      <Typography.Paragraph type="secondary" style={{ margin: "16px 0 0", fontSize: 12 }}>
-                        Paid in the last 30 days: {data.invoices.paidMonth.map((entry) => formatMoney(entry.amount, entry.currency, entry.decimals)).join(" · ")}
-                      </Typography.Paragraph>
-                    ) : null}
+                    <PipelineFlow money={money} counts={data.quotations} />
                   </Panel>
                 </Col>
               ) : null}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Space, Switch, Tabs, Typography } from "antd";
+import { Alert, App, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Select, Skeleton, Space, Switch, Tabs, Typography } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { useCan } from "@/auth/use-auth";
@@ -68,7 +68,7 @@ export function SalesSettingsPage() {
     const { error: saveError } = await supabase.from("invoice_settings").update(changes).eq("id", true);
     setPending(false);
     if (saveError) return setError(errorText(saveError, "The settings could not be saved."));
-    await Promise.all(["sales-settings", "sales-catalog", "sends-directly"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(["sales-settings", "sales-catalog", "sends-directly", "sales-money"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
     message.success(licensing ? "Saved. New invoices and quotations use these." : "Saved. New quotations use these.");
   };
 
@@ -151,6 +151,24 @@ export function SalesSettingsPage() {
                           <Switch disabled={!canSetFourEyes} />
                         </Form.Item>
                       </Flex>
+                    </Col>
+                    <Col span={24}>
+                      <Divider titlePlacement="start">Reporting</Divider>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        label="Reporting currency"
+                        name="reporting_currency"
+                        extra="The dashboard adds everything up in this currency (anyone can switch to IDR or USD there). Quotations and invoices keep their own currency."
+                        rules={[{ required: true }]}
+                      >
+                        <Select
+                          options={[
+                            { value: "IDR", label: "IDR — Indonesian rupiah" },
+                            { value: "USD", label: "USD — US dollar" },
+                          ]}
+                        />
+                      </Form.Item>
                     </Col>
                     <Col span={24}>
                       <Divider titlePlacement="start">Tax and documents</Divider>
