@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import type { Database, Json } from "@/lib/database.types";
 import type { PdfRequest } from "@/components/pdf-viewer-context";
 import { renderDeliveryOrderPdf } from "@/lib/delivery-order-pdf";
+import { documentFolder } from "./api";
 
 /**
  * Delivery orders: made from a paid invoice, issued to the customer, received
@@ -117,7 +118,7 @@ export async function attachDeliveryFile(
 ) {
   if (!TYPES[file.type]) throw { code: "22023", message: "Use a PDF, JPG or PNG." };
   if (file.size === 0 || file.size > 15 * 1024 * 1024) throw { code: "22023", message: "Use a file under 15 MB." };
-  const path = `${order.id}/${Date.now()}-${kind}.${TYPES[file.type]}`;
+  const path = `${await documentFolder("delivery_order", order.id)}/${kind}-${Date.now()}.${TYPES[file.type]}`;
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
   if (uploadError) throw { code: "22023", message: "The file could not be uploaded. Please try again." };
   const { error } = await supabase.rpc("attach_delivery_file", {

@@ -225,6 +225,17 @@ export function purchaseOrderProblem(file: File) {
   return null;
 }
 
+/**
+ * Where a document's files go in storage: integrator/<id>, customer/<account>
+ * or no-account, then the document number. Files move by themselves when the
+ * order's customer or integrator changes.
+ */
+export async function documentFolder(type: "quotation" | "invoice" | "delivery_order", id: string) {
+  const { data, error } = await supabase.rpc("document_storage_folder", { p_type: type, p_id: id });
+  if (error || !data) throw { code: "22023", message: "The file could not be stored. Please try again." };
+  return data as string;
+}
+
 /** The customer's PO file, for staff. */
 export async function purchaseOrderBlob(path: string) {
   const { data, error } = await supabase.storage.from(PO_BUCKET).download(path);
@@ -240,8 +251,9 @@ export async function purchaseOrderBlob(path: string) {
 export async function storePurchaseOrder(owner: { invoiceId: string } | { quotationId: string }, file: File) {
   const problem = purchaseOrderProblem(file);
   if (problem) throw { code: "22023", message: problem };
-  const folder = "invoiceId" in owner ? owner.invoiceId : `q/${owner.quotationId}`;
-  const path = `${folder}/${Date.now()}.${PO_TYPES[file.type]}`;
+  // In the customer's (or integrator's) folder: <whose>/<document number>/.
+  const folder = await documentFolder("invoiceId" in owner ? "invoice" : "quotation", "invoiceId" in owner ? owner.invoiceId : owner.quotationId);
+  const path = `${folder}/po-${Date.now()}.${PO_TYPES[file.type]}`;
   const { error } = await supabase.storage.from(PO_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
   if (error) throw { code: "22023", message: "The purchase order could not be uploaded. Please try again." };
   return { path, name: file.name.slice(0, 200) };
@@ -330,7 +342,7 @@ export function signingHint(doc: SignableDoc) {
  * confirms. Anything else is refused, with the reason.
  */
 export async function uploadSignedCopy(type: DocumentType, id: string, file: File, serial?: string) {
-  const path = `${type}/${id}/${Date.now()}.pdf`;
+  const path = `${await documentFolder(type, id)}/signed-${type}-${Date.now()}.pdf`;
   const { error: uploadError } = await supabase.storage.from("signed-documents").upload(path, file, { contentType: "application/pdf", upsert: false });
   if (uploadError) throw { code: "22023", message: "The file could not be uploaded. Use a PDF under 15 MB." };
   const { data, error } = await supabase.functions.invoke<{ check: "verified" | "unreadable"; error?: string }>("signed-copy", {

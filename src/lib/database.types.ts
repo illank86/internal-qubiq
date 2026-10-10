@@ -3905,6 +3905,9 @@ export type Database = {
       my_integrator: { Args: never; Returns: string | null }
       order_overview: { Args: never; Returns: Json }
       set_quotation_discount: { Args: { p_id: string; p_partner: boolean; p_type: string; p_value: number; p_label?: string }; Returns: undefined }
+      document_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
+      order_storage_folder: { Args: { p_type: string; p_id: string }; Returns: string }
+      move_document_path: { Args: { p_kind: string; p_id: string; p_from: string; p_to: string }; Returns: undefined }
       set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
