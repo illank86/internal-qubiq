@@ -259,6 +259,7 @@ export const RESOURCES: Resource[] = [
       { name: "contact_email", label: "General email", type: "text", group: "Contact", span: 1 },
       { name: "sales_email", label: "Sales email", type: "text", group: "Contact", span: 1 },
       { name: "support_email", label: "Support email", type: "text", group: "Contact", span: 1 },
+      { name: "finance_email", label: "Finance email (invoice replies)", type: "text", group: "Contact", span: 1 },
       { name: "phone", label: "Phone", type: "text", group: "Contact", span: 1 },
       {
         name: "address_lines",

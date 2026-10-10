@@ -4841,6 +4841,7 @@ export type Database = {
           default_seo_title: string | null
           description: string | null
           favicon_url: string | null
+          finance_email: string | null
           footer_note: string | null
           founding_year: number | null
           header_ctas: Json
@@ -4869,6 +4870,7 @@ export type Database = {
           default_seo_title?: string | null
           description?: string | null
           favicon_url?: string | null
+          finance_email?: string | null
           footer_note?: string | null
           founding_year?: number | null
           header_ctas?: Json
@@ -4897,6 +4899,7 @@ export type Database = {
           default_seo_title?: string | null
           description?: string | null
           favicon_url?: string | null
+          finance_email?: string | null
           footer_note?: string | null
           founding_year?: number | null
           header_ctas?: Json
