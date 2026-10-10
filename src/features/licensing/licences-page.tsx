@@ -130,7 +130,12 @@ export function LicencesPage() {
     void run(
       `issue:${license.id}`,
       async () => {
-        // Re-issuing replaces the file in place.
+        // Re-issuing replaces the file in place: first recorded (who, when), which
+        // opens a short window to upload; issuing closes it again.
+        if (license.status !== "pending") {
+          const { error: reissueError } = await supabase.rpc("start_license_reissue", { p_license_id: license.id });
+          if (reissueError) throw reissueError;
+        }
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)
           .upload(`${license.owner_id}/${license.id}/license.qlf`, file, { contentType: "application/octet-stream", upsert: true });
