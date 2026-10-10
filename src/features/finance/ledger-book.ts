@@ -55,6 +55,7 @@ export const SOURCE_ID: Record<string, string> = {
   asset: "Pembelian aset",
   depreciation: "Penyusutan",
   asset_disposal: "Pelepasan aset",
+  annual_tax: "PPh badan tahunan",
 };
 
 export const TYPE_ID: Record<string, string> = { asset: "Aset", liability: "Kewajiban", equity: "Ekuitas", income: "Pendapatan", expense: "Beban" };

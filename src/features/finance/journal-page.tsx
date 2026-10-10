@@ -34,6 +34,7 @@ const SOURCE: Record<string, { label: string; color: string }> = {
   asset: { label: "Asset bought", color: "lime" },
   depreciation: { label: "Depreciation", color: "volcano" },
   asset_disposal: { label: "Asset disposed", color: "magenta" },
+  annual_tax: { label: "Year-end tax", color: "purple" },
   manual: { label: "Manual", color: "default" },
   reversal: { label: "Reversal", color: "red" },
 };

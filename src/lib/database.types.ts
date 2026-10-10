@@ -166,6 +166,44 @@ export type Database = {
         }
         Relationships: []
       }
+      annual_returns: {
+        Row: {
+          journal_id: string | null
+          loss_carryforward: number
+          note: string | null
+          other_credits: number
+          posted_at: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          journal_id?: string | null
+          loss_carryforward?: number
+          note?: string | null
+          other_credits?: number
+          posted_at?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          journal_id?: string | null
+          loss_carryforward?: number
+          note?: string | null
+          other_credits?: number
+          posted_at?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annual_returns_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_groups: {
         Row: {
           code: string
@@ -1581,6 +1619,44 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "feature_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          kind: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          kind: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          kind?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -5357,6 +5433,8 @@ export type Database = {
     }
     Functions: {
       accounting_dashboard: { Args: { p_year?: number }; Returns: Json }
+      annual_tax_worksheet: { Args: { p_year: number }; Returns: Json }
+      apply_next_pph25: { Args: { p_year: number }; Returns: number }
       approval_link_decide: {
         Args: {
           p_decision: string
@@ -5520,6 +5598,7 @@ export type Database = {
         Args: { p_bank: string; p_paid_on: string; p_run: string }
         Returns: string
       }
+      post_annual_tax: { Args: { p_year: number }; Returns: string }
       post_depreciation: { Args: { p_month: string }; Returns: number }
       post_manual_journal: {
         Args: { p_date: string; p_lines: Json; p_memo: string }
@@ -5636,6 +5715,15 @@ export type Database = {
         Returns: undefined
       }
       sends_directly: { Args: { p_type: string }; Returns: boolean }
+      set_annual_return: {
+        Args: {
+          p_loss: number
+          p_note: string
+          p_other_credits: number
+          p_year: number
+        }
+        Returns: undefined
+      }
       set_approval_pin: { Args: { p_pin: string }; Returns: undefined }
       set_document_approver: {
         Args: { p_approver: boolean; p_user_id: string }
@@ -5722,6 +5810,7 @@ export type Database = {
         Returns: string
       }
       tax_before_pkp_documents: { Args: never; Returns: Json }
+      undo_annual_tax: { Args: { p_year: number }; Returns: undefined }
       undo_depreciation: { Args: never; Returns: undefined }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }
       update_delivery_order: {
