@@ -69,6 +69,8 @@ type Order = {
   created_at: string;
   quote_request: { id: string; reference: string | null; created_at: string; edition_name: string | null } | null;
   invoices: InvoiceRow[];
+  /** An invoice with no quotation behind it (made directly, or its quotation was removed). */
+  direct?: boolean;
 };
 
 type Stage = "quoting" | "accepted" | "invoiced" | "to_deliver" | "partly_delivered" | "awaiting_receipt" | "delivered" | "closed";
@@ -82,6 +84,11 @@ const STAGE: Record<Stage, { label: string; color: string }> = {
   delivered: { label: "Delivered", color: "success" },
   closed: { label: "Closed", color: "default" },
 };
+
+const INVOICE_FIELDS = `id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
+    groups:invoice_groups(quantity),
+    licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
+    delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*))`;
 
 const SELECT = `id, number, status, company, contact_name, contact_email, issue_date, sent_at, accepted_at, total, currency, decimal_places, created_at,
   quote_request:quote_requests(id, reference, created_at, edition_name),
@@ -123,9 +130,40 @@ export function OrdersPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["order-overview"],
     queryFn: async () => {
-      const { data: rows, error: loadError } = await supabase.from("quotations").select(SELECT).order("created_at", { ascending: false }).limit(500);
+      const [{ data: rows, error: loadError }, { data: loose, error: looseError }] = await Promise.all([
+        supabase.from("quotations").select(SELECT).order("created_at", { ascending: false }).limit(500),
+        // Invoices with no quotation are orders too: they still get paid and delivered.
+        supabase
+          .from("invoices")
+          .select(`bill_to_name, bill_to_company, bill_to_email, created_at, ${INVOICE_FIELDS}`)
+          .is("quotation_id", null)
+          .order("created_at", { ascending: false })
+          .limit(500),
+      ]);
       if (loadError) throw loadError;
-      return ((rows ?? []) as unknown as Order[]).map((order) => ({ ...order, stage: stageOf(order) }));
+      if (looseError) throw looseError;
+      type Loose = InvoiceRow & { bill_to_name: string; bill_to_company: string | null; bill_to_email: string | null; created_at: string };
+      const direct: Order[] = ((loose ?? []) as unknown as Loose[]).map((invoice) => ({
+        id: invoice.id,
+        number: null,
+        status: "accepted",
+        company: invoice.bill_to_company,
+        contact_name: invoice.bill_to_name,
+        contact_email: invoice.bill_to_email,
+        issue_date: invoice.issue_date,
+        sent_at: null,
+        accepted_at: null,
+        total: invoice.total,
+        currency: invoice.currency,
+        decimal_places: invoice.decimal_places,
+        created_at: invoice.created_at,
+        quote_request: null,
+        invoices: [invoice],
+        direct: true,
+      }));
+      return [...((rows ?? []) as unknown as Order[]), ...direct]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map((order) => ({ ...order, stage: stageOf(order) }));
     },
   });
 
@@ -292,10 +330,12 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
     {
       key: "quotation",
       icon: <FileDoneOutlined />,
-      title: `Quotation ${order.number ?? ""}`,
-      done: order.status === "accepted",
+      title: order.direct ? "Quotation" : `Quotation ${order.number ?? ""}`,
+      done: order.status === "accepted" && !order.direct,
       current: order.stage === "quoting",
-      children: (
+      children: order.direct ? (
+        meta("No quotation linked to this invoice.")
+      ) : (
         <Flex gap={8} align="center" wrap>
           {meta(
             `${order.status[0].toUpperCase()}${order.status.slice(1)} · ${formatMoney(order.total, order.currency, order.decimal_places)}${order.accepted_at ? ` · accepted ${formatInvoiceDate(order.accepted_at.slice(0, 10))}` : order.sent_at ? ` · sent ${formatInvoiceDate(order.sent_at.slice(0, 10))}` : ""}`,
