@@ -38,6 +38,7 @@ import {
   deliveryFileRequest,
   deliveryOrderPdf,
   issueDeliveryOrder,
+  licenceIssued,
   removeDeliveryFile,
   updateDeliverySigners,
   type DeliveryFile,
@@ -552,6 +553,11 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
   const [uploading, setUploading] = useState(false);
   const [signers, setSigners] = useState(false);
   const issue = useIssue(row ?? ({ items: [], files: [] } as unknown as DeliveryRow), run);
+  const { data: licensed } = useQuery({
+    queryKey: ["invoice-licensed", row?.invoice_id],
+    enabled: row?.status === "draft",
+    queryFn: () => licenceIssued(row!.invoice_id),
+  });
   if (!row) return <Drawer open={false} onClose={onClose} />;
   const kinds = new Set(row.files.map((file) => file.kind));
 
@@ -594,7 +600,14 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
               <Button icon={<EditOutlined />} onClick={() => onEdit(row)}>
                 Edit
               </Button>
-              <Button type="primary" icon={<SendOutlined />} loading={busy === `issue:${row.id}`} onClick={issue}>
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                loading={busy === `issue:${row.id}`}
+                disabled={licensed === false}
+                title={licensed === false ? "Issue the licence first" : undefined}
+                onClick={issue}
+              >
                 Issue
               </Button>
             </>
@@ -617,7 +630,13 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
           ]}
         />
         <StandingPanel>
-          {row.status === "draft" ? <Typography.Text type="secondary">A draft — not sent. Issue it to email it with a link to confirm receipt.</Typography.Text> : null}
+          {row.status === "draft" ? (
+            licensed === false ? (
+              <Typography.Text type="warning">The licence for {row.invoice_number} has not been issued yet. Issue and send it in Licences first, then issue this delivery order.</Typography.Text>
+            ) : (
+              <Typography.Text type="secondary">A draft — not sent. Issue it to email it with a link to confirm receipt.</Typography.Text>
+            )
+          ) : null}
           {row.status === "issued" ? (
             <>
               <Typography.Text>
@@ -775,13 +794,14 @@ export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id
   const { data, isLoading } = useQuery({
     queryKey: ["invoice-deliveries", invoice.id],
     queryFn: async () => {
-      const [{ data: rows, error }, { data: remaining }] = await Promise.all([
+      const [{ data: rows, error }, { data: remaining }, licensed] = await Promise.all([
         supabase.from("delivery_orders").select(SELECT).eq("invoice_id", invoice.id).order("created_at"),
         supabase.rpc("delivery_remaining", { p_invoice_id: invoice.id }),
+        licenceIssued(invoice.id),
       ]);
       if (error) throw error;
       const left = ((remaining as { remaining: number }[] | null) ?? []).reduce((sum, group) => sum + Number(group.remaining), 0);
-      return { rows: (rows ?? []) as unknown as DeliveryRow[], left };
+      return { rows: (rows ?? []) as unknown as DeliveryRow[], left, licensed };
     },
   });
   const paid = invoice.status === "paid";
@@ -790,6 +810,18 @@ export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id
     <Flex vertical gap={12}>
       {!paid ? (
         <Alert type="info" showIcon title="Delivery orders go out once the invoice is paid." />
+      ) : data && !data.licensed && left > 0 ? (
+        <Alert
+          type="warning"
+          showIcon
+          title="Issue the licence first"
+          description="A delivery order goes out after the licence is issued and sent. You can prepare a draft now."
+          action={
+            <Button size="small" onClick={onCreate}>
+              Prepare draft
+            </Button>
+          }
+        />
       ) : left > 0 ? (
         <Flex justify="space-between" align="center" gap={12} wrap style={{ padding: "10px 14px", borderRadius: token.borderRadiusLG, background: token.colorFillQuaternary }}>
           <Typography.Text>

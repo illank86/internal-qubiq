@@ -12,6 +12,7 @@ import {
   createDeliveryOrder,
   deliveryOrderPdf,
   issueDeliveryOrder,
+  licenceIssued,
   loadRemaining,
   updateDeliveryOrder,
   type DeliveryDetails,
@@ -62,7 +63,7 @@ export function DeliveryOrderEditor({
     queryKey: ["delivery-editor", sourceId, order?.id ?? "new"],
     enabled: open && Boolean(sourceId),
     queryFn: async () => {
-      const [{ data: invoice, error: invoiceError }, remaining, own] = await Promise.all([
+      const [{ data: invoice, error: invoiceError }, remaining, own, licensed] = await Promise.all([
         supabase
           .from("invoices")
           .select("id, number, status, po_number, quotation_number, bill_to_name, bill_to_company, bill_to_email, bill_to_address, licensee_name, licensee_address, cc_emails")
@@ -70,6 +71,7 @@ export function DeliveryOrderEditor({
           .maybeSingle(),
         loadRemaining(sourceId!),
         order ? supabase.from("delivery_order_items").select("invoice_group_id, quantity").eq("delivery_order_id", order.id) : Promise.resolve({ data: [] }),
+        licenceIssued(sourceId!),
       ]);
       if (invoiceError) throw invoiceError;
       // Editing a draft: what it already delivers is still "left" for it.
@@ -78,7 +80,7 @@ export function DeliveryOrderEditor({
         if (item.invoice_group_id) mine.set(item.invoice_group_id, (mine.get(item.invoice_group_id) ?? 0) + Number(item.quantity));
       }
       const groups = remaining.map((group) => ({ ...group, left: group.remaining + (mine.get(group.invoice_group_id) ?? 0), mine: mine.get(group.invoice_group_id) ?? 0 }));
-      return { invoice, groups };
+      return { invoice, groups, licensed };
     },
   });
 
@@ -187,7 +189,14 @@ export function DeliveryOrderEditor({
           <Button loading={pending === "draft"} disabled={Boolean(pending) || !invoice || nothingLeft} onClick={() => submit(false)}>
             Save draft
           </Button>
-          <Button type="primary" icon={<SendOutlined />} loading={pending === "issue"} disabled={Boolean(pending) || !invoice || nothingLeft} onClick={() => submit(true)}>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            loading={pending === "issue"}
+            disabled={Boolean(pending) || !invoice || nothingLeft || !data?.licensed}
+            title={data && !data.licensed ? "Issue the licence first" : undefined}
+            onClick={() => submit(true)}
+          >
             Save & issue
           </Button>
         </Flex>
@@ -206,6 +215,13 @@ export function DeliveryOrderEditor({
           </Typography.Text>
           {invoice.status !== "paid" ? (
             <Alert type="warning" showIcon title={`Invoice ${invoice.number} is not paid`} description="A delivery order goes out only for a paid invoice. Mark it paid first." />
+          ) : !data?.licensed ? (
+            <Alert
+              type="warning"
+              showIcon
+              title="The licence has not been issued yet"
+              description="Issue and send the licence in Licences first. You can save this as a draft now and issue it once the licence is sent."
+            />
           ) : null}
 
           <section>

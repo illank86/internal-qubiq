@@ -51,6 +51,8 @@ type InvoiceRow = {
   po_file_name: string | null;
   groups: { quantity: number }[];
   licenses: { id: string; label: string; status: string; issued_at: string | null }[];
+  /** The licence the invoice itself points at (invoices.license_id). */
+  license: { id: string; label: string; status: string; issued_at: string | null } | null;
   delivery_orders: Do[];
 };
 type Order = {
@@ -73,11 +75,12 @@ type Order = {
   direct?: boolean;
 };
 
-type Stage = "quoting" | "accepted" | "invoiced" | "to_deliver" | "partly_delivered" | "awaiting_receipt" | "delivered" | "closed";
+type Stage = "quoting" | "accepted" | "invoiced" | "licence" | "to_deliver" | "partly_delivered" | "awaiting_receipt" | "delivered" | "closed";
 const STAGE: Record<Stage, { label: string; color: string }> = {
   quoting: { label: "Quotation", color: "default" },
   accepted: { label: "Accepted · to invoice", color: "blue" },
   invoiced: { label: "Invoiced · awaiting payment", color: "warning" },
+  licence: { label: "Paid · licence to send", color: "magenta" },
   to_deliver: { label: "Paid · to deliver", color: "purple" },
   partly_delivered: { label: "Partly delivered · rest to deliver", color: "purple" },
   awaiting_receipt: { label: "Delivered · awaiting receipt", color: "processing" },
@@ -88,6 +91,7 @@ const STAGE: Record<Stage, { label: string; color: string }> = {
 const INVOICE_FIELDS = `id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
     groups:invoice_groups(quantity),
     licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
+    license:licenses!invoices_license_id_fkey(id, label, status, issued_at),
     delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*))`;
 
 const SELECT = `id, number, status, company, contact_name, contact_email, issue_date, sent_at, accepted_at, total, currency, decimal_places, created_at,
@@ -95,12 +99,16 @@ const SELECT = `id, number, status, company, contact_name, contact_email, issue_
   invoices!invoices_quotation_id_fkey(id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
     groups:invoice_groups(quantity),
     licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
+    license:licenses!invoices_license_id_fkey(id, label, status, issued_at),
     delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*)))`;
 
 /** The live invoice of an order (not void), else the latest one. */
 const invoiceOf = (order: Order) => order.invoices.find((invoice) => invoice.status !== "void") ?? order.invoices.at(-1) ?? null;
 const liveDos = (invoice: InvoiceRow | null) => (invoice?.delivery_orders ?? []).filter((item) => item.status !== "cancelled");
 const ordered = (invoice: InvoiceRow) => invoice.groups.reduce((sum, group) => sum + Number(group.quantity), 0);
+/** Licences of an invoice: linked either way (licences.invoice_id, or the invoice's license_id). */
+const licencesOf = (invoice: InvoiceRow) => [...invoice.licenses, ...(invoice.license && !invoice.licenses.some((item) => item.id === invoice.license!.id) ? [invoice.license] : [])];
+const licensed = (invoice: InvoiceRow) => licencesOf(invoice).some((licence) => licence.status === "issued");
 const delivered = (invoice: InvoiceRow) => liveDos(invoice).reduce((sum, item) => sum + item.items.reduce((total, line) => total + Number(line.quantity), 0), 0);
 
 function stageOf(order: Order): Stage {
@@ -109,6 +117,8 @@ function stageOf(order: Order): Stage {
   if (!invoice || invoice.status === "void") return order.status === "accepted" ? "accepted" : "quoting";
   if (invoice.status === "unpaid") return "invoiced";
   const dos = liveDos(invoice);
+  // The licence goes out before anything is delivered.
+  if (!licensed(invoice) && !dos.some((item) => item.status !== "draft")) return "licence";
   const all = delivered(invoice) >= ordered(invoice) && ordered(invoice) > 0;
   // A DO is out and the customer has not confirmed it (online or by signed DO / BAST).
   if (dos.some((item) => item.status === "issued")) return "awaiting_receipt";
@@ -267,6 +277,7 @@ export function OrdersPage() {
           options={[
             { value: "all", label: "All" },
             { value: "invoiced", label: `Awaiting payment ${count("invoiced")}` },
+            { value: "licence", label: `Licence to send ${count("licence")}` },
             { value: "to_deliver", label: `To deliver ${count("to_deliver")}` },
             { value: "awaiting_receipt", label: `Awaiting receipt ${count("awaiting_receipt")}` },
             { value: "delivered", label: "Delivered" },
@@ -388,12 +399,12 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
       key: "licences",
       icon: <KeyOutlined />,
       title: "Licences",
-      done: Boolean(invoice?.licenses.some((licence) => licence.status === "issued")),
+      done: Boolean(invoice && licensed(invoice)),
       // Paid: the licence is the next thing to issue, before it is delivered.
-      current: invoice?.status === "paid" && !invoice.licenses.some((licence) => licence.status === "issued"),
-      children: invoice?.licenses.length ? (
+      current: invoice?.status === "paid" && !licensed(invoice),
+      children: invoice && licencesOf(invoice).length ? (
         <Flex gap={6} wrap align="center">
-          {invoice.licenses.map((licence) => (
+          {licencesOf(invoice).map((licence) => (
             <Tag key={licence.id} color={licence.status === "issued" ? "success" : "default"}>
               {licence.label} · {licence.status}
             </Tag>

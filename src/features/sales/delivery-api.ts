@@ -63,6 +63,13 @@ const fail = (error: { message?: string } | null) => {
   if (error) throw error;
 };
 
+/** A delivery order is issued only once the invoice's licence has been issued (sent). */
+export async function licenceIssued(invoiceId: string) {
+  const { data, error } = await supabase.rpc("invoice_licence_issued", { p_invoice_id: invoiceId });
+  fail(error);
+  return Boolean(data);
+}
+
 export async function loadRemaining(invoiceId: string) {
   const { data, error } = await supabase.rpc("delivery_remaining", { p_invoice_id: invoiceId });
   fail(error);
