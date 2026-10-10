@@ -11,9 +11,9 @@ import { supabase } from "@/lib/supabase";
 export type Column = { header: string; key: string; width?: number; kind?: "text" | "money" | "number" | "date" };
 export type Sheet = { name: string; title: string; columns: Column[]; rows: Record<string, unknown>[]; totals?: Record<string, number | string> };
 
-type Company = { name: string; npwp: string | null };
+export type Company = { name: string; npwp: string | null };
 
-async function company(): Promise<Company> {
+export async function company(): Promise<Company> {
   const [{ data: accounting }, { data: invoice }] = await Promise.all([
     supabase.from("accounting_settings").select("legal_name, npwp").eq("id", true).maybeSingle(),
     supabase.from("invoice_settings").select("company_name, local_company_name, tax_id").eq("id", true).maybeSingle(),
@@ -126,97 +126,4 @@ export async function exportPdf(fileName: string, period: string, sheets: Sheet[
   );
   const blob = await pdf(doc as Parameters<typeof pdf>[0]).toBlob();
   download(blob, fileName);
-}
-
-/**
- * The general ledger for a period as three sheets: Jurnal Umum (every line),
- * Buku Besar (per account, with running balance) and Neraca Saldo (trial
- * balance at the end).
- */
-export async function ledgerSheets(from: string, to: string): Promise<Sheet[]> {
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .select("number, entry_date, source_type, memo, lines:journal_lines(debit, credit, description, account:accounts(code, name, name_id, type))")
-    .gte("entry_date", from)
-    .lte("entry_date", to)
-    .order("entry_date")
-    .order("number")
-    .limit(20000);
-  if (error) throw error;
-  type L = { debit: number; credit: number; description: string | null; account: { code: string; name: string; name_id: string | null; type: string } };
-  const entries = (data ?? []) as unknown as { number: string; entry_date: string; source_type: string; memo: string | null; lines: L[] }[];
-  const accountName = (line: L) => line.account.name_id || line.account.name;
-
-  const journal = entries.flatMap((entry) =>
-    entry.lines.map((line) => ({ date: entry.entry_date, number: entry.number, memo: entry.memo, code: line.account.code, account: accountName(line), debit: Number(line.debit) || null, credit: Number(line.credit) || null, note: line.description })),
-  );
-  const byAccount = new Map<string, { code: string; account: string; type: string; rows: { date: string; number: string; memo: string | null; debit: number; credit: number }[] }>();
-  for (const entry of entries) {
-    for (const line of entry.lines) {
-      const key = line.account.code;
-      if (!byAccount.has(key)) byAccount.set(key, { code: key, account: accountName(line), type: line.account.type, rows: [] });
-      byAccount.get(key)!.rows.push({ date: entry.entry_date, number: entry.number, memo: entry.memo, debit: Number(line.debit), credit: Number(line.credit) });
-    }
-  }
-  const accounts = [...byAccount.values()].sort((a, b) => a.code.localeCompare(b.code));
-  const debitNormal = (type: string) => type === "asset" || type === "expense";
-  const ledger = accounts.flatMap((account) => {
-    let balance = 0;
-    return [
-      { date: "", number: "", memo: `${account.code} ${account.account}`, debit: null, credit: null, balance: null },
-      ...account.rows.map((row) => {
-        balance += debitNormal(account.type) ? row.debit - row.credit : row.credit - row.debit;
-        return { date: row.date, number: row.number, memo: row.memo, debit: row.debit || null, credit: row.credit || null, balance };
-      }),
-    ];
-  });
-  const trial = accounts.map((account) => {
-    const debit = account.rows.reduce((sum, row) => sum + row.debit, 0);
-    const credit = account.rows.reduce((sum, row) => sum + row.credit, 0);
-    return { code: account.code, account: account.account, debit: debit > credit ? debit - credit : null, credit: credit > debit ? credit - debit : null };
-  });
-  const sum = (rows: Record<string, unknown>[], key: string) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
-  return [
-    {
-      name: "Jurnal Umum",
-      title: "Jurnal Umum",
-      columns: [
-        { header: "Tanggal", key: "date", kind: "date" },
-        { header: "Nomor", key: "number", width: 16 },
-        { header: "Keterangan", key: "memo", width: 40 },
-        { header: "Kode", key: "code", width: 9 },
-        { header: "Akun", key: "account", width: 30 },
-        { header: "Debit", key: "debit", kind: "money" },
-        { header: "Kredit", key: "credit", kind: "money" },
-        { header: "Uraian", key: "note", width: 24 },
-      ],
-      rows: journal,
-      totals: { memo: "Jumlah", debit: sum(journal, "debit"), credit: sum(journal, "credit") },
-    },
-    {
-      name: "Buku Besar",
-      title: "Buku Besar",
-      columns: [
-        { header: "Tanggal", key: "date", kind: "date" },
-        { header: "Nomor", key: "number", width: 16 },
-        { header: "Keterangan", key: "memo", width: 44 },
-        { header: "Debit", key: "debit", kind: "money" },
-        { header: "Kredit", key: "credit", kind: "money" },
-        { header: "Saldo", key: "balance", kind: "money" },
-      ],
-      rows: ledger,
-    },
-    {
-      name: "Neraca Saldo",
-      title: "Neraca Saldo",
-      columns: [
-        { header: "Kode", key: "code", width: 9 },
-        { header: "Akun", key: "account", width: 40 },
-        { header: "Debit", key: "debit", kind: "money" },
-        { header: "Kredit", key: "credit", kind: "money" },
-      ],
-      rows: trial,
-      totals: { account: "Jumlah", debit: sum(trial, "debit"), credit: sum(trial, "credit") },
-    },
-  ];
 }

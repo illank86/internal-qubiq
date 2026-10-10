@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Col, Dropdown, Empty, Flex, Input, Modal, Row, Segmented, Skeleton, Tabs, Tag, Typography, theme } from "antd";
-import { DownloadOutlined, FileExcelOutlined, FilePdfOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import { BookOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { useCan } from "@/auth/use-auth";
 import { supabase } from "@/lib/supabase";
 import { errorText } from "@/lib/sales";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
-import { exportExcel, exportPdf, ledgerSheets, type Sheet } from "./exports";
+import { exportExcel, exportPdf, type Sheet } from "./exports";
+import { LedgerPreviewModal } from "./ledger-preview";
 
 type Line = { code: string; name: string; name_id: string | null; type: string; amount: number; deductible?: boolean };
 type Statements = {
@@ -40,6 +41,7 @@ export function ReportsPage() {
   const [custom, setCustom] = useState<[string, string]>(range("this_year"));
   const [from, to] = preset === "custom" ? custom : range(preset);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["financial-statements", from, to],
     queryFn: async () => {
@@ -109,8 +111,7 @@ export function ReportsPage() {
         { key: "statements-xlsx", icon: <FileExcelOutlined />, label: "Statements — Excel", onClick: () => run("x", () => exportExcel(`laporan-keuangan-${from}-${to}.xlsx`, period, statementSheets(data))) },
         { key: "statements-pdf", icon: <FilePdfOutlined />, label: "Statements — PDF", onClick: () => run("p", () => exportPdf(`laporan-keuangan-${from}-${to}.pdf`, period, statementSheets(data))) },
         { type: "divider" as const },
-        { key: "ledger-xlsx", icon: <FileExcelOutlined />, label: "Journal, ledger & trial balance — Excel", onClick: () => run("lx", async () => exportExcel(`jurnal-buku-besar-${from}-${to}.xlsx`, period, await ledgerSheets(from, to))) },
-        { key: "ledger-pdf", icon: <FilePdfOutlined />, label: "Journal, ledger & trial balance — PDF", onClick: () => run("lp", async () => exportPdf(`jurnal-buku-besar-${from}-${to}.pdf`, period, await ledgerSheets(from, to))) },
+        { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => setLedgerOpen(true) },
       ]
     : [];
 
@@ -270,6 +271,7 @@ export function ReportsPage() {
           <MonthClosing />
         </Flex>
       )}
+      {ledgerOpen ? <LedgerPreviewModal from={from} to={to} onClose={() => setLedgerOpen(false)} /> : null}
     </>
   );
 }

@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Dropdown, Flex, Input, InputNumber, Modal, Select, Table, Tag, Typography, theme } from "antd";
+import { Alert, Button, Flex, Input, InputNumber, Modal, Select, Table, Tag, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
-import { DeleteOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
+import { BookOutlined, DeleteOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday, postManualJournal, reverseManualJournal, useAccounts } from "./api";
-import { exportExcel, exportPdf, ledgerSheets } from "./exports";
+import { LedgerPreviewModal } from "./ledger-preview";
 
 type Line = { id: string; debit: number; credit: number; description: string | null; currency: string; amount_fc: number | null; account: { code: string; name: string; name_id: string | null } | null };
 type Entry = {
@@ -107,19 +107,7 @@ export function JournalPage() {
     },
   ];
 
-  const [exporting, setExporting] = useState(false);
-  const year = jakartaToday().slice(0, 4);
-  const exportLedger = (kind: "xlsx" | "pdf") => async () => {
-    setExporting(true);
-    try {
-      const sheets = await ledgerSheets(`${year}-01-01`, jakartaToday());
-      const period = `1 Januari ${year} – ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`;
-      if (kind === "xlsx") await exportExcel(`jurnal-buku-besar-${year}.xlsx`, period, sheets);
-      else await exportPdf(`jurnal-buku-besar-${year}.pdf`, period, sheets);
-    } finally {
-      setExporting(false);
-    }
-  };
+  const [ledgerOpen, setLedgerOpen] = useState(false);
 
   return (
     <>
@@ -128,19 +116,9 @@ export function JournalPage() {
         description="Every booking in Rupiah, debit and credit. Entries are never edited: a mistake is reversed and booked again."
         actions={
           <Flex gap={8}>
-            <Dropdown
-              trigger={["click"]}
-              menu={{
-                items: [
-                  { key: "xlsx", icon: <FileExcelOutlined />, label: "Journal, ledger & trial balance — Excel", onClick: exportLedger("xlsx") },
-                  { key: "pdf", icon: <FilePdfOutlined />, label: "Journal, ledger & trial balance — PDF", onClick: exportLedger("pdf") },
-                ],
-              }}
-            >
-              <Button icon={<DownloadOutlined />} loading={exporting}>
-                Export {year}
-              </Button>
-            </Dropdown>
+            <Button icon={<BookOutlined />} onClick={() => setLedgerOpen(true)}>
+              Jurnal & Buku Besar
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
               Manual entry
             </Button>
@@ -178,6 +156,7 @@ export function JournalPage() {
         }}
       />
       {adding ? <ManualEntryModal onClose={() => setAdding(false)} /> : null}
+      {ledgerOpen ? <LedgerPreviewModal onClose={() => setLedgerOpen(false)} /> : null}
     </>
   );
 }
