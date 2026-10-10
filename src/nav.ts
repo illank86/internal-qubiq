@@ -61,7 +61,7 @@ export const NAV: NavGroup[] = [
       { path: "/licensing/licences", label: "Licences", icon: KeyOutlined, permissions: ["licenses.manage"], legacy: "/admin/licenses", phase: 4, ready: true, summary: "Fingerprint requests: issue .qlf files, revoke, link to orders." },
       { path: "/sales/delivery-orders", label: "Delivery Order", icon: CarOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "What was delivered for a paid invoice, and the customer's signed receipt and BAST." },
       { path: "/sales/editions", label: "Editions & modules", icon: AppstoreOutlined, permissions: ["pricing.manage"], legacy: "/admin/license_modules", phase: 3, ready: true, summary: "The price list: modules, categories and the editions built from them." },
-      { path: "/sales/settings", label: "Sales settings", icon: SettingOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoice_settings", phase: 3, ready: true, summary: "Tax, payment terms, how to pay, quotation wording." },
+      { path: "/sales/settings", label: "Sales settings", icon: SettingOutlined, permissions: ["licenses.manage", "quotations.manage"], legacy: "/admin/invoice_settings", phase: 3, ready: true, summary: "Tax, payment terms, how to pay, quotation wording." },
     ],
   },
   {

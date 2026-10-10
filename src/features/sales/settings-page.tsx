@@ -28,11 +28,18 @@ export function SalesSettingsPage() {
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<Values>();
+  const can = useCan();
   // The four-eyes rule is a control over approvers: user managers set it.
-  const canSetFourEyes = useCan()("users.manage");
+  const canSetFourEyes = can("users.manage");
+  // Sales (without licensing) edits the quotation wording only.
+  const licensing = can("licenses.manage");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const tab = TAB_KEYS.includes(params.get("tab") as (typeof TAB_KEYS)[number]) ? (params.get("tab") as string) : "general";
+  const tab = !licensing
+    ? "quotations"
+    : TAB_KEYS.includes(params.get("tab") as (typeof TAB_KEYS)[number])
+      ? (params.get("tab") as string)
+      : "general";
 
   const { data, isLoading } = useQuery({
     queryKey: ["sales-settings"],
@@ -49,11 +56,20 @@ export function SalesSettingsPage() {
   const save = async (values: Values) => {
     setPending(true);
     setError(null);
-    const { error: saveError } = await supabase.from("invoice_settings").update(values).eq("id", true);
+    const changes: Partial<Values> = licensing
+      ? values
+      : {
+          quote_number_prefix: values.quote_number_prefix,
+          quote_validity_days: values.quote_validity_days,
+          quote_terms: values.quote_terms,
+          quote_closing: values.quote_closing,
+          quote_signoff: values.quote_signoff,
+        };
+    const { error: saveError } = await supabase.from("invoice_settings").update(changes).eq("id", true);
     setPending(false);
     if (saveError) return setError(errorText(saveError, "The settings could not be saved."));
     await Promise.all(["sales-settings", "sales-catalog", "sends-directly"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
-    message.success("Saved. New invoices and quotations use these.");
+    message.success(licensing ? "Saved. New invoices and quotations use these." : "Saved. New quotations use these.");
   };
 
   const { id: _id, updated_at: _updated, ...initialValues } = data;
@@ -62,7 +78,11 @@ export function SalesSettingsPage() {
     <>
       <PageTitle
         title="Sales settings"
-        description="Defaults for invoices and quotations, and our company details as they print on them."
+        description={
+          licensing
+            ? "Defaults for invoices and quotations, and our company details as they print on them."
+            : "Defaults for new quotations. Tax, payment and company details are set by licensing."
+        }
         actions={
           <Button type="primary" icon={<SaveOutlined />} loading={pending} onClick={() => form.submit()}>
             Save settings
@@ -272,11 +292,11 @@ export function SalesSettingsPage() {
                   </Row>
                 ),
               },
-            ]}
+            ].filter((item) => licensing || item.key === "quotations")}
           />
         </Card>
       </Form>
-      <SignatureCard />
+      {licensing ? <SignatureCard /> : null}
     </>
   );
 }
