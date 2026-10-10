@@ -5,19 +5,22 @@ import { loadSignatureInfo } from "./api";
 
 /**
  * Our company block, as private.invoice_seller() builds it when a quotation
- * is saved: Site settings (legal name, address, sales email, phone) and
- * Sales settings (tax ID, how to pay, footer).
+ * is saved: all from Sales settings (company, address, email, phone, tax ID,
+ * how to pay, footer).
  */
 async function loadSeller() {
-  const [{ data: site }, { data: settings }] = await Promise.all([
-    supabase.from("site_settings").select("organization_legal_name, site_name, address_lines, sales_email, contact_email, phone").maybeSingle(),
-    supabase.from("invoice_settings").select("tax_id, bank_details, footer_note").eq("id", true).maybeSingle(),
-  ]);
+  const { data: settings } = await supabase
+    .from("invoice_settings")
+    .select("company_name, company_address, company_email, company_phone, local_company_name, tax_id, bank_details, footer_note, payment_methods")
+    .eq("id", true)
+    .maybeSingle();
   return {
-    company_name: site?.organization_legal_name?.trim() || site?.site_name || "QUBIQ",
-    address: (site?.address_lines ?? []).join("\n"),
-    email: site?.sales_email?.trim() || site?.contact_email || "",
-    phone: site?.phone ?? null,
+    company_name: settings?.company_name?.trim() || "QUBIQ",
+    local_company_name: settings?.local_company_name?.trim() || null,
+    address: settings?.company_address?.trim() || null,
+    email: settings?.company_email?.trim() || null,
+    phone: settings?.company_phone?.trim() || null,
+    payment_methods: settings?.payment_methods ?? [],
     website: "goqubiq.com",
     tax_id: settings?.tax_id ?? null,
     bank_details: settings?.bank_details ?? null,

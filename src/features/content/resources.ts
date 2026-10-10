@@ -267,7 +267,7 @@ export const RESOURCES: Resource[] = [
         group: "Contact",
         rows: 4,
         placeholder: "Street and number\nArea\nCity, province\nCountry",
-        hint: "One line per row. Shown in the website footer, on invoices and quotations, and at the bottom of every email.",
+        hint: "One line per row. Shown in the website footer and at the bottom of every email to customers. Quotations and invoices use the company details in Sales settings.",
       },
 
       {
@@ -1236,11 +1236,11 @@ export const RESOURCES: Resource[] = [
     label: "Sales settings",
     singular: "Sales settings",
     description:
-      "Defaults for invoices and quotations. Tax and decimal places apply to both. Our company name, address, email and phone come from Site settings (Legal entity name, Address, Sales email, Phone), the same details the website shows.",
+      "Defaults for invoices and quotations. Tax and decimal places apply to both. Our company name, address, email and phone printed on them are set here, apart from the website's Site settings.",
     // General holds what both documents print or compute the same way, so it
     // is set once; each document's own tab holds only what is its own.
     tabs: [
-      { label: "General", groups: ["Tax", "Documents"] },
+      { label: "General", groups: ["Our company", "Tax", "Documents"] },
       { label: "Invoices", groups: ["Numbering & terms", "How to pay"] },
       { label: "Quotations", groups: ["Numbering & validity", "Wording"] },
     ],
@@ -1250,6 +1250,10 @@ export const RESOURCES: Resource[] = [
     singleton: true,
     listColumns: [],
     fields: [
+      { name: "company_name", label: "Company name", type: "text", required: true, group: "Our company", span: 1, hint: "As printed on quotations and invoices." },
+      { name: "company_email", label: "Email", type: "text", group: "Our company", span: 1, hint: "Printed under our address, e.g. sales@goqubiq.com." },
+      { name: "company_address", label: "Address", type: "textarea", rows: 4, group: "Our company", hint: "One line per row, as it should print." },
+      { name: "company_phone", label: "Phone", type: "text", group: "Our company", span: 1 },
       { name: "tax_label", label: "Tax name", type: "text", required: true, group: "Tax", span: 1, hint: "As printed, e.g. PPN or VAT." },
       { name: "tax_rate", label: "Tax rate (%)", type: "number", required: true, group: "Tax", span: 1, hint: "Applied to the subtotal of every new invoice and quotation, e.g. 11. Can be changed on each one." },
       { name: "tax_id", label: "Our tax ID (NPWP / VAT number)", type: "text", group: "Tax", span: 1, hint: "Printed with our address on invoices and quotations." },

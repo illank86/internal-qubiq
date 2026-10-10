@@ -957,6 +957,10 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
+          company_address: string | null
+          company_email: string | null
+          company_name: string | null
+          company_phone: string | null
           local_company_name: string | null
           payment_methods: Json
           bank_details: string | null
@@ -976,6 +980,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
           local_company_name?: string | null
           payment_methods?: Json
           bank_details?: string | null
@@ -995,6 +1003,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
           local_company_name?: string | null
           payment_methods?: Json
           bank_details?: string | null
