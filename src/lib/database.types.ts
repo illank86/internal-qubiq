@@ -3398,6 +3398,11 @@ export type Database = {
       }
     }
     Functions: {
+      approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }
+      approval_link_view: { Args: { p_token_hash: string }; Returns: Json }
+      create_approval_links: { Args: { p_id: string; p_links: Json; p_type: string }; Returns: undefined }
+      has_approval_pin: { Args: never; Returns: boolean }
+      set_approval_pin: { Args: { p_pin: string }; Returns: undefined }
       confirm_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }
       document_history: { Args: { p_id: string; p_type: string }; Returns: Json }
       send_signed_copy: { Args: { p_id: string; p_type: string }; Returns: undefined }

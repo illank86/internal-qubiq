@@ -5,6 +5,7 @@ import { useAuth, useStaff } from "@/auth/use-auth";
 import { NEW_PASSWORD_RULES, PASSWORD_HINT } from "@/auth/password-rules";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
+import { ApprovalPinCard } from "./approval-pin-card";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/avif", "image/gif"];
@@ -236,6 +237,7 @@ export function ProfilePage() {
               </Button>
             </Form>
           </Card>
+          <ApprovalPinCard />
         </Col>
       </Row>
     </>

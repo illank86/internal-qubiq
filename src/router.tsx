@@ -1,4 +1,4 @@
-import { lazy } from "react";
+import { Suspense, lazy } from "react";
 import { createBrowserRouter } from "react-router";
 import { RouteError } from "@/components/route-error";
 import { RequireStaff } from "@/components/app-shell";
@@ -8,12 +8,14 @@ import { ForgotPasswordPage } from "@/pages/forgot-password";
 import { LoginPage } from "@/pages/login";
 import { SetPasswordPage } from "@/pages/set-password";
 import { NAV_ITEMS } from "@/nav";
+import { FullPageSpinner } from "@/components/ui";
 
 /*
  * Each screen is its own download, fetched the first time it is opened: the
  * PDF renderer, the rich-text editor and the Markdown tools never weigh on
  * the sign-in or the dashboard.
  */
+const ApprovePage = lazy(() => import("@/pages/approve").then((module) => ({ default: module.ApprovePage })));
 const QuotationBuilderPage = lazy(() => import("@/features/sales/quotation-builder-page").then((module) => ({ default: module.QuotationBuilderPage })));
 const QuotationsPage = lazy(() => import("@/features/sales/quotations-page").then((module) => ({ default: module.QuotationsPage })));
 const ConvertPage = lazy(() => import("@/features/sales/convert-page").then((module) => ({ default: module.ConvertPage })));
@@ -71,6 +73,15 @@ export const router = createBrowserRouter([
       { path: "/login", element: <LoginPage /> },
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
       { path: "/set-password", element: <SetPasswordPage /> },
+      // Approve from the approval email: no sign-in, the approval PIN instead.
+      {
+        path: "/approve/:token",
+        element: (
+          <Suspense fallback={<FullPageSpinner />}>
+            <ApprovePage />
+          </Suspense>
+        ),
+      },
       {
         element: <RequireStaff />,
         children: [
