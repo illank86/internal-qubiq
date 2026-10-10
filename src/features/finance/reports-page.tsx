@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Alert, Button, Card, Col, Dropdown, Empty, Flex, Input, Modal, Row, Segmented, Skeleton, Tabs, Tag, Typography, theme } from "antd";
 import { BookOutlined, DownloadOutlined, FileDoneOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
@@ -7,7 +8,6 @@ import { useCan } from "@/auth/use-auth";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
-import { LedgerPreviewModal } from "./ledger-preview";
 import { loadStatements } from "./statement-book";
 import { StatementPreviewModal } from "./statement-preview";
 
@@ -32,7 +32,7 @@ export function ReportsPage() {
   const [custom, setCustom] = useState<[string, string]>(range("this_year"));
   const [from, to] = preset === "custom" ? custom : range(preset);
   const [statementsOpen, setStatementsOpen] = useState(false);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({
     queryKey: ["financial-statements", from, to],
     queryFn: () => loadStatements(from, to),
@@ -43,7 +43,7 @@ export function ReportsPage() {
     ? [
         { key: "statements", icon: <FileDoneOutlined />, label: "Laporan Keuangan — preview, then PDF, Excel or CSV", onClick: () => setStatementsOpen(true) },
         { type: "divider" as const },
-        { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => setLedgerOpen(true) },
+        { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/journal/book?from=${from}&to=${to}`) },
       ]
     : [];
 
@@ -204,7 +204,6 @@ export function ReportsPage() {
         </Flex>
       )}
       {statementsOpen ? <StatementPreviewModal from={from} to={to} onClose={() => setStatementsOpen(false)} /> : null}
-      {ledgerOpen ? <LedgerPreviewModal from={from} to={to} onClose={() => setLedgerOpen(false)} /> : null}
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Alert, Button, Flex, Input, InputNumber, Modal, Select, Table, Tag, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
 import { BookOutlined, DeleteOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
@@ -8,7 +9,6 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday, postManualJournal, reverseManualJournal, useAccounts } from "./api";
-import { LedgerPreviewModal } from "./ledger-preview";
 
 type Line = { id: string; debit: number; credit: number; description: string | null; currency: string; amount_fc: number | null; account: { code: string; name: string; name_id: string | null } | null };
 type Entry = {
@@ -106,8 +106,7 @@ export function JournalPage() {
         ) : null,
     },
   ];
-
-  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -116,7 +115,7 @@ export function JournalPage() {
         description="Every booking in Rupiah, debit and credit. Entries are never edited: a mistake is reversed and booked again."
         actions={
           <Flex gap={8}>
-            <Button icon={<BookOutlined />} onClick={() => setLedgerOpen(true)}>
+            <Button icon={<BookOutlined />} onClick={() => navigate("/finance/journal/book")}>
               Jurnal & Buku Besar
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
@@ -156,7 +155,6 @@ export function JournalPage() {
         }}
       />
       {adding ? <ManualEntryModal onClose={() => setAdding(false)} /> : null}
-      {ledgerOpen ? <LedgerPreviewModal onClose={() => setLedgerOpen(false)} /> : null}
     </>
   );
 }

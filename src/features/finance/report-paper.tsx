@@ -35,9 +35,10 @@ export function PeriodPicker({ preset, custom, from, to, onPreset, onCustom }: {
   );
 }
 
-export function PaperSheet({ company, title, subtitle, printed, children }: { company: Company; title: string; subtitle: string; printed: string; children: React.ReactNode }) {
+export function PaperSheet({ company, title, subtitle, printed, children, scroll = true }: { company: Company; title: string; subtitle: string; printed: string; children: React.ReactNode; scroll?: boolean }) {
+  // In a dialog the paper scrolls inside it; on a page it runs the full length.
   return (
-    <div style={{ maxHeight: "58vh", overflow: "auto", background: "#e9e9ec", borderRadius: 8, padding: 16 }}>
+    <div style={{ ...(scroll ? { maxHeight: "58vh", overflow: "auto" } : { overflowX: "auto" }), background: "#e9e9ec", borderRadius: 8, padding: 16 }}>
       <div style={{ background: "#fff", color: PAPER.body, maxWidth: 900, margin: "0 auto", padding: "0 28px 24px", boxShadow: "0 2px 10px rgba(0,0,0,.12)", borderTop: `4px solid ${PAPER.brand}`, fontSize: 12 }}>
         <Flex justify="space-between" align="flex-end" style={{ padding: "20px 0 12px", borderBottom: `1px solid ${PAPER.line}`, marginBottom: 12 }} gap={16} wrap>
           <div>

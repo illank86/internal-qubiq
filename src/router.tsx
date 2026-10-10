@@ -28,6 +28,7 @@ const MoneyOutPage = lazy(() => import("@/features/finance/money-out-page").then
 const TaxPage = lazy(() => import("@/features/finance/tax-page").then((module) => ({ default: module.TaxPage })));
 const ReportsPage = lazy(() => import("@/features/finance/reports-page").then((module) => ({ default: module.ReportsPage })));
 const JournalPage = lazy(() => import("@/features/finance/journal-page").then((module) => ({ default: module.JournalPage })));
+const LedgerBookPage = lazy(() => import("@/features/finance/ledger-book-page").then((module) => ({ default: module.LedgerBookPage })));
 const FinanceSettingsPage = lazy(() => import("@/features/finance/settings-page").then((module) => ({ default: module.FinanceSettingsPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
@@ -112,6 +113,7 @@ export const router = createBrowserRouter([
           { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },
           { path: "/sales/quotations/:id/convert", element: <ConvertPage /> },
           { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
+          { path: "/finance/journal/book", element: <LedgerBookPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

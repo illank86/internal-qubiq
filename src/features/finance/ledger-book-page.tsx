@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
-import { Alert, App, Button, Flex, Input, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
-import { CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Alert, App, Button, Card, Flex, Input, Result, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { ArrowLeftOutlined, CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
+import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
+import { useCan } from "@/auth/use-auth";
 import { errorText } from "@/lib/sales";
 import { downloadBlob, fileBase, signedOn, ledgerCsv, loadLedgerBook, PART_TITLE, rp, shortDateId, TYPE_ID, type LedgerBook, type LedgerPart } from "./ledger-book";
 import { jakartaToday } from "./api";
@@ -11,27 +13,37 @@ import { PAPER, rangeOf, type Preset } from "./report-period";
 import { CheckLine, SignBlock, PaperEmpty as Empty, PaperSheet, PeriodPicker } from "./report-paper";
 
 /**
- * "Jurnal & Buku Besar": pick the period, look at it as it will print, then
+ * "Jurnal & Buku Besar" as a page (not a dialog, so the PDF viewer is the only
+ * one that opens): pick the period, look at it as it will print, then
  * download — PDF (opens in the PDF viewer first), Excel (all three sheets) or
- * CSV (the open tab, plain data).
+ * CSV (the open tab, plain data). `?from=&to=` opens it on a period.
  */
 
 const PREVIEW_LIMIT = 400;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }: { from?: string; to?: string; onClose: () => void }) {
+export function LedgerBookPage() {
+  const can = useCan();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { message } = App.useApp();
   const viewPdf = usePdfViewer();
+  const initialFrom = ISO_DATE.test(params.get("from") ?? "") ? params.get("from")! : null;
+  const initialTo = ISO_DATE.test(params.get("to") ?? "") ? params.get("to")! : null;
   const [preset, setPreset] = useState<Preset>(initialFrom ? "custom" : "year");
   const [custom, setCustom] = useState<[string, string]>(() => [initialFrom ?? rangeOf("year")[0], initialTo ?? jakartaToday()]);
   const [from, to] = preset === "custom" ? custom : rangeOf(preset);
   const [part, setPart] = useState<LedgerPart>("jurnal");
   const [busy, setBusy] = useState<string | null>(null);
   const valid = Boolean(from && to && from <= to);
+  const allowed = can("accounting.manage");
 
-  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["ledger-book", from, to], enabled: valid, queryFn: () => loadLedgerBook(from, to) });
+  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["ledger-book", from, to], enabled: valid && allowed, queryFn: () => loadLedgerBook(from, to) });
   // The date written above the signatures; today unless changed.
   const [signDate, setSignDate] = useState(jakartaToday);
   const book = loaded ? signedOn(loaded, signDate) : undefined;
+
+  if (!allowed) return <Result status="403" title="Finance only" subTitle="The journal and ledger are for the Finance role." />;
 
   const run = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -56,18 +68,15 @@ export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }
     book && run("csv", async () => downloadBlob(new Blob([ledgerCsv(book, part)], { type: "text/csv;charset=utf-8" }), `${part}_${book.from}_${book.to}.csv`));
 
   return (
-    <Modal
-      open
-      onCancel={onClose}
-      width={1080}
-      title="Jurnal & Buku Besar"
-      styles={{ body: { paddingTop: 4 } }}
-      footer={
-        <Flex justify="space-between" align="center" gap={8} wrap>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            PDF and Excel hold all three parts. CSV is the open tab only, as plain data.
-          </Typography.Text>
+    <>
+      <PageTitle
+        title="Jurnal & Buku Besar"
+        description="General journal, ledger per account and trial balance for a period, as they will print. PDF and Excel hold all three; CSV is the open tab only, as plain data."
+        actions={
           <Flex gap={8} wrap>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+              Back
+            </Button>
             <Tooltip title={`${PART_TITLE[part]} as plain CSV, no styling`}>
               <Button icon={<FileTextOutlined />} disabled={!book} loading={busy === "csv"} onClick={csv}>
                 CSV
@@ -80,41 +89,42 @@ export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }
               View PDF
             </Button>
           </Flex>
-        </Flex>
-      }
-    >
-      <Flex vertical gap={12}>
-        <Flex gap={8} align="center" justify="space-between" wrap>
-          <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
-          <Flex gap={6} align="center">
-            <Typography.Text type="secondary">Signed on</Typography.Text>
-            <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
-            <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
-              Who signs?
-            </Link>
+        }
+      />
+      <Card>
+        <Flex vertical gap={12}>
+          <Flex gap={8} align="center" justify="space-between" wrap>
+            <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+            <Flex gap={6} align="center">
+              <Typography.Text type="secondary">Signed on</Typography.Text>
+              <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
+              <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
+                Who signs?
+              </Link>
+            </Flex>
           </Flex>
+          {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
+          {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The journal could not be loaded.")} /> : null}
+          {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
+          {book ? (
+            <>
+              <Summary book={book} />
+              <Tabs
+                activeKey={part}
+                onChange={(key) => setPart(key as LedgerPart)}
+                items={[
+                  { key: "jurnal", label: `Jurnal Umum (${book.entries.length})` },
+                  { key: "buku-besar", label: `Buku Besar (${book.accounts.length})` },
+                  { key: "neraca-saldo", label: "Neraca Saldo" },
+                ]}
+                style={{ marginBottom: -12 }}
+              />
+              <Paper book={book} part={part} />
+            </>
+          ) : null}
         </Flex>
-        {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
-        {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The journal could not be loaded.")} /> : null}
-        {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
-        {book ? (
-          <>
-            <Summary book={book} />
-            <Tabs
-              activeKey={part}
-              onChange={(key) => setPart(key as LedgerPart)}
-              items={[
-                { key: "jurnal", label: `Jurnal Umum (${book.entries.length})` },
-                { key: "buku-besar", label: `Buku Besar (${book.accounts.length})` },
-                { key: "neraca-saldo", label: "Neraca Saldo" },
-              ]}
-              style={{ marginBottom: -12 }}
-            />
-            <Paper book={book} part={part} />
-          </>
-        ) : null}
-      </Flex>
-    </Modal>
+      </Card>
+    </>
   );
 }
 
@@ -159,7 +169,7 @@ const td = (align: "left" | "right" = "left", extra: React.CSSProperties = {}): 
 function Paper({ book, part }: { book: LedgerBook; part: LedgerPart }) {
   const asOf = book.period.split(" s.d. ")[1];
   return (
-    <PaperSheet company={book.company} title={PART_TITLE[part]} subtitle={part === "neraca-saldo" ? `Per ${asOf}` : `Periode ${book.period}`} printed={book.printed}>
+    <PaperSheet scroll={false} company={book.company} title={PART_TITLE[part]} subtitle={part === "neraca-saldo" ? `Per ${asOf}` : `Periode ${book.period}`} printed={book.printed}>
       {part === "jurnal" ? <JournalTable book={book} /> : part === "buku-besar" ? <LedgerTables book={book} /> : <TrialTable book={book} />}
     </PaperSheet>
   );
