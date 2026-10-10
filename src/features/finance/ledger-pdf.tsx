@@ -1,7 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { INVOICE_LOGO_DATA_URI, INVOICE_LOGO_HEIGHT, INVOICE_LOGO_WIDTH } from "@/lib/invoice-logo";
 import { BODY, BRAND, BRAND_SOFT, INK, LINE, MUTED, PANEL } from "@/lib/pdf-theme";
-import { npwpLine, rp, shortDateId, TYPE_ID, type LedgerAccount, type LedgerBook } from "./ledger-book";
+import { npwpLine, rp, shortDateId, TYPE_ID, type LedgerAccount, type LedgerBook, type ReportDoc } from "./ledger-book";
 
 /**
  * The ledger book as a PDF (A4 portrait): Jurnal Umum, Buku Besar and Neraca
@@ -51,7 +51,7 @@ const s = StyleSheet.create({
 const num = { textAlign: "right" as const };
 const cell = (flex: number, extra: object = {}) => ({ flex, paddingHorizontal: 4, ...extra });
 
-function Header({ book, title, subtitle }: { book: LedgerBook; title: string; subtitle?: string }) {
+export function Header({ book, title, subtitle }: { book: ReportDoc; title: string; subtitle?: string }) {
   return (
     <>
       <View style={s.topRule} fixed />
@@ -71,12 +71,12 @@ function Header({ book, title, subtitle }: { book: LedgerBook; title: string; su
   );
 }
 
-function Footer({ book }: { book: LedgerBook }) {
+export function Footer({ book, label = "Jurnal & Buku Besar" }: { book: ReportDoc; label?: string }) {
   return (
     <>
       <View style={s.footerRule} fixed />
       <Text style={s.footerLeft} fixed>
-        {book.company.name} · Jurnal & Buku Besar · dicetak {book.printed}
+        {book.company.name} · {label} · dicetak {book.printed}
       </Text>
       <Text style={s.footerRight} fixed render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} dari ${totalPages}`} />
     </>

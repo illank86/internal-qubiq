@@ -3,8 +3,7 @@ import { supabase } from "@/lib/supabase";
 /**
  * Exports for the accountant and the tax office: Excel workbooks (one sheet
  * per report, a header with the company, NPWP and period, real numbers in
- * Rupiah format, frozen headings and filters) and PDF prints of the same
- * tables. Column headings are in Bahasa Indonesia (reports); the app itself
+ * Rupiah format, frozen headings and filters). Column headings are in Bahasa Indonesia (reports); the app itself
  * stays in English.
  */
 
@@ -85,45 +84,4 @@ export async function exportExcel(fileName: string, period: string, sheets: Shee
   }
   const buffer = await book.xlsx.writeBuffer();
   download(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName);
-}
-
-const fmtMoney = (value: unknown) => (value === null || value === undefined || value === "" ? "" : Math.round(Number(value)).toLocaleString("id-ID"));
-
-/** The same tables as a printable PDF (landscape A4), for the archive or signing. */
-export async function exportPdf(fileName: string, period: string, sheets: Sheet[]) {
-  const [{ pdf, Document, Page, Text, View, StyleSheet }, who, React] = await Promise.all([import("@react-pdf/renderer"), company(), import("react")]);
-  const h = React.createElement;
-  const styles = StyleSheet.create({
-    page: { padding: 28, fontSize: 7.5, fontFamily: "Helvetica", color: "#1f2937" },
-    company: { fontSize: 12, fontFamily: "Helvetica-Bold" },
-    title: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 8 },
-    muted: { color: "#6b7280" },
-    head: { flexDirection: "row", backgroundColor: "#c2410c", color: "#ffffff", fontFamily: "Helvetica-Bold", paddingVertical: 4 },
-    row: { flexDirection: "row", borderBottomWidth: 0.5, borderColor: "#e5e7eb", paddingVertical: 3 },
-    total: { flexDirection: "row", borderTopWidth: 1, borderColor: "#1f2937", paddingVertical: 4, fontFamily: "Helvetica-Bold" },
-    footer: { position: "absolute", bottom: 16, left: 28, right: 28, flexDirection: "row", justifyContent: "space-between", color: "#9ca3af", fontSize: 7 },
-  });
-  const cell = (column: Column, value: unknown) =>
-    h(Text, { key: column.key, style: { flex: (column.width ?? 18) / 10, paddingHorizontal: 3, textAlign: column.kind === "money" || column.kind === "number" ? "right" : "left" } },
-      column.kind === "money" ? fmtMoney(value) : value === null || value === undefined ? "" : String(value));
-  const doc = h(Document, { title: fileName, author: who.name },
-    ...sheets.map((sheet) =>
-      h(Page, { key: sheet.name, size: "A4", orientation: "landscape", style: styles.page, wrap: true },
-        h(Text, { style: styles.company }, who.name),
-        h(Text, { style: styles.muted }, npwpText(who.npwp)),
-        h(Text, { style: styles.title }, `${sheet.title} — ${period}`),
-        h(View, { style: { marginTop: 10 } },
-          h(View, { style: styles.head, fixed: true }, ...sheet.columns.map((column) => h(Text, { key: column.key, style: { flex: (column.width ?? 18) / 10, paddingHorizontal: 3, textAlign: column.kind === "money" || column.kind === "number" ? "right" : "left" } }, column.header))),
-          ...sheet.rows.map((row, index) => h(View, { key: index, style: styles.row, wrap: false }, ...sheet.columns.map((column) => cell(column, row[column.key])))),
-          sheet.totals ? h(View, { style: styles.total }, ...sheet.columns.map((column) => cell(column, sheet.totals?.[column.key] ?? ""))) : null,
-        ),
-        h(View, { style: styles.footer, fixed: true },
-          h(Text, null, `Dicetak ${today()} dari QUBIQ Admin`),
-          h(Text, { render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) => `Halaman ${pageNumber} dari ${totalPages}` }),
-        ),
-      ),
-    ),
-  );
-  const blob = await pdf(doc as Parameters<typeof pdf>[0]).toBlob();
-  download(blob, fileName);
 }

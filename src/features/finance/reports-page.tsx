@@ -1,25 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Col, Dropdown, Empty, Flex, Input, Modal, Row, Segmented, Skeleton, Tabs, Tag, Typography, theme } from "antd";
-import { BookOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, Dropdown, Empty, Flex, Input, Modal, Row, Segmented, Skeleton, Tabs, Tag, Typography, theme } from "antd";
+import { BookOutlined, DownloadOutlined, FileDoneOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { useCan } from "@/auth/use-auth";
 import { supabase } from "@/lib/supabase";
-import { errorText } from "@/lib/sales";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
-import { exportExcel, exportPdf, type Sheet } from "./exports";
 import { LedgerPreviewModal } from "./ledger-preview";
+import { loadStatements } from "./statement-book";
+import { StatementPreviewModal } from "./statement-preview";
 
 type Line = { code: string; name: string; name_id: string | null; type: string; amount: number; deductible?: boolean };
-type Statements = {
-  from: string;
-  to: string;
-  profit_and_loss: { lines: Line[]; income: number; expenses: number; profit: number };
-  balance_sheet: { lines: Line[]; retained_prior: number; profit_this_year: number };
-  cash_flow: { opening: number; from_customers: number; to_suppliers: number; taxes: number; financing: number; other: number; closing: number };
-  closed_months: string[];
-};
 
 type Preset = "this_month" | "last_month" | "this_year" | "last_year" | "custom";
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -36,80 +28,20 @@ const longDate = (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateS
 /** Financial statements for a period, their exports, and closing months. */
 export function ReportsPage() {
   const { token } = theme.useToken();
-  const { message } = App.useApp();
   const [preset, setPreset] = useState<Preset>("this_year");
   const [custom, setCustom] = useState<[string, string]>(range("this_year"));
   const [from, to] = preset === "custom" ? custom : range(preset);
-  const [exporting, setExporting] = useState<string | null>(null);
+  const [statementsOpen, setStatementsOpen] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["financial-statements", from, to],
-    queryFn: async () => {
-      const { data: result, error: loadError } = await supabase.rpc("financial_statements", { p_from: from, p_to: to });
-      if (loadError) throw loadError;
-      return result as unknown as Statements;
-    },
+    queryFn: () => loadStatements(from, to),
   });
   const period = `${longDate(from)} – ${longDate(to)}`;
 
-  const statementSheets = (s: Statements): Sheet[] => {
-    const pl = s.profit_and_loss;
-    const bs = s.balance_sheet;
-    const sumType = (lines: Line[], type: string) => lines.filter((line) => line.type === type).reduce((total, line) => total + Number(line.amount), 0);
-    const plRows = [
-      { code: "", name: "PENDAPATAN", amount: null },
-      ...pl.lines.filter((line) => line.type === "income").map((line) => ({ code: line.code, name: line.name_id || line.name, amount: line.amount })),
-      { code: "", name: "Jumlah pendapatan", amount: pl.income },
-      { code: "", name: "BEBAN", amount: null },
-      ...pl.lines.filter((line) => line.type === "expense").map((line) => ({ code: line.code, name: (line.name_id || line.name) + (line.deductible === false ? " (tidak dapat dibiayakan)" : ""), amount: line.amount })),
-      { code: "", name: "Jumlah beban", amount: pl.expenses },
-    ];
-    const bsRows = [
-      { code: "", name: "ASET", amount: null },
-      ...bs.lines.filter((line) => line.type === "asset").map((line) => ({ code: line.code, name: line.name_id || line.name, amount: line.amount })),
-      { code: "", name: "Jumlah aset", amount: sumType(bs.lines, "asset") },
-      { code: "", name: "LIABILITAS", amount: null },
-      ...bs.lines.filter((line) => line.type === "liability").map((line) => ({ code: line.code, name: line.name_id || line.name, amount: line.amount })),
-      { code: "", name: "Jumlah liabilitas", amount: sumType(bs.lines, "liability") },
-      { code: "", name: "EKUITAS", amount: null },
-      ...bs.lines.filter((line) => line.type === "equity").map((line) => ({ code: line.code, name: line.name_id || line.name, amount: line.amount })),
-      { code: "", name: "Laba ditahan (tahun lalu)", amount: bs.retained_prior },
-      { code: "", name: "Laba tahun berjalan", amount: bs.profit_this_year },
-      { code: "", name: "Jumlah liabilitas dan ekuitas", amount: sumType(bs.lines, "liability") + sumType(bs.lines, "equity") + Number(bs.retained_prior) + Number(bs.profit_this_year) },
-    ];
-    const cf = s.cash_flow;
-    const cfRows = [
-      { name: "Saldo kas awal", amount: cf.opening },
-      { name: "Penerimaan dari pelanggan", amount: cf.from_customers },
-      { name: "Pembayaran kepada pemasok dan beban", amount: cf.to_suppliers },
-      { name: "Pembayaran pajak", amount: cf.taxes },
-      { name: "Arus kas operasi bersih", amount: Number(cf.from_customers) + Number(cf.to_suppliers) + Number(cf.taxes) },
-      { name: "Arus kas pendanaan (modal, pinjaman pemegang saham)", amount: cf.financing },
-      { name: "Lain-lain", amount: cf.other },
-      { name: "Saldo kas akhir", amount: cf.closing },
-    ];
-    const cols = [{ header: "Kode", key: "code", width: 9 }, { header: "Akun", key: "name", width: 50 }, { header: "Jumlah (Rp)", key: "amount", kind: "money" as const }];
-    return [
-      { name: "Laba Rugi", title: "Laporan Laba Rugi", columns: cols, rows: plRows, totals: { name: "LABA (RUGI) BERSIH", amount: pl.profit } },
-      { name: "Neraca", title: `Neraca per ${longDate(s.to)}`, columns: cols, rows: bsRows },
-      { name: "Arus Kas", title: "Laporan Arus Kas (metode langsung)", columns: [{ header: "Keterangan", key: "name", width: 60 }, { header: "Jumlah (Rp)", key: "amount", kind: "money" }], rows: cfRows },
-    ];
-  };
-
-  const run = async (kind: string, work: () => Promise<void>) => {
-    setExporting(kind);
-    try {
-      await work();
-    } catch (cause) {
-      message.error(errorText(cause as { code?: string; message?: string }, "The export could not be made."));
-    } finally {
-      setExporting(null);
-    }
-  };
   const exportItems = data
     ? [
-        { key: "statements-xlsx", icon: <FileExcelOutlined />, label: "Statements — Excel", onClick: () => run("x", () => exportExcel(`laporan-keuangan-${from}-${to}.xlsx`, period, statementSheets(data))) },
-        { key: "statements-pdf", icon: <FilePdfOutlined />, label: "Statements — PDF", onClick: () => run("p", () => exportPdf(`laporan-keuangan-${from}-${to}.pdf`, period, statementSheets(data))) },
+        { key: "statements", icon: <FileDoneOutlined />, label: "Laporan Keuangan — preview, then PDF, Excel or CSV", onClick: () => setStatementsOpen(true) },
         { type: "divider" as const },
         { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => setLedgerOpen(true) },
       ]
@@ -146,10 +78,10 @@ export function ReportsPage() {
     <>
       <PageTitle
         title="Reports"
-        description="Profit and loss, balance sheet and cash flow — and the journal, ledger and trial balance — for any period, in Excel or PDF."
+        description="Profit and loss, balance sheet and cash flow — and the journal, ledger and trial balance — for any period. Export opens a preview first, then PDF, Excel or CSV."
         actions={
           <Dropdown menu={{ items: exportItems }} disabled={!data} trigger={["click"]}>
-            <Button type="primary" icon={<DownloadOutlined />} loading={Boolean(exporting)}>
+            <Button type="primary" icon={<DownloadOutlined />}>
               Export
             </Button>
           </Dropdown>
@@ -271,6 +203,7 @@ export function ReportsPage() {
           <MonthClosing />
         </Flex>
       )}
+      {statementsOpen ? <StatementPreviewModal from={from} to={to} onClose={() => setStatementsOpen(false)} /> : null}
       {ledgerOpen ? <LedgerPreviewModal from={from} to={to} onClose={() => setLedgerOpen(false)} /> : null}
     </>
   );

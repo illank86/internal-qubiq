@@ -39,6 +39,9 @@ export type LedgerBook = {
   totals: { debit: number; credit: number; trialDebit: number; trialCredit: number };
 };
 
+/** What a report header and footer need: the company, the period and the print date. */
+export type ReportDoc = Pick<LedgerBook, "company" | "period" | "printed">;
+
 export const SOURCE_ID: Record<string, string> = {
   invoice: "Penjualan",
   receipt: "Penerimaan",

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Button, Flex, Input, Modal, Segmented, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { Alert, App, Button, Flex, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
 import { CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { errorText } from "@/lib/sales";
-import { INVOICE_LOGO_DATA_URI } from "@/lib/invoice-logo";
-import { downloadBlob, fileBase, ledgerCsv, loadLedgerBook, npwpLine, PART_TITLE, rp, shortDateId, TYPE_ID, type LedgerBook, type LedgerPart } from "./ledger-book";
+import { downloadBlob, fileBase, ledgerCsv, loadLedgerBook, PART_TITLE, rp, shortDateId, TYPE_ID, type LedgerBook, type LedgerPart } from "./ledger-book";
 import { jakartaToday } from "./api";
+import { PAPER, rangeOf, type Preset } from "./report-period";
+import { CheckLine, PaperEmpty as Empty, PaperSheet, PeriodPicker } from "./report-paper";
 
 /**
  * "Jurnal & Buku Besar": pick the period, look at it as it will print, then
@@ -14,25 +15,7 @@ import { jakartaToday } from "./api";
  * CSV (the open tab, plain data).
  */
 
-// The paper is drawn in print colours in both themes: it previews a document.
-const PAPER = { ink: "#18181b", body: "#3f3f46", muted: "#71717a", line: "#e4e4e7", panel: "#f7f7f8", brand: "#c2410c", soft: "#fff4ec", good: "#15803d", bad: "#b91c1c" };
 const PREVIEW_LIMIT = 400;
-
-type Preset = "month" | "last-month" | "year" | "last-year" | "custom";
-
-function rangeOf(preset: Exclude<Preset, "custom">): [string, string] {
-  const today = jakartaToday();
-  const [y, m] = today.split("-").map(Number);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
-  if (preset === "month") return [`${y}-${pad(m)}-01`, today];
-  if (preset === "last-month") {
-    const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1];
-    return [`${py}-${pad(pm)}-01`, `${py}-${pad(pm)}-${pad(lastDay(py, pm))}`];
-  }
-  if (preset === "year") return [`${y}-01-01`, today];
-  return [`${y - 1}-01-01`, `${y - 1}-12-31`];
-}
 
 export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }: { from?: string; to?: string; onClose: () => void }) {
   const { message } = App.useApp();
@@ -97,29 +80,7 @@ export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }
       }
     >
       <Flex vertical gap={12}>
-        <Flex gap={8} align="center" wrap>
-          <Segmented<Preset>
-            value={preset}
-            onChange={(value) => {
-              if (value === "custom") setCustom([from, to]);
-              setPreset(value);
-            }}
-            options={[
-              { value: "month", label: "This month" },
-              { value: "last-month", label: "Last month" },
-              { value: "year", label: "This year" },
-              { value: "last-year", label: "Last year" },
-              { value: "custom", label: "Custom" },
-            ]}
-          />
-          {preset === "custom" ? (
-            <Flex gap={6} align="center">
-              <Input type="date" value={custom[0]} max={custom[1]} onChange={(event) => setCustom([event.target.value, custom[1]])} style={{ width: 150 }} aria-label="From" />
-              <Typography.Text type="secondary">to</Typography.Text>
-              <Input type="date" value={custom[1]} min={custom[0]} onChange={(event) => setCustom([custom[0], event.target.value])} style={{ width: 150 }} aria-label="To" />
-            </Flex>
-          ) : null}
-        </Flex>
+        <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
         {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
         {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The journal could not be loaded.")} /> : null}
         {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
@@ -185,36 +146,15 @@ const td = (align: "left" | "right" = "left", extra: React.CSSProperties = {}): 
 function Paper({ book, part }: { book: LedgerBook; part: LedgerPart }) {
   const asOf = book.period.split(" s.d. ")[1];
   return (
-    <div style={{ maxHeight: "58vh", overflow: "auto", background: "#e9e9ec", borderRadius: 8, padding: 16 }}>
-      <div style={{ background: "#fff", color: PAPER.body, maxWidth: 900, margin: "0 auto", padding: "0 28px 24px", boxShadow: "0 2px 10px rgba(0,0,0,.12)", borderTop: `4px solid ${PAPER.brand}`, fontSize: 12 }}>
-        <Flex justify="space-between" align="flex-end" style={{ padding: "20px 0 12px", borderBottom: `1px solid ${PAPER.line}`, marginBottom: 12 }} gap={16} wrap>
-          <div>
-            <img src={INVOICE_LOGO_DATA_URI} alt="" style={{ height: 22, marginBottom: 6, display: "block" }} />
-            <div style={{ fontWeight: 700, color: PAPER.ink, fontSize: 13 }}>{book.company.name}</div>
-            <div style={{ color: PAPER.muted }}>{npwpLine(book.company.npwp)}</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 700, color: PAPER.ink, fontSize: 18, letterSpacing: 1 }}>{PART_TITLE[part].toUpperCase()}</div>
-            <div style={{ color: PAPER.muted }}>{part === "neraca-saldo" ? `Per ${asOf}` : `Periode ${book.period}`}</div>
-            <div style={{ color: PAPER.muted }}>Dalam Rupiah</div>
-          </div>
-        </Flex>
-        {part === "jurnal" ? <JournalTable book={book} /> : part === "buku-besar" ? <LedgerTables book={book} /> : <TrialTable book={book} />}
-        <div style={{ marginTop: 16, paddingTop: 6, borderTop: `1px solid ${PAPER.line}`, color: "#a1a1aa", fontSize: 10 }}>
-          {book.company.name} · dicetak {book.printed}
-        </div>
-      </div>
-    </div>
+    <PaperSheet company={book.company} title={PART_TITLE[part]} subtitle={part === "neraca-saldo" ? `Per ${asOf}` : `Periode ${book.period}`} printed={book.printed}>
+      {part === "jurnal" ? <JournalTable book={book} /> : part === "buku-besar" ? <LedgerTables book={book} /> : <TrialTable book={book} />}
+    </PaperSheet>
   );
 }
 
 function Balanced({ debit, credit }: { debit: number; credit: number }) {
   const ok = Math.abs(debit - credit) < 0.5;
-  return (
-    <div style={{ marginTop: 8, fontWeight: 600, color: ok ? PAPER.good : PAPER.bad }}>
-      {ok ? "✓ Seimbang — jumlah debit sama dengan jumlah kredit." : `✗ Tidak seimbang — selisih ${rp(Math.abs(debit - credit))}.`}
-    </div>
-  );
+  return <CheckLine ok={ok} text={ok ? "Seimbang — jumlah debit sama dengan jumlah kredit." : `Tidak seimbang — selisih ${rp(Math.abs(debit - credit))}.`} />;
 }
 
 const Clipped = ({ shown, total }: { shown: number; total: number }) =>
@@ -390,5 +330,3 @@ function TrialTable({ book }: { book: LedgerBook }) {
     </>
   );
 }
-
-const Empty = ({ text }: { text: string }) => <div style={{ padding: "24px 0", color: PAPER.muted, textAlign: "center" }}>{text}</div>;

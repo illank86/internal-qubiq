@@ -1,5 +1,5 @@
 import type { Fill, Font, Worksheet } from "exceljs";
-import { npwpLine, type LedgerBook, TYPE_ID } from "./ledger-book";
+import { npwpLine, type LedgerBook, type ReportDoc, TYPE_ID } from "./ledger-book";
 
 /**
  * The ledger book as an Excel workbook — three sheets, laid out like the PDF:
@@ -8,22 +8,22 @@ import { npwpLine, type LedgerBook, TYPE_ID } from "./ledger-book";
  * real dates, so the accountant can sum, filter and pivot.
  */
 
-const BRAND = "FFC2410C";
-const SOFT = "FFFFF4EC";
-const PANEL = "FFF7F7F8";
-const INK = "FF18181B";
-const MUTED = "FF71717A";
-const LINE = "FFE4E4E7";
-const GOOD = "FF15803D";
-const BAD = "FFB91C1C";
+export const BRAND = "FFC2410C";
+export const SOFT = "FFFFF4EC";
+export const PANEL = "FFF7F7F8";
+export const INK = "FF18181B";
+export const MUTED = "FF71717A";
+export const LINE = "FFE4E4E7";
+export const GOOD = "FF15803D";
+export const BAD = "FFB91C1C";
 
-const MONEY = '#,##0;(#,##0);"–"';
-const fill = (argb: string): Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
-const thin = { style: "thin" as const, color: { argb: LINE } };
+export const MONEY = '#,##0;(#,##0);"–"';
+export const fill = (argb: string): Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+export const thin = { style: "thin" as const, color: { argb: LINE } };
 const date = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`);
 
 /** Rows 1–4: company, NPWP, title, period; row 6: the column heads. Returns the head row number. */
-function header(ws: Worksheet, book: LedgerBook, title: string, heads: string[], widths: number[], money: number[], subtitle = `Periode ${book.period}`) {
+export function header(ws: Worksheet, book: ReportDoc, title: string, heads: string[], widths: number[], money: number[], subtitle = `Periode ${book.period}`) {
   const span = heads.length;
   widths.forEach((width, index) => (ws.getColumn(index + 1).width = width));
   money.forEach((column) => (ws.getColumn(column).numFmt = MONEY));
@@ -62,7 +62,7 @@ function header(ws: Worksheet, book: LedgerBook, title: string, heads: string[],
   return 6;
 }
 
-function footer(ws: Worksheet, book: LedgerBook) {
+export function footer(ws: Worksheet, book: ReportDoc) {
   ws.addRow([]);
   const row = ws.addRow([`Dicetak ${book.printed} dari QUBIQ Admin`]);
   row.font = { italic: true, size: 9, color: { argb: MUTED } };
