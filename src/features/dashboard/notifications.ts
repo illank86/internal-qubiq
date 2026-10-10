@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { AppPermission } from "@/lib/types";
 
-export type NotificationKind = "lead" | "quote" | "bug" | "reply" | "integrator" | "license" | "account" | "approval";
+export type NotificationKind = "lead" | "quote" | "bug" | "reply" | "integrator" | "license" | "account" | "approval" | "undelivered";
 
 export type NotificationItem = {
   id: string;
@@ -28,7 +28,7 @@ export async function loadNotifications(userId: string, permissions: AppPermissi
   // Approvals: what waits for an approver, and decisions on what you asked for.
   const { data: approverRow } = await supabase.from("document_approvers").select("user_id").eq("user_id", userId).maybeSingle();
   const approver = Boolean(approverRow);
-  const [waitingQuotes, waitingInvoices, decisions] = await Promise.all([
+  const [waitingQuotes, waitingInvoices, decisions, undelivered] = await Promise.all([
     approver && sees("quotations.manage")
       ? supabase.from("quotations").select("id, number, company, contact_name, approval_requested_at").eq("approval_status", "pending").neq("approval_requested_by", userId).limit(limit)
       : none,
@@ -43,6 +43,18 @@ export async function loadNotifications(userId: string, permissions: AppPermissi
       .in("action", ["approved", "rejected"])
       .order("created_at", { ascending: false })
       .limit(limit),
+    // A quotation or invoice email that did not reach the customer (last 30 days).
+    sees("quotations.manage") || sees("licenses.manage")
+      ? supabase
+          .from("notification_log")
+          .select("id, source_table, record_id, recipient, subject, error, created_at")
+          .eq("audience", "customer")
+          .eq("status", "failed")
+          .in("source_table", ["quotations", "invoices"])
+          .gte("created_at", new Date(Date.now() - 30 * 86_400_000).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(limit)
+      : none,
   ]);
 
   const [{ data: me }, leads, quotes, bugs, replies, integrators, licenses, accounts] = await Promise.all([
@@ -90,6 +102,16 @@ export async function loadNotifications(userId: string, permissions: AppPermissi
         `${row.document_type === "quotation" ? "Quotation" : "Invoice"} ${row.document_number ?? ""} ${row.action === "approved" ? "was approved" : "was not approved"}`,
         row.action === "approved" ? `By ${row.actor_name ?? "an approver"}` : `${row.actor_name ?? "An approver"}: ${row.note ?? ""}`,
         row.document_type === "quotation" ? "/sales/quotations" : "/sales/invoices",
+        row.created_at,
+      ),
+    ),
+    ...(undelivered.data ?? []).map((row) =>
+      item(
+        `undelivered-${row.id}`,
+        "undelivered",
+        `Not delivered to ${row.recipient}`,
+        `${row.subject ?? ""}${row.error ? ` · ${row.error.slice(0, 90)}` : ""}`,
+        row.source_table === "quotations" ? "/sales/quotations" : `/sales/invoices?invoice=${row.record_id}`,
         row.created_at,
       ),
     ),
