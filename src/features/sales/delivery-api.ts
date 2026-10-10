@@ -80,6 +80,14 @@ export async function updateDeliveryOrder(id: string, lines: DeliveryLine[] | nu
   fail(error);
 }
 
+export type DeliverySigners = Pick<DeliveryDetails, "prepared_by_name" | "prepared_by_title" | "delivered_by_name" | "delivered_by_title" | "delivered_by_same">;
+
+/** Names and positions under Prepared by / Delivered by: changeable until it is received. */
+export async function updateDeliverySigners(id: string, signers: DeliverySigners) {
+  const { error } = await supabase.rpc("update_delivery_signers", { p_id: id, p_details: signers as unknown as Json });
+  fail(error);
+}
+
 export async function issueDeliveryOrder(id: string) {
   const { error } = await supabase.rpc("issue_delivery_order", { p_id: id });
   fail(error);

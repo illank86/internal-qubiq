@@ -71,13 +71,14 @@ type Order = {
   invoices: InvoiceRow[];
 };
 
-type Stage = "quoting" | "accepted" | "invoiced" | "to_deliver" | "delivering" | "delivered" | "closed";
+type Stage = "quoting" | "accepted" | "invoiced" | "to_deliver" | "partly_delivered" | "awaiting_receipt" | "delivered" | "closed";
 const STAGE: Record<Stage, { label: string; color: string }> = {
   quoting: { label: "Quotation", color: "default" },
   accepted: { label: "Accepted · to invoice", color: "blue" },
   invoiced: { label: "Invoiced · awaiting payment", color: "warning" },
   to_deliver: { label: "Paid · to deliver", color: "purple" },
-  delivering: { label: "Delivering", color: "processing" },
+  partly_delivered: { label: "Partly delivered · rest to deliver", color: "purple" },
+  awaiting_receipt: { label: "Delivered · awaiting receipt", color: "processing" },
   delivered: { label: "Delivered", color: "success" },
   closed: { label: "Closed", color: "default" },
 };
@@ -102,8 +103,10 @@ function stageOf(order: Order): Stage {
   if (invoice.status === "unpaid") return "invoiced";
   const dos = liveDos(invoice);
   const all = delivered(invoice) >= ordered(invoice) && ordered(invoice) > 0;
+  // A DO is out and the customer has not confirmed it (online or by signed DO / BAST).
+  if (dos.some((item) => item.status === "issued")) return "awaiting_receipt";
   if (all && dos.length && dos.every((item) => item.status === "received")) return "delivered";
-  if (dos.some((item) => item.status !== "draft")) return "delivering";
+  if (dos.some((item) => item.status === "received")) return "partly_delivered";
   return "to_deliver";
 }
 
@@ -227,7 +230,7 @@ export function OrdersPage() {
             { value: "all", label: "All" },
             { value: "invoiced", label: `Awaiting payment ${count("invoiced")}` },
             { value: "to_deliver", label: `To deliver ${count("to_deliver")}` },
-            { value: "delivering", label: `Delivering ${count("delivering")}` },
+            { value: "awaiting_receipt", label: `Awaiting receipt ${count("awaiting_receipt")}` },
             { value: "delivered", label: "Delivered" },
           ]}
         />
@@ -346,7 +349,7 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
       icon: <CarOutlined />,
       title: "Delivery",
       done: order.stage === "delivered",
-      current: order.stage === "to_deliver" || order.stage === "delivering",
+      current: order.stage === "to_deliver" || order.stage === "partly_delivered" || order.stage === "awaiting_receipt",
       children: (
         <Flex vertical gap={8}>
           {invoice?.status === "paid" && left > 0 ? (

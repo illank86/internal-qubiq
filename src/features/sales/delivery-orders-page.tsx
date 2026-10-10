@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Button, Drawer, Dropdown, Empty, Flex, Form, Input, Modal, Popconfirm, Segmented, Table, Tabs, Tag, Typography, Upload, theme } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Empty, Flex, Form, Input, Modal, Popconfirm, Row, Segmented, Table, Tabs, Tag, Typography, Upload, theme } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -17,6 +17,7 @@ import {
   ProfileOutlined,
   SendOutlined,
   StopOutlined,
+  TeamOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
@@ -38,10 +39,12 @@ import {
   deliveryOrderPdf,
   issueDeliveryOrder,
   removeDeliveryFile,
+  updateDeliverySigners,
   type DeliveryFile,
   type DeliveryItem,
   type DeliveryMethod,
   type DeliveryOrder,
+  type DeliverySigners,
   type DeliveryStatus,
   type FileKind,
 } from "./delivery-api";
@@ -265,6 +268,7 @@ function DeliveryRowActions({ row, run, busy, onOpen, onEdit }: { row: DeliveryR
   const { message } = App.useApp();
   const [uploading, setUploading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [signers, setSigners] = useState(false);
   const issue = useIssue(row, run);
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
 
@@ -284,6 +288,7 @@ function DeliveryRowActions({ row, run, busy, onOpen, onEdit }: { row: DeliveryR
   const change: Item[] = [];
   // Only while waiting for receipt: once received (online or by an uploaded signed DO / BAST) the link has done its job.
   if (row.status === "issued") {
+    change.push({ key: "signers", icon: <TeamOutlined />, label: "Edit names & positions", onClick: () => setSigners(true) });
     change.push({ key: "again", icon: <SendOutlined />, label: "Send again", onClick: issue });
     change.push({
       key: "link",
@@ -318,6 +323,7 @@ function DeliveryRowActions({ row, run, busy, onOpen, onEdit }: { row: DeliveryR
       </Dropdown>
       <UploadReceivedModal row={row} open={uploading} onClose={() => setUploading(false)} run={run} />
       <CancelModal row={row} open={cancelling} onClose={() => setCancelling(false)} run={run} />
+      <SignersModal row={row} open={signers} onClose={() => setSigners(false)} run={run} />
     </Flex>
   );
 }
@@ -430,6 +436,90 @@ export function UploadReceivedModal({ row, open, onClose, run }: { row: Delivery
   );
 }
 
+/**
+ * Who prepared and who delivered it, with their positions — correctable while
+ * it waits for the customer (the PDF and the customer's link show the change).
+ */
+function SignersModal({ row, open, onClose, run }: { row: DeliveryRow; open: boolean; onClose: () => void; run: Run }) {
+  const [form] = Form.useForm<Required<DeliverySigners>>();
+  const [pending, setPending] = useState(false);
+  const same = Form.useWatch("delivered_by_same", form) ?? row.delivered_by_same;
+  const digital = row.signature_mode === "digital";
+
+  const save = async (values: Required<DeliverySigners>) => {
+    setPending(true);
+    const signers = values.delivered_by_same ? { ...values, delivered_by_name: values.prepared_by_name, delivered_by_title: values.prepared_by_title } : values;
+    const ok = await run(`signers:${row.id}`, () => updateDeliverySigners(row.id, signers), "Saved. The PDF shows the new names.");
+    setPending(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      title={`Names & positions · ${row.number ?? ""}`}
+      okText="Save"
+      okButtonProps={{ loading: pending }}
+      onOk={() => form.submit()}
+      destroyOnHidden
+      width={560}
+    >
+      <Form<Required<DeliverySigners>>
+        form={form}
+        layout="vertical"
+        onFinish={save}
+        disabled={pending}
+        initialValues={{
+          prepared_by_name: row.prepared_by_name ?? "",
+          prepared_by_title: row.prepared_by_title ?? "",
+          delivered_by_name: row.delivered_by_name ?? "",
+          delivered_by_title: row.delivered_by_title ?? "",
+          delivered_by_same: row.delivered_by_same,
+        }}
+      >
+        <Row gutter={16}>
+          <Col xs={24} sm={12}>
+            <Form.Item
+              label="Prepared by — name"
+              name="prepared_by_name"
+              rules={[{ max: 200 }]}
+              extra={digital ? "Signed digitally: the signatory's name and position are printed instead." : undefined}
+            >
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item label="Position" name="prepared_by_title" rules={[{ max: 200 }]}>
+              <Input placeholder="e.g. Sales Manager" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item name="delivered_by_same" valuePropName="checked" style={{ marginBottom: 12 }}>
+          <Checkbox>Delivered by the same person who prepared it</Checkbox>
+        </Form.Item>
+        {same ? null : (
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Delivered by — name" name="delivered_by_name" rules={[{ max: 200 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Position" name="delivered_by_title" rules={[{ max: 200 }]}>
+                <Input placeholder="e.g. Support Engineer" />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          Only the names and positions change; the customer is not emailed. Once it is received, they stay as signed.
+        </Typography.Text>
+      </Form>
+    </Modal>
+  );
+}
+
 function CancelModal({ row, open, onClose, run }: { row: DeliveryRow; open: boolean; onClose: () => void; run: Run }) {
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
@@ -460,6 +550,7 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const [uploading, setUploading] = useState(false);
+  const [signers, setSigners] = useState(false);
   const issue = useIssue(row ?? ({ items: [], files: [] } as unknown as DeliveryRow), run);
   if (!row) return <Drawer open={false} onClose={onClose} />;
   const kinds = new Set(row.files.map((file) => file.kind));
@@ -491,6 +582,11 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
               }
             >
               Copy customer link
+            </Button>
+          ) : null}
+          {row.status === "issued" ? (
+            <Button icon={<TeamOutlined />} onClick={() => setSigners(true)}>
+              Names & positions
             </Button>
           ) : null}
           {row.status === "draft" ? (
@@ -607,6 +703,7 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
         />
       </Flex>
       <UploadReceivedModal row={row} open={uploading} onClose={() => setUploading(false)} run={run} />
+      <SignersModal row={row} open={signers} onClose={() => setSigners(false)} run={run} />
     </Drawer>
   );
 }

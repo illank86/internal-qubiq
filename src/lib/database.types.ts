@@ -3621,6 +3621,7 @@ export type Database = {
       remove_delivery_file: { Args: { p_file_id: string }; Returns: string }
       staff_delivery_signoff: { Args: { p_id: string }; Returns: Json }
       update_delivery_order: { Args: { p_details: Json; p_id: string; p_lines: Json }; Returns: undefined }
+      update_delivery_signers: { Args: { p_details: Json; p_id: string }; Returns: undefined }
       sign_out_everywhere: { Args: { p_user: string }; Returns: number }
       sends_directly: { Args: { p_type: string }; Returns: boolean }
       approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }
