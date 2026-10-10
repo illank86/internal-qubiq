@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Divider, Drawer, Flex, Tabs, Typography } from "antd";
-import { EditOutlined, FilePdfOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Divider, Drawer, Flex, Popconfirm, Tabs, Typography } from "antd";
+import { DeleteOutlined, EditOutlined, FilePdfOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { isExpired, type Quotation } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
@@ -63,6 +63,20 @@ export function QuotationDrawer({
   if (!quotation) return <Drawer open={false} onClose={onClose} />;
   const money = (amount: number) => formatMoney(amount, quotation.currency, quotation.decimal_places);
   const editable = quotation.status === "draft" || quotation.status === "sent";
+  // Only a draft or cancelled one that never went out or for approval and has no
+  // invoice; the database refuses the rest.
+  const deletable =
+    (quotation.status === "draft" || quotation.status === "cancelled") && quotation.approval_status === "none" && quotation.send_count === 0 && !quotation.sent_at && quotation.invoices.length === 0;
+  const remove = () =>
+    run(
+      `delete-${quotation.id}`,
+      async () => {
+        const { error } = await supabase.from("quotations").delete().eq("id", quotation.id);
+        if (error) throw error;
+        onClose();
+      },
+      `${quotation.number ?? "Draft"} deleted.`,
+    );
   const invoice = quotation.invoices.find((candidate) => candidate.status !== "void");
   const servers = (lines?.groups ?? []).reduce((sum, group) => sum + group.quantity, 0);
   const account = () => navigate(`/sales/quotations/${quotation.id}/customer`);
@@ -157,6 +171,19 @@ export function QuotationDrawer({
       }
       extra={
         <Flex gap={8}>
+          {deletable ? (
+            <Popconfirm
+              title={`Delete ${quotation.number ?? "this draft"}?`}
+              description="It was never sent, so it simply goes. This cannot be undone."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={remove}
+            >
+              <Button danger icon={<DeleteOutlined />} loading={busy === `delete-${quotation.id}`}>
+                Delete
+              </Button>
+            </Popconfirm>
+          ) : null}
           <Button icon={<FilePdfOutlined />} onClick={() => viewPdf(quotationPdf(quotation.id, quotation.number))}>
             View PDF
           </Button>
