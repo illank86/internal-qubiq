@@ -16,6 +16,7 @@ import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { useSendsDirectly } from "./approvals";
 import { quotationPdf } from "./api";
+import { TaxReadout } from "./document-tax";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
@@ -102,7 +103,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const currencyText = (Form.useWatch("currency", form) ?? draft.currency ?? "").trim().toUpperCase();
   const rateValue = Form.useWatch("exchange_rate", form) ?? draft.exchangeRate;
   const decimals = Form.useWatch("decimals", form) ?? draft.decimals;
-  const taxRate = Form.useWatch("tax_rate", form) ?? draft.taxRate;
+  // The tax is Finance's (PKP or not): every save uses the current rate.
+  const taxRate = catalog.taxRate;
   const contactEmail = Form.useWatch("contact_email", form);
   const forEndUser = Form.useWatch("for_end_user", form) ?? draft.licensee.name !== "";
   // Signed by hand: an approver downloads it to sign; it goes out as the signed copy.
@@ -150,7 +152,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     baseCurrency,
     rate,
     decimals: Number(values.decimals) || 0,
-    taxRate: Number(values.tax_rate) || 0,
+    taxRate: catalog.taxRate,
     taxLabel: catalog.taxLabel,
     issueDate: new Date().toISOString().slice(0, 10),
     validUntil: values.valid_until,
@@ -239,7 +241,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       p_sales_email: opt(values.sales_email),
       p_sales_phone: opt(values.sales_phone),
       p_valid_until: values.valid_until,
-      p_tax_rate: Number(values.tax_rate) || 0,
+      p_tax_rate: catalog.taxRate,
       p_currency: converting ? currency : undefined,
       p_exchange_rate: converting ? Number(values.exchange_rate) : undefined,
       p_decimals: Number(values.decimals),
@@ -562,9 +564,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={8}>
-                    <Form.Item label={`${catalog.taxLabel} rate`} name="tax_rate" rules={[{ type: "number", min: 0, max: 100, message: "0 to 100" }]}>
-                      <InputNumber min={0} max={100} style={{ width: "100%" }} suffix="%" />
-                    </Form.Item>
+                    <TaxReadout label={catalog.taxLabel} rate={catalog.taxRate} />
                   </Col>
                   <Col xs={24} md={8}>
                     <Form.Item label="Valid until" name="valid_until" rules={[{ required: true, message: "Enter a date" }]}>

@@ -59,27 +59,27 @@ export const NAV: NavGroup[] = [
   {
     heading: "Sales",
     items: [
-      { path: "/sales/orders", label: "Order overview", icon: PartitionOutlined, permissions: ["quotations.manage", "licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "One order from quote request to delivery: quotation, invoice, payment, delivery orders and licences." },
+      { path: "/sales/orders", label: "Order overview", icon: PartitionOutlined, permissions: ["quotations.manage", "accounting.manage", "licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "One order from quote request to delivery: quotation, invoice, payment, delivery orders and licences." },
       { path: "/sales/leads", label: "Leads", icon: ContactsOutlined, permissions: ["leads.manage"], legacy: "/admin/leads", phase: 3, ready: true, summary: "Contact-form enquiries and their follow-up." },
       { path: "/sales/quote-requests", label: "Quote requests", icon: InboxOutlined, permissions: ["leads.manage"], legacy: "/admin/quote_requests", phase: 3, ready: true, summary: "Requests from the pricing page, ready to turn into quotations." },
       { path: "/sales/quotations", label: "Quotations", icon: FileDoneOutlined, permissions: ["quotations.manage"], legacy: "/admin/quotations", phase: 3, ready: true, summary: "Build, send and track quotations with server groups; claim links and customer accounts." },
-      { path: "/sales/invoices", label: "Invoices", icon: TransactionOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "Invoices converted from accepted quotations: payment status, corrections, PDFs." },
       { path: "/licensing/licences", label: "Licences", icon: KeyOutlined, permissions: ["licenses.manage"], legacy: "/admin/licenses", phase: 4, ready: true, summary: "Fingerprint requests: issue .qlf files, revoke, link to orders." },
       { path: "/sales/delivery-orders", label: "Delivery Order", icon: CarOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "What was delivered for a paid invoice, and the customer's signed receipt and BAST." },
       { path: "/sales/editions", label: "Editions & modules", icon: AppstoreOutlined, permissions: ["pricing.manage"], legacy: "/admin/license_modules", phase: 3, ready: true, summary: "The price list: modules, categories and the editions built from them." },
-      { path: "/sales/settings", label: "Sales settings", icon: SettingOutlined, permissions: ["licenses.manage", "quotations.manage"], legacy: "/admin/invoice_settings", phase: 3, ready: true, summary: "Tax, payment terms, how to pay, quotation wording." },
+      { path: "/sales/settings", label: "Sales settings", icon: SettingOutlined, permissions: ["quotations.manage", "licenses.manage", "users.manage"], legacy: "/admin/invoice_settings", phase: 3, ready: true, summary: "Quotation wording and numbering, tier discounts, delivery order numbering, approvals and the signature." },
     ],
   },
   {
     heading: "Finance",
     items: [
       { path: "/finance", label: "Dashboard", icon: FundOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Cash, money in and out, what customers owe, profit and estimated tax." },
+      { path: "/sales/invoices", label: "Invoices", icon: TransactionOutlined, permissions: ["accounting.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "Invoices made from accepted quotations: approval, sending, payments, faktur pajak." },
       { path: "/finance/money-in", label: "Money in", icon: VerticalAlignBottomOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Payments received: what arrived, tax withheld (bukti potong), charges." },
       { path: "/finance/money-out", label: "Money out", icon: VerticalAlignTopOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Expenses, paid now or owed, with receipts." },
       { path: "/finance/tax", label: "Tax", icon: AccountBookOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Each tax month: what is due, what was paid, lists for Coretax." },
       { path: "/finance/reports", label: "Reports", icon: BarChartOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Profit and loss, balance sheet, cash flow, ledger; closing months." },
       { path: "/finance/journal", label: "Journal", icon: ReadOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Every booking, debit and credit." },
-      { path: "/finance/settings", label: "Finance settings", icon: SettingOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Tax profile, PKP, chart of accounts, bank accounts, KMK rates." },
+      { path: "/finance/settings", label: "Finance settings", icon: SettingOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Company details, invoices and ways to pay, tax and PKP, chart of accounts, bank accounts, KMK rates." },
     ],
   },
   {

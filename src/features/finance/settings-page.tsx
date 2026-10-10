@@ -7,22 +7,25 @@ import { PageTitle } from "@/components/app-shell";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
+import { CompanySettings, InvoicePaymentSettings } from "./document-settings";
 import { money, useAccounts, useBankAccounts, type Account, type BankAccount } from "./api";
 
-const TABS = ["tax", "accounts", "banks", "rates"] as const;
+const TABS = ["company", "invoices", "tax", "accounts", "banks", "rates"] as const;
 
 /** Finance settings: the tax profile (and the tax used on quotations and invoices), the chart of accounts, bank accounts and KMK exchange rates. */
 export function FinanceSettingsPage() {
   const [params, setParams] = useSearchParams();
-  const tab = TABS.includes(params.get("tab") as (typeof TABS)[number]) ? (params.get("tab") as string) : "tax";
+  const tab = TABS.includes(params.get("tab") as (typeof TABS)[number]) ? (params.get("tab") as string) : "company";
   return (
     <>
-      <PageTitle title="Finance settings" description="Tax profile, chart of accounts, bank accounts and exchange rates." />
+      <PageTitle title="Finance settings" description="Company details, invoices and ways to pay, tax, chart of accounts, bank accounts and exchange rates." />
       <Card>
         <Tabs
           activeKey={tab}
           onChange={(key) => setParams({ tab: key }, { replace: true })}
           items={[
+            { key: "company", label: "Company & documents", children: <CompanySettings /> },
+            { key: "invoices", label: "Invoices & payment", children: <InvoicePaymentSettings /> },
             { key: "tax", label: "Tax", children: <TaxSettings /> },
             { key: "accounts", label: "Chart of accounts", children: <AccountsTab /> },
             { key: "banks", label: "Bank accounts", children: <BanksTab /> },

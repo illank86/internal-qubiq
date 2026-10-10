@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -25,7 +25,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
-import { useStaff } from "@/auth/use-auth";
+import { useCan, useStaff } from "@/auth/use-auth";
 import { formatInvoiceDate, formatMoney, isOverdue, type Invoice } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
@@ -45,6 +45,7 @@ import { RecordPaymentModal } from "@/features/finance/record-payment-modal";
 import { FakturModal, FakturPanel, FakturTag, needsFaktur } from "@/features/finance/faktur-modal";
 import { discountLines } from "@/lib/pdf-theme";
 import { InvoiceDeliveries } from "./delivery-orders-page";
+import { TaxReadout, useDocumentTax } from "./document-tax";
 
 type Row = Invoice & {
   license: { label: string } | null;
@@ -333,6 +334,7 @@ function InvoiceRowActions({
     });
 
   const signingMenu = useSigningMenu({ type: "invoice", row, isApprover, run });
+  const licensing = useCan()("licenses.manage");
   const meId = useStaff().id;
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   // Asks the day the money arrived: received money is reported at that day's rate.
@@ -359,8 +361,8 @@ function InvoiceRowActions({
     });
   } else if (row.status === "unpaid") {
     next.push({ key: "paid", icon: <CheckCircleOutlined />, label: "Record payment", onClick: markPaid });
-  } else if (row.status === "paid") {
-    // Paid: what was bought goes out on a delivery order (the server refuses once all is delivered).
+  } else if (row.status === "paid" && licensing) {
+    // Paid: what was bought goes out on a delivery order — licensing's step (the server refuses once all is delivered).
     next.push({ key: "deliver", icon: <CarOutlined />, label: "Create delivery order", onClick: () => navigate(`/sales/delivery-orders?new=${row.id}`) });
   }
 
@@ -486,7 +488,6 @@ function InvoiceDetailsDrawer({
   );
   const copyBilling = () =>
     form.setFieldsValue({ licensee_name: form.getFieldValue("bill_to_name") ?? "", licensee_address: form.getFieldValue("bill_to_address") ?? "" });
-  const taxRate = Form.useWatch("tax_rate", form);
   const billToEmail = Form.useWatch("bill_to_email", form);
   const materai = Form.useWatch("materai", form) ?? "none";
   const viewPdf = usePdfViewer();
@@ -494,6 +495,8 @@ function InvoiceDetailsDrawer({
 
   const [tab, setTab] = useState("overview");
   const [fakturOpen, setFakturOpen] = useState(false);
+  const documentTax = useDocumentTax();
+  const licensing = useCan()("licenses.manage");
   const { data: lines } = useQuery({
     queryKey: ["invoice-lines", invoice?.id],
     enabled: Boolean(invoice),
@@ -509,7 +512,10 @@ function InvoiceDetailsDrawer({
   if (!invoice) return <Drawer open={false} onClose={onClose} />;
   const money = (amount: number) => formatMoney(amount, invoice.currency, invoice.decimal_places);
   const scale = 10 ** invoice.decimal_places;
-  const rate = Number((invoice.status === "unpaid" ? taxRate : undefined) ?? invoice.tax_rate) || 0;
+  // Not issued yet: the invoice follows Finance's tax (PKP or not), applied when saved.
+  // Issued: it keeps the tax it was issued with.
+  const issued = invoice.approval_status === "approved" || invoice.send_count > 0;
+  const rate = invoice.status === "unpaid" && !issued && documentTax ? documentTax.rate : Number(invoice.tax_rate) || 0;
   // Tax on the amount after the discounts (copied from the quotation).
   const net = Number(invoice.subtotal) - Number(invoice.discount_amount ?? 0);
   const tax = Math.round(((net * rate) / 100) * scale) / scale;
@@ -562,7 +568,7 @@ function InvoiceDetailsDrawer({
       p_po_number: values.po_number ?? "",
       p_notes: values.notes ?? "",
       p_due_date: values.due_date,
-      p_tax_rate: Number(values.tax_rate) || 0,
+      p_tax_rate: rate,
       p_refresh_seller: values.refresh_seller,
       p_notify: values.notify,
     });
@@ -675,7 +681,6 @@ function InvoiceDetailsDrawer({
                   licensee_address: sameAsBilling ? (invoice.bill_to_address ?? "") : (invoice.licensee_address ?? ""),
                   po_number: invoice.po_number ?? "",
                   due_date: invoice.due_date,
-                  tax_rate: Number(invoice.tax_rate),
                   notes: invoice.notes ?? "",
                   refresh_seller: true,
                   notify: true,
@@ -788,9 +793,7 @@ function InvoiceDetailsDrawer({
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12}>
-                    <Form.Item label={`${invoice.tax_label} rate`} name="tax_rate" rules={[{ type: "number", min: 0, max: 100, message: "0 to 100" }]}>
-                      <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
-                    </Form.Item>
+                    <TaxReadout label={documentTax?.label ?? invoice.tax_label} rate={rate} />
                   </Col>
                 </Row>
                 <Form.Item label="Notes on the invoice" name="notes" rules={[{ max: 1000 }]}>
@@ -910,8 +913,8 @@ function InvoiceDetailsDrawer({
               children: (
                 <InvoiceDeliveries
                   invoice={invoice}
-                  onCreate={() => navigate(`/sales/delivery-orders?new=${invoice.id}`)}
-                  onOpen={(id) => navigate(`/sales/delivery-orders?do=${id}`)}
+                  onCreate={licensing ? () => navigate(`/sales/delivery-orders?new=${invoice.id}`) : undefined}
+                  onOpen={licensing ? (id) => navigate(`/sales/delivery-orders?do=${id}`) : undefined}
                 />
               ),
             },

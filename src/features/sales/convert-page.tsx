@@ -41,7 +41,7 @@ export function ConvertPage() {
   // Their send approves it at once (an approver, unless the four-eyes rule applies).
   const isApprover = useSendsDirectly("invoice");
   // Sales can convert too, but invoices themselves are licensing's to open.
-  const seesInvoices = useCan()("licenses.manage");
+  const seesInvoices = useCan()("accounting.manage");
 
   const { data, isLoading } = useQuery({
     queryKey: ["convert", id],

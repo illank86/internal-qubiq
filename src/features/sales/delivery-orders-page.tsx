@@ -199,7 +199,7 @@ export function DeliveryOrdersPage() {
     <>
       <PageTitle
         title="Delivery Order"
-        description={`${waiting ? `${waiting} awaiting receipt. ` : ""}Made from a paid invoice — Create delivery order in Invoices. The customer confirms receipt online, or you upload the signed DO and BAST.`}
+        description={`${waiting ? `${waiting} awaiting receipt. ` : ""}Made from a paid invoice whose licences are issued — Create delivery order in Order overview. The customer confirms receipt online, or you upload the signed DO and BAST.`}
       />
       {error ? <Alert type="error" showIcon title="The delivery orders could not be loaded. Please reload the page." style={{ marginBottom: 16 }} /> : null}
       <Flex wrap gap={12} justify="space-between" style={{ marginBottom: 16 }}>
@@ -787,8 +787,8 @@ function ReceivedDocuments({ row, run, onUpload }: { row: DeliveryRow; run: Run;
   );
 }
 
-/** For an invoice's drawer: its delivery orders, what is left to deliver, and "Create delivery order". */
-export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id: string; status: string; number: string | null }; onCreate: () => void; onOpen: (id: string) => void }) {
+/** For an invoice's drawer: its delivery orders, what is left to deliver, and (for licensing) "Create delivery order". */
+export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id: string; status: string; number: string | null }; onCreate?: () => void; onOpen?: (id: string) => void }) {
   const viewPdf = usePdfViewer();
   const { token } = theme.useToken();
   const { data, isLoading } = useQuery({
@@ -817,9 +817,11 @@ export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id
           title="Issue the licence first"
           description="A delivery order goes out after the licence is issued and sent. You can prepare a draft now."
           action={
-            <Button size="small" onClick={onCreate}>
-              Prepare draft
-            </Button>
+            onCreate ? (
+              <Button size="small" onClick={onCreate}>
+                Prepare draft
+              </Button>
+            ) : undefined
           }
         />
       ) : left > 0 ? (
@@ -827,9 +829,13 @@ export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id
           <Typography.Text>
             {left} server{left === 1 ? "" : "s"} still to deliver.
           </Typography.Text>
-          <Button type="primary" icon={<SendOutlined />} onClick={onCreate}>
-            Create delivery order
-          </Button>
+          {onCreate ? (
+            <Button type="primary" icon={<SendOutlined />} onClick={onCreate}>
+              Create delivery order
+            </Button>
+          ) : (
+            <Typography.Text type="secondary">Licensing sends the delivery order.</Typography.Text>
+          )}
         </Flex>
       ) : data ? (
         <Alert type="success" showIcon title="Everything on this invoice has been delivered." />
@@ -841,7 +847,7 @@ export function InvoiceDeliveries({ invoice, onCreate, onOpen }: { invoice: { id
         pagination={false}
         dataSource={data?.rows ?? []}
         locale={{ emptyText: "No delivery orders yet." }}
-        onRow={(row) => ({ onClick: () => onOpen(row.id), style: { cursor: "pointer" } })}
+        onRow={(row) => (onOpen ? { onClick: () => onOpen(row.id), style: { cursor: "pointer" } } : {})}
         columns={[
           { title: "Delivery order", key: "number", render: (_, row) => <Typography.Text style={mono}>{row.number}</Typography.Text> },
           { title: "Date", key: "date", render: (_, row) => (row.delivery_date ? formatInvoiceDate(row.delivery_date) : "—") },

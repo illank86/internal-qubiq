@@ -41,11 +41,12 @@ async function loadDashboard(can: (permission: AppPermission) => boolean) {
   const none = Promise.resolve({ data: null, count: null });
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
+  const finance = can("accounting.manage");
   const [leads, requests, quotations, invoices, licences, bugs, integrators, recentRequests, recentLeads, activity] = await Promise.all([
     sales ? supabase.from("leads").select("status, created_at").limit(5000) : none,
     sales ? supabase.from("quote_requests").select("status, created_at").limit(5000) : none,
     can("quotations.manage") ? supabase.from("quotations").select("status, valid_until, total, currency, decimal_places").limit(5000) : none,
-    licensing ? supabase.from("invoices").select("status, due_date, total, currency, decimal_places, paid_at").limit(5000) : none,
+    finance ? supabase.from("invoices").select("status, due_date, total, currency, decimal_places, paid_at").limit(5000) : none,
     licensing ? supabase.from("licenses").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
     sales ? supabase.from("bug_reports").select("status, severity").limit(5000) : none,
     can("content.manage") ? supabase.from("integrators").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
@@ -229,8 +230,9 @@ export function DashboardPage() {
   const first = staff.profile?.full_name?.split(/\s+/)[0];
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
-  // Money in one currency (IDR or USD), for sales or licensing.
-  const seesMoney = licensing || can("quotations.manage");
+  const finance = can("accounting.manage");
+  // Money in one currency (IDR or USD), for sales or finance.
+  const seesMoney = finance || can("quotations.manage");
   const { money, currency, choose } = useSalesMoney(seesMoney);
 
   return (
@@ -252,7 +254,7 @@ export function DashboardPage() {
       ) : (
         <Flex vertical gap={16}>
           <Row gutter={[16, 16]}>
-            {licensing ? (
+            {finance ? (
               <Col xs={24} sm={12} xl={6}>
                 <Kpi
                   label="Outstanding invoices"
@@ -331,7 +333,7 @@ export function DashboardPage() {
             ) : null}
           </Row>
 
-          {licensing && money?.months ? (
+          {finance && money?.months ? (
             <Panel title="Revenue" to="/sales/invoices">
               <RevenueCard money={money} />
               <div style={{ marginTop: 8 }}>

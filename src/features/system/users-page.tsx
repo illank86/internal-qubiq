@@ -14,10 +14,10 @@ import { SessionSettingsCard } from "./session-settings-card";
 const ROLES: AppRole[] = ["admin", "sales", "licensing", "finance", "editor", "viewer"];
 const ROLE_HINT: Record<AppRole, string> = {
   admin: "Everything, including users and roles",
-  sales: "Quotations, and the inbox: leads, quote requests, bug reports, newsletters",
+  sales: "Quotations and their settings, tier discounts, and the inbox: leads, quote requests, bug reports, newsletters",
   editor: "Website content, blog, pricing, downloads and the inbox",
-  licensing: "Licences, invoices and Sales settings",
-  finance: "Finance: money in and out, journal, tax and tax settings",
+  licensing: "Licences and delivery orders (reads invoices)",
+  finance: "Invoices and payments, money in and out, journal, tax, company details and ways to pay",
   viewer: "Can sign in and look around",
 };
 type User = Profile & { roles: AppRole[]; approver: boolean };

@@ -332,15 +332,16 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [savingVia, setSavingVia] = useState(false);
-  // Each part is shown to whoever may open it: quotations for sales, invoices,
-  // licences and delivery orders for licensing.
+  // Each part is acted on by its owner: quotations by sales, the invoice by
+  // finance, licences and delivery orders by licensing.
   const can = useCan();
   const sales = can("quotations.manage");
   const licensing = can("licenses.manage");
+  const finance = can("accounting.manage");
   const leads = can("leads.manage");
   if (!order) return <Drawer open={false} onClose={onClose} />;
   // The link is kept on the quotation, or on the invoice when there is none.
-  const canSetVia = order.direct ? licensing : sales;
+  const canSetVia = order.direct ? finance : sales;
 
   // On the quotation (its invoices follow), or on the invoice when there is no quotation.
   const setIntegrator = async (integratorId: string | null) => {
@@ -434,17 +435,26 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
           {meta(
             `${formatMoney(invoice.total, invoice.currency, invoice.decimal_places)} · issued ${formatInvoiceDate(invoice.issue_date)}${invoice.paid_at ? ` · paid ${formatInvoiceDate(invoice.paid_at.slice(0, 10))}` : ` · due ${formatInvoiceDate(invoice.due_date)}`}`,
           )}
-          {licensing ? (
-            <>
-              {pdfButton("Invoice", () => viewPdf(invoicePdf(invoice.id, invoice.number)))}
-              <Button size="small" type="link" onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
-                Open
-              </Button>
-            </>
+          {finance || licensing ? pdfButton("Invoice", () => viewPdf(invoicePdf(invoice.id, invoice.number))) : null}
+          {finance ? (
+            <Button size="small" type="link" onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
+              Open
+            </Button>
           ) : null}
         </Flex>
       ) : (
-        meta(order.status === "accepted" ? "Not converted yet." : "After the quotation is accepted.")
+        order.status === "accepted" ? (
+          <Flex gap={8} align="center" wrap>
+            {meta("Not converted yet — Finance makes the invoice.")}
+            {finance ? (
+              <Button size="small" type="primary" onClick={() => navigate(`/sales/quotations/${order.id}/convert`)}>
+                Create invoice
+              </Button>
+            ) : null}
+          </Flex>
+        ) : (
+          meta("After the quotation is accepted.")
+        )
       ),
     },
     {

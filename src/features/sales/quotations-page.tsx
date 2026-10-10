@@ -43,8 +43,8 @@ type Filter = "all" | "draft" | "open" | "expired" | "won" | "closed";
 export function QuotationsPage() {
   const can = useCan();
   const navigate = useNavigate();
-  // Converting to an invoice: sales or licensing.
-  const canInvoice = can("licenses.manage") || can("quotations.manage");
+  // Converting to an invoice is Finance's.
+  const canInvoice = can("accounting.manage");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const { run, busy } = useAction([["quotations"], ["history"]]);

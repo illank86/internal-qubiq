@@ -42,6 +42,14 @@ export function FakturTag({ invoice }: { invoice: FakturInvoice }) {
 /** The faktur pajak on an invoice: shown, viewed, attached or replaced. */
 export function FakturPanel({ invoice, onUpload }: { invoice: FakturInvoice; onUpload: () => void }) {
   const viewPdf = usePdfViewer();
+  if (invoice.approval_status === "approved" && invoice.status !== "void" && !needsFaktur(invoice)) {
+    // Issued before PKP: no PPN was charged, so there is no faktur pajak to attach.
+    return (
+      <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+        <FileProtectOutlined /> No faktur pajak — issued while not PKP (no PPN). Once Finance turns on PKP, invoices issued after that need one.
+      </Typography.Text>
+    );
+  }
   if (!needsFaktur(invoice)) return null;
   return (
     <Flex vertical gap={6}>
