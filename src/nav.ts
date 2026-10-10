@@ -8,6 +8,7 @@ import {
   CarOutlined,
   CloudDownloadOutlined,
   ContactsOutlined,
+  CrownOutlined,
   FileDoneOutlined,
   FileImageOutlined,
   FileTextOutlined,
@@ -69,6 +70,7 @@ export const NAV: NavGroup[] = [
     items: [
       { path: "/community/bug-reports", label: "Bug reports", icon: BugOutlined, permissions: ["leads.manage"], legacy: "/admin/bug_reports", phase: 4, ready: true, summary: "Triage customer reports and reply to them." },
       { path: "/community/integrators", label: "Integrators", icon: ToolOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, ready: true, summary: "Review directory applications and listings." },
+      { path: "/community/integrator-tiers", label: "Integrator tiers", icon: CrownOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, ready: true, summary: "Tiers integrators are placed on, and each tier's partner discount on quotations." },
     ],
   },
   {

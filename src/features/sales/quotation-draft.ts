@@ -24,6 +24,8 @@ export type QuotationDraft = {
   licensee: { name: string; address: string };
   /** The integrator the order came through; null for a direct customer. */
   integratorId: string | null;
+  /** Partner discount from the integrator's tier (on/off), and our own discount. */
+  discount: { partner: boolean; type: "none" | "percent" | "amount"; value: number; label: string };
   /** digital: the company signature once approved; wet: an empty space to sign by hand. */
   signatureMode: "digital" | "wet";
   sales: { profileId: string; name: string; title: string; email: string; phone: string };
@@ -98,6 +100,7 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
     cc: [],
     licensee: { name: request?.licensee_name ?? "", address: request?.licensee_address ?? "" },
     integratorId: request?.integrator_id ?? null,
+    discount: { partner: true, type: "none", value: 0, label: "" },
     signatureMode: "digital",
     sales: person
       ? { profileId: person.id, name: person.name, title: person.title, email: person.email || catalog.salesDesk.email, phone: person.phone || catalog.salesDesk.phone }
@@ -154,6 +157,12 @@ export async function savedQuotationDraft(id: string): Promise<QuotationDraft | 
     cc: quotation.cc_emails ?? [],
     licensee: { name: quotation.licensee_name ?? "", address: quotation.licensee_address ?? "" },
     integratorId: quotation.integrator_id ?? null,
+    discount: {
+      partner: Number(quotation.partner_discount_percent) > 0 || !quotation.integrator_id,
+      type: (quotation.discount_type as "none" | "percent" | "amount") ?? "none",
+      value: Number(quotation.discount_value ?? 0),
+      label: quotation.discount_label ?? "",
+    },
     signatureMode: quotation.signature_mode === "wet" ? "wet" : "digital",
     sales: {
       profileId: quotation.sales_profile_id ?? "",

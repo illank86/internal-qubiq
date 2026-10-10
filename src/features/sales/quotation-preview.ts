@@ -50,6 +50,8 @@ export type PreviewInput = {
   /** Digital (the company signature once approved) or signed by hand (an empty space). */
   signatureMode?: "digital" | "wet";
   licensee?: { name: string; address: string };
+  /** Discounts as on screen: the partner % and tier name, and our own. */
+  discount?: { partnerPercent: number; tierName: string | null; type: "none" | "percent" | "amount"; value: number; label: string };
 };
 
 /**
@@ -60,7 +62,13 @@ export type PreviewInput = {
  * percentage modules on the group's one-off total.
  */
 export async function renderQuotationPreview(catalog: SalesCatalog, input: PreviewInput): Promise<Blob> {
-  const money = { rate: input.rate, decimals: input.decimals, currency: input.currency, taxRate: input.taxRate };
+  const money = {
+    rate: input.rate,
+    decimals: input.decimals,
+    currency: input.currency,
+    taxRate: input.taxRate,
+    discount: input.discount ? { partnerPercent: input.discount.partnerPercent, type: input.discount.type, value: input.discount.value } : undefined,
+  };
   const totals = priceGroups(input.groups, catalog.editions, catalog.modules, money);
   const scale = 10 ** input.decimals;
   const round = (amount: number) => Math.round(amount * scale) / scale;
@@ -143,6 +151,12 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     exchange_rate: input.currency === input.baseCurrency ? null : input.rate,
     decimal_places: input.decimals,
     subtotal: totals.subtotal,
+    partner_discount_percent: input.discount?.partnerPercent ?? 0,
+    partner_tier_name: input.discount?.tierName ?? null,
+    discount_type: input.discount?.type ?? "none",
+    discount_value: input.discount?.value ?? 0,
+    discount_label: input.discount?.label || null,
+    discount_amount: totals.discount,
     tax_label: input.taxLabel,
     tax_rate: input.taxRate,
     tax_amount: totals.tax,

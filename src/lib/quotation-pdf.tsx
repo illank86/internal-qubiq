@@ -26,6 +26,7 @@ import {
   sellerForCurrency,
   documentFingerprint,
   FingerprintMark,
+  discountLines,
 } from "@/lib/pdf-theme";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { quotationState, type Quotation, type QuotationTone } from "@/lib/quotations";
@@ -197,6 +198,7 @@ function QuotationDocument({
           notesLabel=""
           notes={null}
           subtotal={quotation.subtotal}
+          discounts={discountLines(quotation)}
           taxLabel={quotation.tax_label}
           taxRate={quotation.tax_rate}
           taxAmount={quotation.tax_amount}

@@ -32,7 +32,7 @@ const QUIET = new Set([
   "public_token", "claim_token", "id", "number", "seller", "po_file_name",
   "issued_at", "issued_by", "issue_date", "received_at", "received_via", "cancelled_at", "paid_recorded_at", "paid_recorded_by",
 ]);
-const PRICED = new Set(["subtotal", "tax_amount", "total"]);
+const PRICED = new Set(["subtotal", "tax_amount", "total", "discount_amount"]);
 const STATUS_LABEL: Record<string, string> = {
   draft: "Back to draft",
   sent: "Marked sent",
@@ -67,6 +67,11 @@ const FIELD: Record<string, string> = {
   licensee_address: "Licensee address",
   integrator_id: "Integrator (order via)",
   paid_at: "Payment date",
+  partner_discount_percent: "Partner discount %",
+  partner_tier_name: "Partner tier",
+  discount_type: "Discount type",
+  discount_value: "Discount",
+  discount_label: "Discount label",
   paid_reference: "Payment reference",
   ship_to_name: "Deliver to",
   ship_to_company: "Company",

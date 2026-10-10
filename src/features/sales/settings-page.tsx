@@ -11,6 +11,7 @@ import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { PaymentMethodsField } from "./payment-methods-field";
 import { SignatureCard } from "./signature-card";
+import { TierDiscounts } from "./tier-discounts";
 
 type Settings = Database["public"]["Tables"]["invoice_settings"]["Row"];
 type Values = Omit<Settings, "id" | "updated_at">;
@@ -292,6 +293,14 @@ export function SalesSettingsPage() {
                       <Form.Item label="Default terms & conditions" name="quote_terms" extra="Printed on every new quotation, and editable on each one.">
                         <RichTextField rows={10} />
                       </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Divider titlePlacement="start">Integrator tier discounts</Divider>
+                      <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+                        The partner discount a quotation gets when it comes through an integrator, by their tier. Tiers are added under
+                        Integrators → Integrator tiers.
+                      </Typography.Paragraph>
+                      <TierDiscounts />
                     </Col>
                   </Row>
                 ),

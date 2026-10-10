@@ -103,7 +103,8 @@ export function newGroup(editions: BuilderEdition[], index: number, from?: Parti
   };
 }
 
-export type Money = { rate: number; decimals: number; currency: string; taxRate: number };
+export type DiscountInput = { partnerPercent: number; type: "none" | "percent" | "amount"; value: number };
+export type Money = { rate: number; decimals: number; currency: string; taxRate: number; discount?: DiscountInput };
 
 /**
  * Each group's subtotal and the document totals — the preview of what
@@ -130,8 +131,18 @@ export function priceGroups(groups: GroupDraft[], editions: BuilderEdition[], mo
     return { group, edition, unitOneOff, oneOff, percent, subtotal };
   });
   const subtotal = priced.reduce((sum, item) => sum + item.subtotal, 0);
-  const tax = round((subtotal * money.taxRate) / 100);
-  return { priced, subtotal, tax, total: subtotal + tax, money: (amount: number) => formatMoney(amount, money.currency, money.decimals) };
+  // As private.discounted_totals(): partner % of the subtotal, then the own discount on what is left; tax after both.
+  const partner = round((subtotal * (money.discount?.partnerPercent ?? 0)) / 100);
+  const left = subtotal - partner;
+  const own =
+    money.discount?.type === "percent"
+      ? round((left * Math.min(money.discount.value, 100)) / 100)
+      : money.discount?.type === "amount"
+        ? Math.min(round(money.discount.value), left)
+        : 0;
+  const discount = partner + own;
+  const tax = round(((subtotal - discount) * money.taxRate) / 100);
+  return { priced, subtotal, partner, own, discount, tax, total: subtotal - discount + tax, money: (amount: number) => formatMoney(amount, money.currency, money.decimals) };
 }
 
 /** A database error as something to show: our own checks' messages, or a generic line. */

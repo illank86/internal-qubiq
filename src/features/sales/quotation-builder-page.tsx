@@ -41,6 +41,10 @@ type Values = {
   licensee_name: string;
   licensee_address: string;
   integrator_id: string | null;
+  partner_discount: boolean;
+  discount_type: "none" | "percent" | "amount";
+  discount_value: number | null;
+  discount_label: string;
   sales_profile_id: string;
   sales_name: string;
   sales_title: string;
@@ -109,7 +113,23 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const converting = /^[A-Z]{3}$/.test(currencyText) && currencyText !== baseCurrency;
   const rate = converting ? Number(rateValue) || 0 : 1;
   const currency = converting ? currencyText : baseCurrency;
-  const totals = priceGroups(groups, catalog.editions, catalog.modules, { rate, decimals: Number(decimals) || 0, currency, taxRate: Number(taxRate) || 0 });
+  // Discounts: the integrator's tier (partner) and our own.
+  const integratorId = Form.useWatch("integrator_id", form) ?? draft.integratorId;
+  const partnerOn = Form.useWatch("partner_discount", form) ?? draft.discount.partner;
+  const discountType = (Form.useWatch("discount_type", form) ?? draft.discount.type) as "none" | "percent" | "amount";
+  const discountValue = Number(Form.useWatch("discount_value", form) ?? draft.discount.value) || 0;
+  const { data: partner } = useQuery({
+    queryKey: ["integrator-tier", integratorId],
+    enabled: Boolean(integratorId),
+    queryFn: async () => {
+      const { data } = await supabase.from("integrators").select("company_name, tier, tiers:integrator_tiers(name, discount_percent)").eq("id", integratorId!).maybeSingle();
+      const row = data as unknown as { company_name: string; tier: string; tiers: { name: string; discount_percent: number } | null } | null;
+      return row ? { company: row.company_name, tier: row.tiers?.name ?? row.tier, percent: Number(row.tiers?.discount_percent ?? 0) } : null;
+    },
+  });
+  const partnerPercent = integratorId && partnerOn && partner ? partner.percent : 0;
+  const discountInput = { partnerPercent, type: discountType, value: discountType === "none" ? 0 : discountValue };
+  const totals = priceGroups(groups, catalog.editions, catalog.modules, { rate, decimals: Number(decimals) || 0, currency, taxRate: Number(taxRate) || 0, discount: discountInput });
   const servers = groups.reduce((sum, group) => sum + group.quantity, 0);
 
   const pickSales = (profileId: string) => {
@@ -150,6 +170,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     signoff: values.signoff ?? "",
     signatureMode: values.signature_mode ?? "digital",
     licensee: values.for_end_user ? { name: values.licensee_name ?? "", address: values.licensee_address ?? "" } : undefined,
+    discount: { ...discountInput, tierName: partnerPercent > 0 ? (partner?.tier ?? null) : null, label: values.discount_label ?? "" },
   });
 
   const preview = (action?: { values: Values }) => {
@@ -250,6 +271,19 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       setError(`Saved, but the CC list was not: ${errorText(ccError, "check the addresses and save again.")}`);
       return;
     }
+    // Discounts: the partner % is taken from the integrator's tier by the database.
+    const { error: discountError } = await supabase.rpc("set_quotation_discount", {
+      p_id: quotationId,
+      p_partner: Boolean(values.integrator_id) && values.partner_discount !== false,
+      p_type: values.discount_type ?? "none",
+      p_value: values.discount_type && values.discount_type !== "none" ? Number(values.discount_value) || 0 : 0,
+      p_label: values.discount_label ?? "",
+    });
+    if (discountError) {
+      setSaving(null);
+      setError(`Saved, but the discount was not: ${errorText(discountError, "check it and save again.")}`);
+      return;
+    }
     let sent: string | null = null;
     if (intent === "send") {
       const { data: result, error: sendError } = await supabase.rpc("send_quotation", { p_quotation_id: quotationId });
@@ -293,6 +327,10 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     licensee_name: draft.licensee.name,
     licensee_address: draft.licensee.address,
     integrator_id: draft.integratorId,
+    partner_discount: draft.discount.partner,
+    discount_type: draft.discount.type,
+    discount_value: draft.discount.value,
+    discount_label: draft.discount.label,
     sales_profile_id: draft.sales.profileId,
     sales_name: draft.sales.name,
     sales_title: draft.sales.title,
@@ -439,6 +477,66 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                 />
               </Card>
 
+              <Card title="Discount">
+                <Flex vertical gap={16}>
+                  <div>
+                    <Typography.Text strong style={{ display: "block", marginBottom: 6 }}>
+                      Partner discount
+                    </Typography.Text>
+                    {integratorId ? (
+                      <Form.Item name="partner_discount" valuePropName="checked" style={{ marginBottom: 0 }} extra="Set per tier in Integrator tiers. Taken when the quotation is saved.">
+                        <Checkbox disabled={!partner || partner.percent === 0}>
+                          {partner
+                            ? partner.percent > 0
+                              ? `${partner.company} · ${partner.tier} tier: ${partner.percent}% off`
+                              : `${partner.company} · ${partner.tier} tier has no partner discount`
+                            : "Loading the integrator's tier…"}
+                        </Checkbox>
+                      </Form.Item>
+                    ) : (
+                      <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                        Direct customer — no partner discount. Choose an integrator under Order via to apply one.
+                      </Typography.Text>
+                    )}
+                  </div>
+                  <div>
+                    <Typography.Text strong style={{ display: "block", marginBottom: 6 }}>
+                      Our discount {integratorId ? <Typography.Text type="secondary" style={{ fontWeight: 400 }}>(on top of the partner discount)</Typography.Text> : null}
+                    </Typography.Text>
+                    <Flex gap={12} wrap align="flex-start">
+                      <Form.Item name="discount_type" style={{ marginBottom: 0 }}>
+                        <Segmented
+                          options={[
+                            { value: "none", label: "None" },
+                            { value: "percent", label: "Percent" },
+                            { value: "amount", label: "Fixed amount" },
+                          ]}
+                        />
+                      </Form.Item>
+                      {discountType !== "none" ? (
+                        <>
+                          <Form.Item
+                            name="discount_value"
+                            style={{ marginBottom: 0 }}
+                            rules={[{ required: true, type: "number", min: 0, max: discountType === "percent" ? 100 : undefined, message: discountType === "percent" ? "0 to 100" : "A positive amount" }]}
+                          >
+                            <InputNumber min={0} max={discountType === "percent" ? 100 : undefined} suffix={discountType === "percent" ? "%" : currency} style={{ width: 180 }} />
+                          </Form.Item>
+                          <Form.Item name="discount_label" style={{ marginBottom: 0, flex: "1 1 200px" }} rules={[{ max: 80 }]}>
+                            <Input placeholder="Label on the quotation, e.g. Launch promo" />
+                          </Form.Item>
+                        </>
+                      ) : null}
+                    </Flex>
+                  </div>
+                  {totals.discount > 0 ? (
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      {totals.money(totals.discount)} off in total; {catalog.taxLabel} is charged on the discounted amount.
+                    </Typography.Text>
+                  ) : null}
+                </Flex>
+              </Card>
+
               <Card title="Currency, tax and validity">
                 <Row gutter={16}>
                   <Col xs={24} md={8}>
@@ -567,6 +665,23 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                     <Typography.Text type="secondary">Subtotal</Typography.Text>
                     <span>{totals.money(totals.subtotal)}</span>
                   </Flex>
+                  {totals.partner > 0 ? (
+                    <Flex justify="space-between" gap={12}>
+                      <Typography.Text type="secondary">
+                        Partner discount ({partnerPercent}%)
+                      </Typography.Text>
+                      <span>−{totals.money(totals.partner)}</span>
+                    </Flex>
+                  ) : null}
+                  {totals.own > 0 ? (
+                    <Flex justify="space-between" gap={12}>
+                      <Typography.Text type="secondary" ellipsis>
+                        {(form.getFieldValue("discount_label") as string | undefined)?.trim() || "Discount"}
+                        {discountType === "percent" ? ` (${discountValue}%)` : ""}
+                      </Typography.Text>
+                      <span>−{totals.money(totals.own)}</span>
+                    </Flex>
+                  ) : null}
                   <Flex justify="space-between">
                     <Typography.Text type="secondary">
                       {catalog.taxLabel} ({Number(taxRate) || 0}%)

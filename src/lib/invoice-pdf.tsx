@@ -25,6 +25,7 @@ import {
   sellerForCurrency,
   documentFingerprint,
   FingerprintMark,
+  discountLines,
 } from "@/lib/pdf-theme";
 import {
   INVOICE_STATUS_LABEL,
@@ -167,6 +168,7 @@ function InvoiceDocument({
           notesLabel="Notes"
           notes={invoice.notes}
           subtotal={invoice.subtotal}
+          discounts={discountLines(invoice)}
           taxLabel={invoice.tax_label}
           taxRate={invoice.tax_rate}
           taxAmount={invoice.tax_amount}

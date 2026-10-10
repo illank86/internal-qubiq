@@ -41,6 +41,7 @@ import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
+import { discountLines } from "@/lib/pdf-theme";
 import { InvoiceDeliveries } from "./delivery-orders-page";
 
 type Row = Invoice & {
@@ -504,7 +505,9 @@ function InvoiceDetailsDrawer({
   const money = (amount: number) => formatMoney(amount, invoice.currency, invoice.decimal_places);
   const scale = 10 ** invoice.decimal_places;
   const rate = Number((invoice.status === "unpaid" ? taxRate : undefined) ?? invoice.tax_rate) || 0;
-  const tax = Math.round(((Number(invoice.subtotal) * rate) / 100) * scale) / scale;
+  // Tax on the amount after the discounts (copied from the quotation).
+  const net = Number(invoice.subtotal) - Number(invoice.discount_amount ?? 0);
+  const tax = Math.round(((net * rate) / 100) * scale) / scale;
   const ccCount = (ccWatched ?? invoice.cc_emails ?? []).length;
   const editable = invoice.status === "unpaid";
 
@@ -606,7 +609,7 @@ function InvoiceDetailsDrawer({
         </Typography.Text>
         <StatRow
           stats={[
-            { label: invoice.status === "paid" ? "Paid" : "Amount due", value: money(Number(invoice.subtotal) + tax), strong: true },
+            { label: invoice.status === "paid" ? "Paid" : "Amount due", value: money(net + tax), strong: true },
             { label: "Issued", value: formatInvoiceDate(invoice.issue_date) },
             { label: invoice.status === "paid" ? "Paid on" : "Due", value: formatInvoiceDate(invoice.status === "paid" ? invoice.paid_at : invoice.due_date) },
             { label: "Servers", value: lines ? lines.groups.reduce((sum, group) => sum + group.quantity, 0) : "—" },
@@ -886,9 +889,10 @@ function InvoiceDetailsDrawer({
                   <Totals
                     rows={[
                       { label: "Subtotal", value: money(Number(invoice.subtotal)) },
+                      ...discountLines(invoice).map((line) => ({ label: line.label, value: `−${money(line.amount)}` })),
                       { label: `${invoice.tax_label} (${rate}%)`, value: money(tax) },
                     ]}
-                    total={{ label: invoice.status === "paid" ? "Paid" : "Total", value: money(Number(invoice.subtotal) + tax) }}
+                    total={{ label: invoice.status === "paid" ? "Paid" : "Total", value: money(net + tax) }}
                   />
                 </Flex>
               ),

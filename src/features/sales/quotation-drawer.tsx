@@ -15,6 +15,7 @@ import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { QuotationStatusTag } from "./quotation-parts";
 import { SigningActions, SigningTag } from "./signing";
 import type { useAction } from "./use-action";
+import { discountLines } from "@/lib/pdf-theme";
 
 export type QuotationRow = Quotation & {
   request: { reference: string } | null;
@@ -212,6 +213,7 @@ export function QuotationDrawer({
                   <Totals
                     rows={[
                       { label: "Subtotal", value: money(Number(quotation.subtotal)) },
+                      ...discountLines(quotation).map((line) => ({ label: line.label, value: `−${money(line.amount)}` })),
                       { label: `${quotation.tax_label} (${Number(quotation.tax_rate)}%)`, value: money(Number(quotation.tax_amount)) },
                     ]}
                     total={{ label: "Total", value: money(Number(quotation.total)) }}

@@ -12,13 +12,12 @@ import { env, siteAsset } from "@/lib/env";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
+import { useIntegratorTiers } from "./integrator-tiers-page";
 
 type Integrator = Database["public"]["Tables"]["integrators"]["Row"];
 type Status = Database["public"]["Enums"]["integrator_status"];
-type Tier = Database["public"]["Enums"]["integrator_tier"];
 
 const STATUSES: Status[] = ["pending", "approved", "rejected", "suspended"];
-const TIERS: Tier[] = ["registered", "certified", "premier"];
 const STATUS_COLOR: Record<Status, string> = { pending: "processing", approved: "success", rejected: "default", suspended: "error" };
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -69,7 +68,7 @@ export function IntegratorsPage() {
       ),
     },
     { title: "Country", key: "country", render: (_, row) => [row.city, row.country].filter(Boolean).join(", "), responsive: ["md"] },
-    { title: "Tier", dataIndex: "tier", render: (value: Tier) => <Tag>{value}</Tag> },
+    { title: "Tier", dataIndex: "tier", render: (value: string) => <TierTag slug={value} /> },
     { title: "Status", dataIndex: "status", render: (value: Status, row) => <Flex gap={4}><Tag color={STATUS_COLOR[value]}>{value}</Tag>{row.is_featured ? <Tag color="orange">Featured</Tag> : null}</Flex> },
     { title: "Applied", dataIndex: "created_at", render: (value: string) => formatInvoiceDate(value), responsive: ["md"] },
   ];
@@ -310,8 +309,8 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
                       </Form.Item>
                     </Col>
                     <Col xs={24} sm={12}>
-                      <Form.Item label="Tier" name="tier">
-                        <Select options={TIERS.map((value) => ({ value, label: value }))} />
+                      <Form.Item label="Tier" name="tier" extra="Their tier's partner discount is set in Sales settings.">
+                        <TierSelect />
                       </Form.Item>
                     </Col>
                   </Row>
@@ -335,4 +334,21 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
       </Form>
     </Drawer>
   );
+}
+
+/** The tiers from Integrator tiers, with each one's partner discount. */
+function TierSelect(props: { value?: string; onChange?: (value: string) => void }) {
+  const { data, isLoading } = useIntegratorTiers();
+  return (
+    <Select
+      {...props}
+      loading={isLoading}
+      options={(data ?? []).map((tier) => ({ value: tier.slug, label: tier.name }))}
+    />
+  );
+}
+
+function TierTag({ slug }: { slug: string }) {
+  const { data } = useIntegratorTiers();
+  return <Tag>{data?.find((tier) => tier.slug === slug)?.name ?? slug}</Tag>;
 }

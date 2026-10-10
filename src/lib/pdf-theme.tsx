@@ -533,6 +533,33 @@ export function ItemsTable({
   );
 }
 
+/** A document's discounts as printed lines: the partner (tier) discount, then its own. */
+export type DiscountLine = { label: string; amount: number };
+export function discountLines(doc: {
+  subtotal: number | string;
+  decimal_places?: number | null;
+  partner_discount_percent?: number | string | null;
+  partner_tier_name?: string | null;
+  discount_type?: string | null;
+  discount_value?: number | string | null;
+  discount_label?: string | null;
+  discount_amount?: number | string | null;
+}): DiscountLine[] {
+  const total = Number(doc.discount_amount ?? 0);
+  if (!total) return [];
+  const scale = 10 ** (doc.decimal_places ?? 2);
+  const percent = Number(doc.partner_discount_percent ?? 0);
+  const partner = Math.round(((Number(doc.subtotal) * percent) / 100) * scale) / scale;
+  const own = Math.round((total - partner) * scale) / scale;
+  const lines: DiscountLine[] = [];
+  if (partner > 0) lines.push({ label: `Partner discount${doc.partner_tier_name ? ` — ${doc.partner_tier_name}` : ""} (${percent}%)`, amount: partner });
+  if (own > 0) {
+    const name = doc.discount_label?.trim() || "Discount";
+    lines.push({ label: doc.discount_type === "percent" ? `${name} (${Number(doc.discount_value)}%)` : name, amount: own });
+  }
+  return lines;
+}
+
 /**
  * Notes on the left, subtotal / tax / total on the right — one block that
  * moves to the next page whole rather than splitting. Notes are capped in the
@@ -549,6 +576,7 @@ export function Summary({
   currency,
   money,
   struck = false,
+  discounts = [],
 }: {
   notesLabel: string;
   notes: string | null;
@@ -561,6 +589,8 @@ export function Summary({
   money: (amount: number | string) => string;
   /** Void/cancelled: the total shown struck through in grey, not as a sum due. */
   struck?: boolean;
+  /** Partner and own discounts, between the subtotal and the tax (see discountLines). */
+  discounts?: DiscountLine[];
 }) {
   const strike = struck ? { color: MUTED, textDecoration: "line-through" as const } : {};
   return (
@@ -578,6 +608,12 @@ export function Summary({
           <Text style={styles.muted}>Subtotal</Text>
           <Text style={{ fontSize: fit(money(subtotal), 9, 150) }}>{money(subtotal)}</Text>
         </View>
+        {discounts.map((line) => (
+          <View key={line.label} style={styles.totalRow}>
+            <Text style={[styles.muted, { maxWidth: 110 }]}>{line.label}</Text>
+            <Text style={{ fontSize: fit(`−${money(line.amount)}`, 9, 150) }}>−{money(line.amount)}</Text>
+          </View>
+        ))}
         <View style={styles.totalRow}>
           <Text style={styles.muted}>
             {taxLabel} {Number(taxRate)}%

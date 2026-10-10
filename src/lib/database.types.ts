@@ -901,6 +901,36 @@ export type Database = {
           },
         ]
       }
+      integrator_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percent: number
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integrators: {
         Row: {
           address_line: string | null
@@ -937,7 +967,7 @@ export type Database = {
           status: Database["public"]["Enums"]["integrator_status"]
           summary: string | null
           team_size: string | null
-          tier: Database["public"]["Enums"]["integrator_tier"]
+          tier: string
           updated_at: string
           website: string | null
         }
@@ -976,7 +1006,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["integrator_status"]
           summary?: string | null
           team_size?: string | null
-          tier?: Database["public"]["Enums"]["integrator_tier"]
+          tier?: string
           updated_at?: string
           website?: string | null
         }
@@ -1015,7 +1045,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["integrator_status"]
           summary?: string | null
           team_size?: string | null
-          tier?: Database["public"]["Enums"]["integrator_tier"]
+          tier?: string
           updated_at?: string
           website?: string | null
         }
@@ -1282,6 +1312,12 @@ export type Database = {
           currency: string
           customer_revision: number
           decimal_places: number
+          partner_discount_percent: number
+          partner_tier_name: string | null
+          discount_type: string
+          discount_value: number
+          discount_label: string | null
+          discount_amount: number
           due_date: string
           exchange_rate: number | null
           id: string
@@ -1344,6 +1380,12 @@ export type Database = {
           currency?: string
           customer_revision?: number
           decimal_places?: number
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          discount_type?: string
+          discount_value?: number
+          discount_label?: string | null
+          discount_amount?: number
           due_date: string
           exchange_rate?: number | null
           id?: string
@@ -1406,6 +1448,12 @@ export type Database = {
           currency?: string
           customer_revision?: number
           decimal_places?: number
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          discount_type?: string
+          discount_value?: number
+          discount_label?: string | null
+          discount_amount?: number
           due_date?: string
           exchange_rate?: number | null
           id?: string
@@ -2712,6 +2760,12 @@ export type Database = {
           currency: string
           customer_id: string | null
           decimal_places: number
+          partner_discount_percent: number
+          partner_tier_name: string | null
+          discount_type: string
+          discount_value: number
+          discount_label: string | null
+          discount_amount: number
           declined_at: string | null
           exchange_rate: number | null
           id: string
@@ -2781,6 +2835,12 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           decimal_places?: number
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          discount_type?: string
+          discount_value?: number
+          discount_label?: string | null
+          discount_amount?: number
           declined_at?: string | null
           exchange_rate?: number | null
           id?: string
@@ -2850,6 +2910,12 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           decimal_places?: number
+          partner_discount_percent?: number
+          partner_tier_name?: string | null
+          discount_type?: string
+          discount_value?: number
+          discount_label?: string | null
+          discount_amount?: number
           declined_at?: string | null
           exchange_rate?: number | null
           id?: string
@@ -3838,6 +3904,7 @@ export type Database = {
       }
       my_integrator: { Args: never; Returns: string | null }
       order_overview: { Args: never; Returns: Json }
+      set_quotation_discount: { Args: { p_id: string; p_partner: boolean; p_type: string; p_value: number; p_label?: string }; Returns: undefined }
       set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }

@@ -26,6 +26,7 @@ const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((m
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
 const ContentPage = lazy(() => import("@/features/content/content-page").then((module) => ({ default: module.ContentPage })));
 const MediaLibraryPage = lazy(() => import("@/features/content/media-library-page").then((module) => ({ default: module.MediaLibraryPage })));
+const IntegratorTiersPage = lazy(() => import("@/features/community/integrator-tiers-page").then((module) => ({ default: module.IntegratorTiersPage })));
 const IntegratorsPage = lazy(() => import("@/features/community/integrators-page").then((module) => ({ default: module.IntegratorsPage })));
 const LicencesPage = lazy(() => import("@/features/licensing/licences-page").then((module) => ({ default: module.LicencesPage })));
 const EditionsPage = lazy(() => import("@/features/sales/editions-page").then((module) => ({ default: module.EditionsPage })));
@@ -53,6 +54,7 @@ const READY: Record<string, React.ReactNode> = {
   "/licensing/licences": <LicencesPage />,
   "/community/bug-reports": <BugReportsPage />,
   "/community/integrators": <IntegratorsPage />,
+  "/community/integrator-tiers": <IntegratorTiersPage />,
   "/content/media": <MediaLibraryPage />,
   "/marketing/newsletters": <NewslettersPage />,
   "/system/users": <UsersPage />,
