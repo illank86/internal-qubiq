@@ -162,11 +162,44 @@ export function OrdersPage() {
       key: "docs",
       render: (_, order) => {
         const invoice = invoiceOf(order);
-        const chain = [order.number, invoice?.po_number ? `PO ${invoice.po_number}` : null, invoice?.number, ...liveDos(invoice).map((item) => item.number)].filter(Boolean);
+        const chain = [order.number, invoice?.po_number ? `PO ${invoice.po_number}` : null, invoice?.number].filter(Boolean);
         return (
           <Typography.Text type="secondary" style={{ fontFamily: "Geist Mono, monospace", fontSize: 12 }}>
             {chain.join("  →  ")}
           </Typography.Text>
+        );
+      },
+    },
+    {
+      title: "Delivery",
+      key: "delivery",
+      // Each delivery order with where it stands, then what is still to go out.
+      render: (_, order) => {
+        const invoice = invoiceOf(order);
+        if (!invoice || invoice.status !== "paid") return <Typography.Text type="secondary">—</Typography.Text>;
+        const dos = liveDos(invoice);
+        const left = ordered(invoice) - delivered(invoice);
+        return (
+          <Flex vertical gap={4} align="flex-start">
+            {dos.map((item) => (
+              <Flex key={item.id} gap={4} align="center" wrap>
+                <Typography.Text style={{ fontFamily: "Geist Mono, monospace", fontSize: 12 }}>{item.number}</Typography.Text>
+                <DeliveryStatusTag row={item} />
+                {[...new Set(item.files.map((file) => file.kind as FileKind))]
+                  .filter((kind) => kind !== "other")
+                  .map((kind) => (
+                    <Tag key={kind} color="success" style={{ marginInlineEnd: 0 }}>
+                      {FILE_KIND_LABEL[kind]}
+                    </Tag>
+                  ))}
+              </Flex>
+            ))}
+            {left > 0 ? (
+              <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                {left} server{left === 1 ? "" : "s"} to deliver
+              </Typography.Text>
+            ) : null}
+          </Flex>
         );
       },
     },
@@ -206,7 +239,7 @@ export function OrdersPage() {
         columns={columns}
         dataSource={rows}
         pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }}
-        scroll={{ x: 720 }}
+        scroll={{ x: 900 }}
         locale={{ emptyText: data && data.length > 0 ? "Nothing matches." : "No orders yet." }}
         onRow={(order) => ({ onClick: () => setOpenId(order.id), style: { cursor: "pointer" } })}
       />

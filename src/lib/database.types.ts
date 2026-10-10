@@ -84,6 +84,8 @@ export type Database = {
           invoice_id: string
           quotation_id: string | null
           owner_id: string | null
+          prepared_by_name: string | null
+          prepared_by_title: string | null
           status: string
           issue_date: string
           delivery_date: string | null
@@ -103,6 +105,8 @@ export type Database = {
           signature_mode: string
           signature_id: string | null
           delivered_by_name: string | null
+          delivered_by_same: boolean
+          delivered_by_title: string | null
           seller: Json | null
           public_token: string
           send_count: number
@@ -124,6 +128,8 @@ export type Database = {
           invoice_id?: string
           quotation_id?: string | null
           owner_id?: string | null
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
           status?: string
           issue_date?: string
           delivery_date?: string | null
@@ -143,6 +149,8 @@ export type Database = {
           signature_mode?: string
           signature_id?: string | null
           delivered_by_name?: string | null
+          delivered_by_same?: boolean
+          delivered_by_title?: string | null
           seller?: Json | null
           public_token?: string
           send_count?: number
@@ -164,6 +172,8 @@ export type Database = {
           invoice_id?: string
           quotation_id?: string | null
           owner_id?: string | null
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
           status?: string
           issue_date?: string
           delivery_date?: string | null
@@ -183,6 +193,8 @@ export type Database = {
           signature_mode?: string
           signature_id?: string | null
           delivered_by_name?: string | null
+          delivered_by_same?: boolean
+          delivered_by_title?: string | null
           seller?: Json | null
           public_token?: string
           send_count?: number

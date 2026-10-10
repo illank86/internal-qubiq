@@ -50,7 +50,12 @@ export type DeliveryDetails = {
   software_version?: string;
   notes?: string;
   signature_mode?: DeliverySignature;
+  prepared_by_name?: string;
+  prepared_by_title?: string;
   delivered_by_name?: string;
+  delivered_by_title?: string;
+  /** Delivered by whoever prepared it: their name and position are printed in both boxes. */
+  delivered_by_same?: boolean;
 };
 export type DeliveryLine = { invoice_group_id: string; quantity: number };
 

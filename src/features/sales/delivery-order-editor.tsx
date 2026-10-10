@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Col, Drawer, Empty, Flex, Form, Input, InputNumber, Row, Segmented, Select, Skeleton, Typography, theme } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Empty, Flex, Form, Input, InputNumber, Row, Segmented, Select, Skeleton, Typography, theme } from "antd";
 import { EditOutlined, QrcodeOutlined, SafetyCertificateOutlined, SendOutlined } from "@ant-design/icons";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
+import { useStaff } from "@/auth/use-auth";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import {
@@ -54,6 +55,8 @@ export function DeliveryOrderEditor({
   const [quantities, setQuantities] = useState<Record<string, number> | null>(null);
   const contactEmail = Form.useWatch("contact_email", form);
   const signature = Form.useWatch("signature_mode", form) ?? "qr";
+  const same = Form.useWatch("delivered_by_same", form) ?? Boolean(order?.delivered_by_same);
+  const me = useStaff().profile?.full_name?.trim() ?? "";
 
   const { data, isLoading } = useQuery({
     queryKey: ["delivery-editor", sourceId, order?.id ?? "new"],
@@ -101,7 +104,11 @@ export function DeliveryOrderEditor({
           software_version: order.software_version ?? "",
           notes: order.notes ?? "",
           signature_mode: order.signature_mode as DeliverySignature,
+          prepared_by_name: order.prepared_by_name ?? "",
+          prepared_by_title: order.prepared_by_title ?? "",
           delivered_by_name: order.delivered_by_name ?? "",
+          delivered_by_title: order.delivered_by_title ?? "",
+          delivered_by_same: order.delivered_by_same,
         }
       : {
           method: "download",
@@ -116,7 +123,11 @@ export function DeliveryOrderEditor({
           software_version: "",
           notes: "",
           signature_mode: "qr",
+          prepared_by_name: me,
+          prepared_by_title: "",
           delivered_by_name: "",
+          delivered_by_title: "",
+          delivered_by_same: false,
         }
     : undefined;
 
@@ -132,7 +143,11 @@ export function DeliveryOrderEditor({
     if (issue && !values.contact_email) return setError("Add the email of who receives it — the delivery order is emailed to them.");
     setPending(issue ? "issue" : "draft");
     setError(null);
-    const details: DeliveryDetails = { ...values, cc_emails: normaliseEmails(values.cc_emails) };
+    const details: DeliveryDetails = {
+      ...values,
+      cc_emails: normaliseEmails(values.cc_emails),
+      ...(values.delivered_by_same ? { delivered_by_name: values.prepared_by_name, delivered_by_title: values.prepared_by_title } : {}),
+    };
     try {
       let id = order?.id ?? null;
       if (id) await updateDeliveryOrder(id, lines, details);
@@ -249,7 +264,7 @@ export function DeliveryOrderEditor({
           <Form<Values> form={form} layout="vertical" requiredMark="optional" initialValues={initialValues} disabled={Boolean(pending)}>
             <Row gutter={16}>
               <Col xs={24} sm={12}>
-                <Form.Item label="Delivered by" name="method" rules={[{ required: true }]}>
+                <Form.Item label="Delivery method" name="method" rules={[{ required: true }]}>
                   <Select options={Object.entries(METHOD_LABEL).map(([value, label]) => ({ value, label }))} />
                 </Form.Item>
               </Col>
@@ -260,11 +275,6 @@ export function DeliveryOrderEditor({
               </Col>
               <Col xs={24} sm={12}>
                 <Form.Item label="Software version" name="software_version" rules={[{ max: 60 }]} extra="Optional, e.g. 4.2.0">
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Form.Item label="Delivered by (name)" name="delivered_by_name" rules={[{ max: 200 }]} extra="Who hands it over — printed under “Delivered by”.">
                   <Input />
                 </Form.Item>
               </Col>
@@ -316,6 +326,43 @@ export function DeliveryOrderEditor({
               </Col>
             </Row>
 
+            <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1, display: "block", margin: "4px 0 12px" }}>
+              Our signatures
+            </Typography.Text>
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="Prepared by — name"
+                  name="prepared_by_name"
+                  rules={[{ max: 200 }]}
+                  extra={signature === "digital" ? "With a digital signature, the signatory's name and position are printed." : undefined}
+                >
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Position" name="prepared_by_title" rules={[{ max: 200 }]}>
+                  <Input placeholder="e.g. Sales Manager" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="delivered_by_same" valuePropName="checked" style={{ marginBottom: 12 }}>
+              <Checkbox>Delivered by the same person who prepared it</Checkbox>
+            </Form.Item>
+            {same ? null : (
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item label="Delivered by — name" name="delivered_by_name" rules={[{ max: 200 }]} extra="Who hands it over, e.g. the engineer on site.">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <Form.Item label="Position" name="delivered_by_title" rules={[{ max: 200 }]}>
+                    <Input placeholder="e.g. Support Engineer" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            )}
             <Form.Item label="How we sign it" name="signature_mode" extra={signatureHelp[signature as DeliverySignature]} style={{ marginBottom: 0 }}>
               <Segmented<DeliverySignature>
                 block

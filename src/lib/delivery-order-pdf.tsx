@@ -70,6 +70,12 @@ function DeliveryOrderDocument({ order, items, signoff, qr }: { order: DeliveryO
   const status = STATUS[order.status] ?? STATUS.draft;
   const company = seller.company_name ?? "QUBIQ";
   const total = items.reduce((sum, item) => sum + Number(item.quantity), 0);
+  // A digital signature is the signatory's; otherwise whoever is named as preparing it.
+  const digital = order.signature_mode === "digital" && Boolean(signoff?.image);
+  const prepared = {
+    name: digital ? signoff?.name : order.prepared_by_name,
+    title: digital ? signoff?.title : order.prepared_by_title,
+  };
 
   return (
     <Document title={`Delivery order ${order.number ?? ""}`} author={company} subject={`Delivery for invoice ${order.invoice_number ?? ""}`} creator="goqubiq.com" producer="goqubiq.com">
@@ -108,7 +114,7 @@ function DeliveryOrderDocument({ order, items, signoff, qr }: { order: DeliveryO
             ["Delivery order", order.number ?? "—"],
             ["Issued", when(order.issued_at) || when(order.issue_date)],
             ["Delivery date", when(order.delivery_date) || "—"],
-            ["Delivered by", DELIVERY_METHOD_LABEL[order.method] ?? order.method],
+            ["Delivery method", DELIVERY_METHOD_LABEL[order.method] ?? order.method],
           ].map(([label, value], index) => (
             <View key={label} style={index ? [styles.fact, styles.factDivider] : styles.fact}>
               <Text style={styles.factLabel}>{label}</Text>
@@ -169,7 +175,7 @@ function DeliveryOrderDocument({ order, items, signoff, qr }: { order: DeliveryO
 
         {/* Prepared by (us) · Delivered by · Received by (the customer). */}
         <View style={{ flexDirection: "row", gap: 22, marginTop: 24 }} wrap={false}>
-          <SignBox heading="Prepared by" company={company} name={signoff?.name} title={signoff?.title} date={when(order.issued_at)}>
+          <SignBox heading="Prepared by" company={company} name={prepared.name} title={prepared.title} date={when(order.issued_at)}>
             {order.signature_mode === "qr" ? (
               <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
                 {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
@@ -181,7 +187,18 @@ function DeliveryOrderDocument({ order, items, signoff, qr }: { order: DeliveryO
               <Image src={signoff.image} style={{ maxHeight: 44, maxWidth: 140, height: 44, objectFit: "contain", objectPosition: "left", marginBottom: 6 }} />
             ) : null}
           </SignBox>
-          <SignBox heading="Delivered by" company={company} name={order.delivered_by_name} />
+          <SignBox
+            heading="Delivered by"
+            company={company}
+            name={order.delivered_by_same ? prepared.name : order.delivered_by_name}
+            title={order.delivered_by_same ? prepared.title : order.delivered_by_title}
+            date={order.delivered_by_same ? when(order.issued_at) : undefined}
+          >
+            {order.delivered_by_same && order.signature_mode === "digital" && signoff?.image ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img
+              <Image src={signoff.image} style={{ maxHeight: 44, maxWidth: 140, height: 44, objectFit: "contain", objectPosition: "left", marginBottom: 6 }} />
+            ) : null}
+          </SignBox>
           <SignBox
             heading="Received by"
             company={order.ship_to_company || order.ship_to_name}

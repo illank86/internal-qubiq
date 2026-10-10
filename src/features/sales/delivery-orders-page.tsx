@@ -282,7 +282,8 @@ function DeliveryRowActions({ row, run, busy, onOpen, onEdit }: { row: DeliveryR
     { key: "invoice", icon: <FileTextOutlined />, label: `Invoice ${row.invoice_number ?? ""}`.trim(), onClick: () => viewPdf(invoicePdf(row.invoice_id, row.invoice_number)) },
   ];
   const change: Item[] = [];
-  if (row.status === "issued" || row.status === "received") {
+  // Only while waiting for receipt: once received (online or by an uploaded signed DO / BAST) the link has done its job.
+  if (row.status === "issued") {
     change.push({ key: "again", icon: <SendOutlined />, label: "Send again", onClick: issue });
     change.push({
       key: "link",
@@ -457,6 +458,7 @@ function CancelModal({ row, open, onClose, run }: { row: DeliveryRow; open: bool
 function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: DeliveryRow | null; onClose: () => void; onEdit: (order: DeliveryOrder) => void; run: Run; busy: string | null }) {
   const viewPdf = usePdfViewer();
   const { token } = theme.useToken();
+  const { message } = App.useApp();
   const [uploading, setUploading] = useState(false);
   const issue = useIssue(row ?? ({ items: [], files: [] } as unknown as DeliveryRow), run);
   if (!row) return <Drawer open={false} onClose={onClose} />;
@@ -479,6 +481,18 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
           <Button icon={<FilePdfOutlined />} onClick={() => viewPdf(deliveryOrderPdf(row))}>
             View PDF
           </Button>
+          {row.status === "issued" ? (
+            <Button
+              icon={<LinkOutlined />}
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(`${env.siteUrl}/do/${row.public_token}`)
+                  .then(() => message.success("Customer link copied — the page where they view the DO and confirm receipt."))
+              }
+            >
+              Copy customer link
+            </Button>
+          ) : null}
           {row.status === "draft" ? (
             <>
               <Button icon={<EditOutlined />} onClick={() => onEdit(row)}>
@@ -501,7 +515,7 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
         <StatRow
           stats={[
             { label: "Servers", value: servers(row), strong: true },
-            { label: "Delivered by", value: METHOD_LABEL[row.method as DeliveryMethod] ?? row.method },
+            { label: "Delivery method", value: METHOD_LABEL[row.method as DeliveryMethod] ?? row.method },
             { label: "Delivery date", value: row.delivery_date ? formatInvoiceDate(row.delivery_date) : "—" },
             { label: "Received", value: row.received_at ? formatInvoiceDate(row.received_at.slice(0, 10)) : "—" },
           ]}
@@ -544,7 +558,11 @@ function DeliveryOrderDrawer({ row, onClose, onEdit, run, busy }: { row: Deliver
                     { label: "CC", value: row.cc_emails?.length ? row.cc_emails.join(", ") : "—" },
                     { label: "Software version", value: row.software_version || "—" },
                     { label: "Signed by us", value: row.signature_mode === "qr" ? "QR code" : row.signature_mode === "digital" ? "Digital signature" : "By hand" },
-                    { label: "Delivered by (name)", value: row.delivered_by_name || "—" },
+                    { label: "Prepared by", value: [row.prepared_by_name, row.prepared_by_title].filter(Boolean).join(", ") || "—" },
+                    {
+                      label: "Delivered by",
+                      value: row.delivered_by_same ? "Same as prepared by" : [row.delivered_by_name, row.delivered_by_title].filter(Boolean).join(", ") || "—",
+                    },
                     { label: "Notes", wide: true, value: <span style={{ whiteSpace: "pre-line" }}>{row.notes || "—"}</span> },
                   ]}
                 />
