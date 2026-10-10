@@ -56,12 +56,12 @@ export function LocationPicker({
     latest.current = { onChange, onPlace };
   }, [onChange, onPlace]);
 
-  const resolve = useCallback(async (lat: number, lng: number) => {
+  const resolve = useCallback(async (lat: number, lng: number, fill = true) => {
     setResolving(true);
     try {
       const [found] = await lookup("reverse", { lat: String(lat), lon: String(lng), zoom: "18" });
       setAddress(found?.label ?? null);
-      if (found) latest.current.onPlace?.({ ...found, latitude: lat, longitude: lng });
+      if (found && fill) latest.current.onPlace?.({ ...found, latitude: lat, longitude: lng });
     } catch {
       setAddress(null);
     } finally {
@@ -70,12 +70,12 @@ export function LocationPicker({
   }, []);
 
   const moveTo = useCallback(
-    (lat: number, lng: number, { reverse = true, focus = false } = {}) => {
+    (lat: number, lng: number, { reverse = true, focus = false, fill = true } = {}) => {
       if (!isValidCoordinate(lat, lng)) return;
       setMessage(null);
       latest.current.onChange(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
       if (focus) map.current?.setView([lat, lng], Math.max(map.current.getZoom() ?? 0, 14), { animate: true });
-      if (reverse) void resolve(lat, lng);
+      if (reverse) void resolve(lat, lng, fill);
     },
     [resolve],
   );
@@ -227,6 +227,14 @@ export function LocationPicker({
         ) : null}
       </Flex>
       <div ref={container} style={{ height: 300, borderRadius: token.borderRadiusLG, overflow: "hidden", border: `1px solid ${token.colorBorder}`, zIndex: 0 }} />
+      {/* Typed or pasted coordinates (e.g. from Google Maps) move the pin; they only look up the address, never overwrite the fields. */}
+      <CoordinateInputs
+        key={hasPoint ? `${latitude},${longitude}` : "none"}
+        latitude={hasPoint ? latitude : null}
+        longitude={hasPoint ? longitude : null}
+        onCommit={(lat, lng) => moveTo(lat, lng, { focus: true, fill: false })}
+        onInvalid={() => setMessage("Latitude is between -90 and 90, longitude between -180 and 180.")}
+      />
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         <EnvironmentOutlined />{" "}
         {resolving
@@ -240,6 +248,46 @@ export function LocationPicker({
           {message}
         </Typography.Text>
       ) : null}
+    </Flex>
+  );
+}
+
+/**
+ * Latitude and longitude as editable fields. A pasted pair ("-6.3605, 106.8272",
+ * as Google Maps copies it) in either field fills both. Applied on Enter or
+ * when the field loses focus.
+ */
+function CoordinateInputs({ latitude, longitude, onCommit, onInvalid }: {
+  latitude: number | null;
+  longitude: number | null;
+  onCommit: (latitude: number, longitude: number) => void;
+  onInvalid: () => void;
+}) {
+  const [lat, setLat] = useState(latitude == null ? "" : String(latitude));
+  const [lng, setLng] = useState(longitude == null ? "" : String(longitude));
+  const commit = (nextLat = lat, nextLng = lng) => {
+    if (!nextLat.trim() || !nextLng.trim()) return;
+    const a = Number(nextLat.replace(",", "."));
+    const b = Number(nextLng.replace(",", "."));
+    if (a === latitude && b === longitude) return;
+    if (!Number.isFinite(a) || !Number.isFinite(b) || !isValidCoordinate(a, b)) return onInvalid();
+    onCommit(a, b);
+  };
+  const typed = (value: string, which: "lat" | "lng") => {
+    const pair = value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (pair) {
+      setLat(pair[1]);
+      setLng(pair[2]);
+      commit(pair[1], pair[2]);
+      return;
+    }
+    if (which === "lat") setLat(value);
+    else setLng(value);
+  };
+  return (
+    <Flex gap={8}>
+      <Input addonBefore="Lat" value={lat} placeholder="-6.360500" inputMode="decimal" onChange={(event) => typed(event.target.value, "lat")} onBlur={() => commit()} onPressEnter={(event) => { event.preventDefault(); commit(); }} aria-label="Latitude" />
+      <Input addonBefore="Lng" value={lng} placeholder="106.827200" inputMode="decimal" onChange={(event) => typed(event.target.value, "lng")} onBlur={() => commit()} onPressEnter={(event) => { event.preventDefault(); commit(); }} aria-label="Longitude" />
     </Flex>
   );
 }

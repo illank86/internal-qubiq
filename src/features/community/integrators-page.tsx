@@ -259,8 +259,8 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
                       </Form.Item>
                     </Col>
                   </Row>
-                  <Form.Item label="Address" name="address_line">
-                    <Input />
+                  <Form.Item label="Address" name="address_line" extra="Street, building, floor — one line each.">
+                    <Input.TextArea autoSize={{ minRows: 3 }} maxLength={240} showCount style={{ resize: "vertical" }} placeholder={"Jl. Margonda Raya 358\nGedung A, Lantai 3"} />
                   </Form.Item>
                   <Row gutter={16}>
                     <Col xs={24} sm={12}>
@@ -284,7 +284,7 @@ function IntegratorDrawer({ integrator, onClose }: { integrator: Integrator; onC
                       </Form.Item>
                     </Col>
                     <Col span={24}>
-                      <Form.Item label="Location on the map" extra="The pin puts the company on the directory map. Dropping one fills the address fields above.">
+                      <Form.Item label="Location on the map" extra="The pin puts the company on the directory map. Dropping one fills the address fields above; you can also type or paste the latitude and longitude.">
                         <GeoField
                           latitudeName="latitude"
                           longitudeName="longitude"
