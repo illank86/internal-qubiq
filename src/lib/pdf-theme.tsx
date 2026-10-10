@@ -53,7 +53,7 @@ export const styles = StyleSheet.create({
   number: { fontSize: 9.5, lineHeight: 1.2, color: MUTED, marginTop: 3 },
   // The references under the title: a small two-column table, right-aligned.
   // Pay to / tax number, on the invoice's How to pay page.
-  payee: { flexDirection: "row", borderWidth: 0.6, borderColor: LINE, borderLeftWidth: 3, borderLeftColor: BRAND, borderRadius: 6, paddingVertical: 10, paddingHorizontal: 14, gap: 14 },
+  payee: { flexDirection: "row", borderWidth: 0.6, borderColor: LINE, borderRadius: 6, paddingVertical: 10, paddingHorizontal: 14, gap: 14 },
   payeeRule: { borderLeftWidth: 0.6, borderColor: LINE, paddingLeft: 14 },
   payeeValue: { fontSize: 10.5, color: INK, fontFamily: "Helvetica-Bold" },
   // The references under the title: one row of columns, label above value.
