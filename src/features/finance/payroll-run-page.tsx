@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
-import { Alert, Button, Card, Col, Descriptions, Flex, Form, Input, InputNumber, Modal, Popconfirm, Result, Row, Select, Skeleton, Statistic, Table, Tooltip, Typography } from "antd";
+import { Alert, App, Button, Card, Checkbox, Col, Descriptions, Flex, Form, Input, InputNumber, Modal, Popconfirm, Progress, Result, Row, Select, Skeleton, Statistic, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { ArrowLeftOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, FileExcelOutlined, FilePdfOutlined, ReloadOutlined, StopOutlined, WalletOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined, ReloadOutlined, StopOutlined, WalletOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { useCan } from "@/auth/use-auth";
@@ -18,12 +19,15 @@ import {
   periodLabel,
   postPayrollRun,
   refreshPayrollRun,
+  sendPayslip,
+  useEmployees,
   totals,
   updatePayrollLine,
   usePayrollRun,
   voidPayrollRun,
   type AnnualWorking,
   type PayrollLine,
+  type PayrollRun,
 } from "./payroll-api";
 
 const dateLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -39,6 +43,7 @@ export function PayrollRunPage() {
   const [editing, setEditing] = useState<PayrollLine | null>(null);
   const [paying, setPaying] = useState<"salaries" | "bpjs" | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [mailing, setMailing] = useState<PayrollLine[] | null>(null);
 
   if (!can("accounting.manage")) return <Result status="403" title="Finance only" />;
   if (isLoading) return <Skeleton active paragraph={{ rows: 12 }} />;
@@ -139,16 +144,41 @@ export function PayrollRunPage() {
     { title: "BPJS (employee)", key: "bpjs_ee", align: "right", render: (_, line) => idr(employeeBpjs(line)) },
     { title: "Net pay", key: "net", align: "right", render: (_, line) => <Typography.Text strong>{idr(line.net_pay)}</Typography.Text> },
     { title: "BPJS (company)", key: "bpjs_er", align: "right", render: (_, line) => idr(employerCost(line)) },
+    ...(posted
+      ? [
+          {
+            title: "Payslip",
+            key: "payslip",
+            render: (_: unknown, line: PayrollLine) =>
+              line.payslip_sent_at ? (
+                <Tooltip title={`Sent to ${line.payslip_sent_to} on ${new Date(line.payslip_sent_at).toLocaleString("en-GB")}`}>
+                  <Tag color="success">Emailed</Tag>
+                </Tooltip>
+              ) : line.payslip_error ? (
+                <Tooltip title={line.payslip_error}>
+                  <Tag color="error">Failed</Tag>
+                </Tooltip>
+              ) : (
+                <Tag>Not sent</Tag>
+              ),
+          },
+        ]
+      : []),
     {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
-      width: 90,
+      width: 110,
       render: (_, line) => (
         <Flex gap={2}>
           {draft ? <Button size="small" type="text" icon={<EditOutlined />} aria-label={`Edit ${line.employee_name}`} onClick={() => setEditing(line)} /> : null}
           <Tooltip title="Payslip">
             <Button size="small" type="text" icon={<FilePdfOutlined />} aria-label={`Payslip for ${line.employee_name}`} onClick={() => payslips(line)} />
           </Tooltip>
+          {posted ? (
+            <Tooltip title="Email the payslip">
+              <Button size="small" type="text" icon={<MailOutlined />} aria-label={`Email payslip to ${line.employee_name}`} onClick={() => setMailing([line])} />
+            </Tooltip>
+          ) : null}
         </Flex>
       ),
     },
@@ -189,6 +219,9 @@ export function PayrollRunPage() {
             ) : null}
             {posted ? (
               <>
+                <Button icon={<MailOutlined />} disabled={!lines.length} onClick={() => setMailing(lines)}>
+                  Email payslips
+                </Button>
                 {!payroll.bpjs_journal_entry_id ? (
                   <Button icon={<WalletOutlined />} onClick={() => setPaying("bpjs")}>
                     Pay BPJS
@@ -253,7 +286,8 @@ export function PayrollRunPage() {
                   <Table.Summary.Cell index={6} align="right">{idr(sum.bpjs - sum.employer)}</Table.Summary.Cell>
                   <Table.Summary.Cell index={7} align="right">{idr(sum.net)}</Table.Summary.Cell>
                   <Table.Summary.Cell index={8} align="right">{idr(sum.employer)}</Table.Summary.Cell>
-                  <Table.Summary.Cell index={9} />
+                  {posted ? <Table.Summary.Cell index={9} /> : null}
+                  <Table.Summary.Cell index={posted ? 10 : 9} />
                 </Table.Summary.Row>
               ) : null
             }
@@ -273,6 +307,7 @@ export function PayrollRunPage() {
           }
         />
       ) : null}
+      {mailing ? <MailModal run={payroll} lines={mailing} onClose={() => setMailing(null)} /> : null}
       {voiding ? <VoidModal busy={busy === "void"} onClose={() => setVoiding(false)} onVoid={(reason) => run("void", () => voidPayrollRun(payroll.id, reason), "Payroll voided; its entries are reversed.").then((ok) => ok && setVoiding(false))} /> : null}
     </>
   );
@@ -396,6 +431,96 @@ function VoidModal({ busy, onClose, onVoid }: { busy: boolean; onClose: () => vo
     <Modal open title="Void this payroll?" okText="Void" okButtonProps={{ danger: true, disabled: !reason.trim() }} confirmLoading={busy} onOk={() => onVoid(reason.trim())} onCancel={onClose} destroyOnHidden>
       <Typography.Paragraph type="secondary">Its journal entries (and the BPJS payment, if recorded) are reversed today. Later months of the year must be voided first. Then start the month again.</Typography.Paragraph>
       <Input.TextArea rows={2} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="Why, e.g. wrong salary for one employee" />
+    </Modal>
+  );
+}
+
+/** Email payslips: pick who gets one, then send them one by one with progress. */
+function MailModal({ run, lines, onClose }: { run: PayrollRun; lines: PayrollLine[]; onClose: () => void }) {
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const { data: employees, isLoading } = useEmployees();
+  const emailOf = new Map((employees ?? []).map((employee) => [employee.id, employee.email?.trim() || null]));
+  const sendable = lines.filter((line) => emailOf.get(line.employee_id));
+  // Unsent ones are picked to start with (all of them when only one was asked for).
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const chosen = picked ?? new Set((lines.length === 1 ? sendable : sendable.filter((line) => !line.payslip_sent_at)).map((line) => line.id));
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState<Record<string, "sent" | string>>({});
+  const total = lines.filter((line) => chosen.has(line.id)).length;
+  const finished = Object.keys(done).length;
+
+  const send = async () => {
+    setSending(true);
+    let sent = 0;
+    for (const line of lines.filter((item) => chosen.has(item.id))) {
+      try {
+        await sendPayslip(run, line);
+        sent += 1;
+        setDone((current) => ({ ...current, [line.id]: "sent" }));
+      } catch (cause) {
+        setDone((current) => ({ ...current, [line.id]: (cause as Error).message || "Not sent" }));
+      }
+    }
+    setSending(false);
+    await queryClient.invalidateQueries({ queryKey: ["payroll-run", run.id] });
+    if (sent === total) message.success(sent === 1 ? "Payslip emailed." : `${sent} payslips emailed.`);
+    else message.warning(`${sent} of ${total} sent; see the list for what failed.`);
+  };
+
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(chosen);
+    if (on) next.add(id);
+    else next.delete(id);
+    setPicked(next);
+  };
+
+  return (
+    <Modal
+      open
+      title="Email payslips"
+      okText={finished && !sending ? "Done" : `Send ${total || ""}`.trim()}
+      okButtonProps={{ icon: <MailOutlined />, disabled: !total && !finished, loading: sending }}
+      cancelButtonProps={{ disabled: sending }}
+      onOk={() => (finished && !sending ? onClose() : send())}
+      onCancel={() => !sending && onClose()}
+      closable={!sending}
+      width={620}
+      destroyOnHidden
+    >
+      <Typography.Paragraph type="secondary">
+        Each employee gets their own payslip as a PDF, sent to the email on their employee record. The email itself shows no amounts.
+      </Typography.Paragraph>
+      {isLoading ? <Skeleton active /> : null}
+      <Flex vertical gap={6}>
+        {lines.map((line) => {
+          const email = emailOf.get(line.employee_id);
+          const result = done[line.id];
+          return (
+            <Flex key={line.id} justify="space-between" align="center" gap={8} style={{ padding: "4px 0" }}>
+              <Checkbox checked={chosen.has(line.id)} disabled={!email || sending || Boolean(result)} onChange={(event) => toggle(line.id, event.target.checked)}>
+                <span>{line.employee_name}</span>
+                <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                  {email ?? "no email on record"}
+                </Typography.Text>
+              </Checkbox>
+              {result === "sent" ? (
+                <Tag color="success">Sent</Tag>
+              ) : result ? (
+                <Tooltip title={result}>
+                  <Tag color="error">Failed</Tag>
+                </Tooltip>
+              ) : line.payslip_sent_at ? (
+                <Tag>Sent before</Tag>
+              ) : null}
+            </Flex>
+          );
+        })}
+      </Flex>
+      {sending || finished ? <Progress percent={total ? Math.round((finished / total) * 100) : 0} size="small" style={{ marginTop: 12 }} /> : null}
+      {lines.some((line) => !emailOf.get(line.employee_id)) && !isLoading ? (
+        <Alert type="info" showIcon style={{ marginTop: 12 }} title="Add an email to the employee (Payroll → Employees) to send theirs." />
+      ) : null}
     </Modal>
   );
 }

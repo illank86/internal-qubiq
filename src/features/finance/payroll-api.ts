@@ -116,3 +116,28 @@ export function totals(lines: Pick<PayrollLine, "base_salary" | "allowance" | "o
   const wages = sum((l) => Number(l.base_salary) + Number(l.allowance) + Number(l.other_income));
   return { wages, net: sum((l) => Number(l.net_pay)), pph21: sum((l) => Number(l.pph21)), employer, bpjs: employer + employee, cost: wages + employer, people: lines.length };
 }
+
+const base64 = async (blob: Blob) => {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return btoa(binary);
+};
+
+/**
+ * Email one employee their payslip: the same PDF as the preview, sent by the
+ * send-payslip Edge Function to the address on the employee's record (posted
+ * payrolls only).
+ */
+export async function sendPayslip(run: PayrollRun, line: PayrollLine) {
+  const { payslipPdf } = await import("./payslip-pdf-file");
+  const pdf = await base64(await payslipPdf(run, [line]));
+  const { data, error } = await supabase.functions.invoke<{ sent_to?: string; error?: string }>("send-payslip", { body: { line_id: line.id, pdf } });
+  if (error) {
+    // The function's own message, when it gave one.
+    const detail = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error(detail?.error ?? error.message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data?.sent_to ?? "";
+}

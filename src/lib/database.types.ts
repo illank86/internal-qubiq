@@ -3182,6 +3182,9 @@ export type Database = {
           npwp: string | null
           other_income: number
           other_income_note: string | null
+          payslip_error: string | null
+          payslip_sent_at: string | null
+          payslip_sent_to: string | null
           position: string | null
           pph21: number
           pph21_method: string
@@ -3211,6 +3214,9 @@ export type Database = {
           npwp?: string | null
           other_income?: number
           other_income_note?: string | null
+          payslip_error?: string | null
+          payslip_sent_at?: string | null
+          payslip_sent_to?: string | null
           position?: string | null
           pph21?: number
           pph21_method?: string
@@ -3240,6 +3246,9 @@ export type Database = {
           npwp?: string | null
           other_income?: number
           other_income_note?: string | null
+          payslip_error?: string | null
+          payslip_sent_at?: string | null
+          payslip_sent_to?: string | null
           position?: string | null
           pph21?: number
           pph21_method?: string
