@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Space, Switch, Tabs, Typography } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
+import { useCan } from "@/auth/use-auth";
 import type { Database } from "@/lib/database.types";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +28,8 @@ export function SalesSettingsPage() {
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<Values>();
+  // The four-eyes rule is a control over approvers: user managers set it.
+  const canSetFourEyes = useCan()("users.manage");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tab = TAB_KEYS.includes(params.get("tab") as (typeof TAB_KEYS)[number]) ? (params.get("tab") as string) : "general";
@@ -113,6 +116,11 @@ export function SalesSettingsPage() {
                       <Flex justify="space-between" align="center" gap={16} style={{ marginBottom: 24 }}>
                         <div>
                           <Typography.Text strong>Require a second approver (four-eyes)</Typography.Text>
+                          {canSetFourEyes ? null : (
+                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block" }}>
+                              Only someone who manages users can change this.
+                            </Typography.Text>
+                          )}
                           <Typography.Paragraph type="secondary" style={{ margin: "2px 0 0", maxWidth: 720 }}>
                             When on, an approver's own quotations and invoices go to the other approvers, and nobody can approve what they asked for. If
                             someone is the only approver for that kind of document, they can still approve their own, so nothing gets stuck. Off: an
@@ -120,7 +128,7 @@ export function SalesSettingsPage() {
                           </Typography.Paragraph>
                         </div>
                         <Form.Item name="require_second_approver" valuePropName="checked" noStyle>
-                          <Switch />
+                          <Switch disabled={!canSetFourEyes} />
                         </Form.Item>
                       </Flex>
                     </Col>

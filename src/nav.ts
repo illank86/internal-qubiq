@@ -53,7 +53,7 @@ export const NAV: NavGroup[] = [
   {
     heading: "Sales",
     items: [
-      { path: "/sales/orders", label: "Order overview", icon: PartitionOutlined, permissions: ["licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "One order from quote request to delivery: quotation, invoice, payment, delivery orders and licences." },
+      { path: "/sales/orders", label: "Order overview", icon: PartitionOutlined, permissions: ["quotations.manage", "licenses.manage"], legacy: "/admin/invoices", phase: 3, ready: true, summary: "One order from quote request to delivery: quotation, invoice, payment, delivery orders and licences." },
       { path: "/sales/leads", label: "Leads", icon: ContactsOutlined, permissions: ["leads.manage"], legacy: "/admin/leads", phase: 3, ready: true, summary: "Contact-form enquiries and their follow-up." },
       { path: "/sales/quote-requests", label: "Quote requests", icon: InboxOutlined, permissions: ["leads.manage"], legacy: "/admin/quote_requests", phase: 3, ready: true, summary: "Requests from the pricing page, ready to turn into quotations." },
       { path: "/sales/quotations", label: "Quotations", icon: FileDoneOutlined, permissions: ["quotations.manage"], legacy: "/admin/quotations", phase: 3, ready: true, summary: "Build, send and track quotations with server groups; claim links and customer accounts." },

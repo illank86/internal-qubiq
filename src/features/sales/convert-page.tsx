@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useCan } from "@/auth/use-auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Col, Descriptions, Flex, Form, Input, Result, Row, Segmented, Skeleton, Typography } from "antd";
 import { DownloadOutlined, FileProtectOutlined, TransactionOutlined } from "@ant-design/icons";
@@ -39,6 +40,8 @@ export function ConvertPage() {
   const [poChange, setPoChange] = useState<PurchaseOrderChange>({ kind: "keep" });
   // Their send approves it at once (an approver, unless the four-eyes rule applies).
   const isApprover = useSendsDirectly("invoice");
+  // Sales can convert too, but invoices themselves are licensing's to open.
+  const seesInvoices = useCan()("licenses.manage");
 
   const { data, isLoading } = useQuery({
     queryKey: ["convert", id],
@@ -135,7 +138,7 @@ export function ConvertPage() {
       return;
     }
     message.success(isApprover ? "Invoice created and sent to the customer." : "Invoice created and sent for approval. The approvers have been emailed.");
-    navigate("/sales/invoices");
+    navigate(seesInvoices ? "/sales/invoices" : "/sales/quotations");
   };
 
   return (

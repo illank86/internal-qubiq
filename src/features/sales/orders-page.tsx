@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { useCan } from "@/auth/use-auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Drawer, Flex, Input, Segmented, Select, Table, Tag, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
@@ -92,20 +93,6 @@ const STAGE: Record<Stage, { label: string; color: string }> = {
   closed: { label: "Closed", color: "default" },
 };
 
-const INVOICE_FIELDS = `id, number, status, integrator_id, integrator:integrators(id, company_name), issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
-    groups:invoice_groups(quantity),
-    licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
-    license:licenses!invoices_license_id_fkey(id, label, status, issued_at),
-    delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*))`;
-
-const SELECT = `id, number, status, integrator_id, integrator:integrators(id, company_name), company, contact_name, contact_email, issue_date, sent_at, accepted_at, total, currency, decimal_places, created_at,
-  quote_request:quote_requests(id, reference, created_at, edition_name),
-  invoices!invoices_quotation_id_fkey(id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
-    groups:invoice_groups(quantity),
-    licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
-    license:licenses!invoices_license_id_fkey(id, label, status, issued_at),
-    delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*)))`;
-
 /** The live invoice of an order (not void), else the latest one. */
 const invoiceOf = (order: Order) => order.invoices.find((invoice) => invoice.status !== "void") ?? order.invoices.at(-1) ?? null;
 const liveDos = (invoice: InvoiceRow | null) => (invoice?.delivery_orders ?? []).filter((item) => item.status !== "cancelled");
@@ -113,6 +100,15 @@ const ordered = (invoice: InvoiceRow) => invoice.groups.reduce((sum, group) => s
 /** Licences of an invoice: linked either way (licences.invoice_id, or the invoice's license_id). */
 const licencesOf = (invoice: InvoiceRow) => [...invoice.licenses, ...(invoice.license && !invoice.licenses.some((item) => item.id === invoice.license!.id) ? [invoice.license] : [])];
 const licensed = (invoice: InvoiceRow) => licencesOf(invoice).some((licence) => licence.status === "issued");
+/** An invoice with no quotation, as order_overview() returns it. */
+type Loose = InvoiceRow & {
+  bill_to_name: string;
+  bill_to_company: string | null;
+  bill_to_email: string | null;
+  created_at: string;
+  integrator_id: string | null;
+  integrator: { id: string; company_name: string } | null;
+};
 const delivered = (invoice: InvoiceRow) => liveDos(invoice).reduce((sum, item) => sum + item.items.reduce((total, line) => total + Number(line.quantity), 0), 0);
 
 function stageOf(order: Order): Stage {
@@ -147,27 +143,12 @@ export function OrdersPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["order-overview"],
     queryFn: async () => {
-      const [{ data: rows, error: loadError }, { data: loose, error: looseError }] = await Promise.all([
-        supabase.from("quotations").select(SELECT).order("created_at", { ascending: false }).limit(500),
-        // Invoices with no quotation are orders too: they still get paid and delivered.
-        supabase
-          .from("invoices")
-          .select(`bill_to_name, bill_to_company, bill_to_email, created_at, ${INVOICE_FIELDS}`)
-          .is("quotation_id", null)
-          .order("created_at", { ascending: false })
-          .limit(500),
-      ]);
+      // One read for sales and licensing alike (the tables themselves are split by role).
+      const { data: overview, error: loadError } = await supabase.rpc("order_overview");
       if (loadError) throw loadError;
-      if (looseError) throw looseError;
-      type Loose = InvoiceRow & {
-        bill_to_name: string;
-        bill_to_company: string | null;
-        bill_to_email: string | null;
-        created_at: string;
-        integrator_id: string | null;
-        integrator: { id: string; company_name: string } | null;
-      };
-      const direct: Order[] = ((loose ?? []) as unknown as Loose[]).map((invoice) => ({
+      const result = (overview ?? { quotations: [], direct: [] }) as unknown as { quotations: Order[]; direct: Loose[] };
+      // Invoices with no quotation are orders too: they still get paid and delivered.
+      const direct: Order[] = result.direct.map((invoice) => ({
         id: invoice.id,
         number: null,
         status: "accepted",
@@ -187,7 +168,7 @@ export function OrdersPage() {
         integrator_id: invoice.integrator_id,
         integrator: invoice.integrator,
       }));
-      return [...((rows ?? []) as unknown as Order[]), ...direct]
+      return [...result.quotations, ...direct]
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .map((order) => ({ ...order, stage: stageOf(order) }));
     },
@@ -351,7 +332,15 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [savingVia, setSavingVia] = useState(false);
+  // Each part is shown to whoever may open it: quotations for sales, invoices,
+  // licences and delivery orders for licensing.
+  const can = useCan();
+  const sales = can("quotations.manage");
+  const licensing = can("licenses.manage");
+  const leads = can("leads.manage");
   if (!order) return <Drawer open={false} onClose={onClose} />;
+  // The link is kept on the quotation, or on the invoice when there is none.
+  const canSetVia = order.direct ? licensing : sales;
 
   // On the quotation (its invoices follow), or on the invoice when there is no quotation.
   const setIntegrator = async (integratorId: string | null) => {
@@ -387,9 +376,11 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
       children: order.quote_request ? (
         <Flex gap={8} align="center" wrap>
           {meta(`${order.quote_request.reference ?? "Request"} · ${formatInvoiceDate(order.quote_request.created_at.slice(0, 10))}${order.quote_request.edition_name ? ` · ${order.quote_request.edition_name}` : ""}`)}
-          <Button size="small" type="link" onClick={() => navigate("/sales/quote-requests")}>
-            Quote requests
-          </Button>
+          {leads ? (
+            <Button size="small" type="link" onClick={() => navigate("/sales/quote-requests")}>
+              Quote requests
+            </Button>
+          ) : null}
         </Flex>
       ) : (
         meta("Made directly, not from a request.")
@@ -408,7 +399,7 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
           {meta(
             `${order.status[0].toUpperCase()}${order.status.slice(1)} · ${formatMoney(order.total, order.currency, order.decimal_places)}${order.accepted_at ? ` · accepted ${formatInvoiceDate(order.accepted_at.slice(0, 10))}` : order.sent_at ? ` · sent ${formatInvoiceDate(order.sent_at.slice(0, 10))}` : ""}`,
           )}
-          {pdfButton("Quotation", () => viewPdf(quotationPdf(order.id, order.number)))}
+          {sales ? pdfButton("Quotation", () => viewPdf(quotationPdf(order.id, order.number))) : null}
         </Flex>
       ),
     },
@@ -443,10 +434,14 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
           {meta(
             `${formatMoney(invoice.total, invoice.currency, invoice.decimal_places)} · issued ${formatInvoiceDate(invoice.issue_date)}${invoice.paid_at ? ` · paid ${formatInvoiceDate(invoice.paid_at.slice(0, 10))}` : ` · due ${formatInvoiceDate(invoice.due_date)}`}`,
           )}
-          {pdfButton("Invoice", () => viewPdf(invoicePdf(invoice.id, invoice.number)))}
-          <Button size="small" type="link" onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
-            Open
-          </Button>
+          {licensing ? (
+            <>
+              {pdfButton("Invoice", () => viewPdf(invoicePdf(invoice.id, invoice.number)))}
+              <Button size="small" type="link" onClick={() => navigate(`/sales/invoices?invoice=${invoice.id}`)}>
+                Open
+              </Button>
+            </>
+          ) : null}
         </Flex>
       ) : (
         meta(order.status === "accepted" ? "Not converted yet." : "After the quotation is accepted.")
@@ -466,9 +461,11 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
               {licence.label} · {licence.status}
             </Tag>
           ))}
-          <Button size="small" type="link" onClick={() => navigate("/licensing/licences")}>
-            Licences
-          </Button>
+          {licensing ? (
+            <Button size="small" type="link" onClick={() => navigate("/licensing/licences")}>
+              Licences
+            </Button>
+          ) : null}
         </Flex>
       ) : (
         meta("None yet.")
@@ -485,9 +482,11 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
           {invoice?.status === "paid" && left > 0 ? (
             <Flex gap={8} align="center" wrap>
               {meta(`${left} server${left === 1 ? "" : "s"} still to deliver.`)}
-              <Button size="small" type="primary" onClick={() => navigate(`/sales/delivery-orders?new=${invoice.id}`)}>
-                Create delivery order
-              </Button>
+              {licensing ? (
+                <Button size="small" type="primary" onClick={() => navigate(`/sales/delivery-orders?new=${invoice.id}`)}>
+                  Create delivery order
+                </Button>
+              ) : null}
             </Flex>
           ) : null}
           {dos.length === 0 && !(invoice?.status === "paid") ? meta("After the invoice is paid.") : null}
@@ -500,7 +499,7 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
                   `${item.items.reduce((sum, line) => sum + Number(line.quantity), 0)} servers${item.delivery_date ? ` · ${formatInvoiceDate(item.delivery_date)}` : ""}${item.received_by_name ? ` · received by ${item.received_by_name}` : ""}`,
                 )}
               </Flex>
-              <Flex gap={6} wrap style={{ marginTop: 6 }}>
+              <Flex gap={6} wrap style={{ marginTop: 6 }} hidden={!licensing}>
                 {pdfButton("Delivery order", () => viewPdf(deliveryOrderPdf(item)))}
                 {item.files.map((file) => (
                   <Button key={file.id} size="small" icon={<EyeOutlined />} onClick={() => viewPdf(deliveryFileRequest(file, item.number))}>
@@ -534,7 +533,11 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
         <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
           Order via
         </Typography.Text>
-        <IntegratorField key={order.integrator_id ?? "direct"} value={order.integrator_id} onChange={setIntegrator} disabled={savingVia} />
+        {canSetVia ? (
+          <IntegratorField key={order.integrator_id ?? "direct"} value={order.integrator_id} onChange={setIntegrator} disabled={savingVia} />
+        ) : (
+          <ChannelTag name={order.integrator?.company_name} />
+        )}
       </Flex>
       <div>
         {steps.map((step, index) => {
