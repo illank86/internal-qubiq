@@ -11,7 +11,7 @@ import {
   FileDoneOutlined,
   FileImageOutlined,
   FileTextOutlined,
-  GlobalOutlined,
+  ToolOutlined,
   InboxOutlined,
   KeyOutlined,
   MailOutlined,
@@ -68,7 +68,7 @@ export const NAV: NavGroup[] = [
     heading: "Community",
     items: [
       { path: "/community/bug-reports", label: "Bug reports", icon: BugOutlined, permissions: ["leads.manage"], legacy: "/admin/bug_reports", phase: 4, ready: true, summary: "Triage customer reports and reply to them." },
-      { path: "/community/integrators", label: "Integrators", icon: GlobalOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, ready: true, summary: "Review directory applications and listings." },
+      { path: "/community/integrators", label: "Integrators", icon: ToolOutlined, permissions: ["content.manage"], legacy: "/admin/integrators", phase: 4, ready: true, summary: "Review directory applications and listings." },
     ],
   },
   {

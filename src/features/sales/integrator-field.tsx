@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Flex, Segmented, Select, Tag, Typography } from "antd";
-import { ApartmentOutlined, UserOutlined } from "@ant-design/icons";
+import { ToolOutlined, UserOutlined } from "@ant-design/icons";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -41,7 +41,7 @@ export function IntegratorField({ value, onChange, disabled }: { value?: string 
         }}
         options={[
           { value: "direct", label: "Direct customer", icon: <UserOutlined /> },
-          { value: "integrator", label: "Through an integrator", icon: <ApartmentOutlined /> },
+          { value: "integrator", label: "Through an integrator", icon: <ToolOutlined /> },
         ]}
       />
       {mode === "integrator" ? (
@@ -65,7 +65,7 @@ export function IntegratorField({ value, onChange, disabled }: { value?: string 
 /** A small "via" tag: the integrator's name, or Direct. */
 export function ChannelTag({ name }: { name?: string | null }) {
   return name ? (
-    <Tag icon={<ApartmentOutlined />} color="geekblue" style={{ marginInlineEnd: 0 }}>
+    <Tag icon={<ToolOutlined />} color="geekblue" style={{ marginInlineEnd: 0 }}>
       {name}
     </Tag>
   ) : (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, Badge, Button, Empty, Flex, Popover, Spin, Tooltip, Typography, theme } from "antd";
-import { AuditOutlined, BellOutlined, BugOutlined, CommentOutlined, ContactsOutlined, GlobalOutlined, InboxOutlined, KeyOutlined, MailOutlined, UserAddOutlined } from "@ant-design/icons";
+import { AuditOutlined, BellOutlined, BugOutlined, CommentOutlined, ContactsOutlined, InboxOutlined, KeyOutlined, MailOutlined, ToolOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { loadNotifications, markNotificationsSeen, type NotificationKind } from "./notifications";
 
@@ -12,7 +12,7 @@ const KIND: Record<NotificationKind, { icon: React.ReactNode; color: string }> =
   bug: { icon: <BugOutlined />, color: "#f5222d" },
   reply: { icon: <CommentOutlined />, color: "#722ed1" },
   license: { icon: <KeyOutlined />, color: "#13c2c2" },
-  integrator: { icon: <GlobalOutlined />, color: "#52c41a" },
+  integrator: { icon: <ToolOutlined />, color: "#52c41a" },
   account: { icon: <UserAddOutlined />, color: "#8c8c8c" },
   approval: { icon: <AuditOutlined />, color: "#d48806" },
   undelivered: { icon: <MailOutlined />, color: "#cf1322" },
