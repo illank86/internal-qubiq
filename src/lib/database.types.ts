@@ -3829,7 +3829,7 @@ export type Database = {
       }
       my_integrator: { Args: never; Returns: string | null }
       order_overview: { Args: never; Returns: Json }
-      set_invoice_status: { Args: { p_id: string; p_status: string }; Returns: undefined }
+      set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
+import { Alert, App, Button, Checkbox, Col, Drawer, Dropdown, Flex, Form, Input, InputNumber, Modal, Row, Segmented, Select, Table, Tabs, Tag, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
 import {
   CheckCircleOutlined,
@@ -273,6 +273,7 @@ function InvoiceRowActions({
   const viewPdf = usePdfViewer();
   const [rejecting, setRejecting] = useState(false);
   const [history, setHistory] = useState(false);
+  const [paying, setPaying] = useState(false);
   const k = (name: string) => `${name}:${row.id}`;
   const title = `invoice ${row.number ?? ""}`.trim();
   const waiting = row.approval_status === "pending";
@@ -328,8 +329,12 @@ function InvoiceRowActions({
   const signingMenu = useSigningMenu({ type: "invoice", row, isApprover, run });
   const meId = useStaff().id;
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
-  const markPaid = () =>
-    run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`);
+  // Asks the day the money arrived: received money is reported at that day's rate.
+  const markPaid = () => setPaying(true);
+  const confirmPaid = (paidOn: string) =>
+    run(k("paid"), () => setInvoiceStatus(row.id, "paid", paidOn), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`).then(
+      (ok) => ok && setPaying(false),
+    );
 
   // What to do next — the step this invoice is waiting for.
   const next: Item[] = [];
@@ -412,6 +417,7 @@ function InvoiceRowActions({
         onReject={(reason) => run(k("reject"), () => rejectDocument("invoice", row.id, reason), "Rejected. They have been told why.").then(() => setRejecting(false))}
       />
       <ApprovalHistoryModal type="invoice" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
+      <MarkPaidModal invoice={row} open={paying} busy={busy === k("paid")} onCancel={() => setPaying(false)} onConfirm={confirmPaid} />
       {signingMenu.modal}
     </Flex>
   );
@@ -901,5 +907,57 @@ function InvoiceDetailsDrawer({
         />
       </Flex>
     </Drawer>
+  );
+}
+
+/** Today in Jakarta (the business day), as YYYY-MM-DD. */
+const jakartaToday = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * "When did the money arrive?" — recorded as the payment date: the receipt
+ * shows it, and revenue converts at that day's exchange rate.
+ */
+function MarkPaidModal({
+  invoice,
+  open,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  invoice: Pick<Invoice, "number" | "total" | "currency" | "decimal_places" | "issue_date">;
+  open: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (paidOn: string) => void;
+}) {
+  const [paidOn, setPaidOn] = useState(jakartaToday);
+  const today = jakartaToday();
+  const valid = Boolean(paidOn) && paidOn <= today;
+  return (
+    <Modal
+      open={open}
+      onCancel={onCancel}
+      title={`Mark ${invoice.number ?? "invoice"} paid`}
+      okText="Mark paid"
+      okButtonProps={{ disabled: !valid, loading: busy, icon: <CheckCircleOutlined /> }}
+      onOk={() => valid && onConfirm(paidOn)}
+      destroyOnHidden
+    >
+      <Flex vertical gap={12}>
+        <Typography.Text>
+          {formatMoney(invoice.total, invoice.currency, invoice.decimal_places)} received. The customer is emailed a receipt.
+        </Typography.Text>
+        <div>
+          <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+            Payment received on
+          </Typography.Text>
+          <Input type="date" value={paidOn} max={today} onChange={(event) => setPaidOn(event.target.value)} style={{ maxWidth: 200 }} />
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: "6px 0 0" }}>
+            The day the money arrived in the bank (Jakarta time). Revenue is counted in that month, converted at that day&rsquo;s
+            exchange rate.
+          </Typography.Paragraph>
+        </div>
+      </Flex>
+    </Modal>
   );
 }
