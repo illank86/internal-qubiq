@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/use-auth";
 import { NEW_PASSWORD_RULES, PASSWORD_HINT } from "@/auth/password-rules";
 import { AuthCard } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { markSignedIn } from "@/auth/session-guard";
 
 const LINK_TYPES: EmailOtpType[] = ["invite", "recovery"];
 
@@ -40,6 +41,7 @@ export function SetPasswordPage() {
     verified.current = tokenHash;
     supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error: verifyError }) => {
       if (verifyError) setLinkError("This link has expired or was already used. Ask for a new one.");
+      else markSignedIn();
       // Drop the one-time token from the address bar and history.
       window.history.replaceState(null, "", "/set-password");
       setVerifying(false);

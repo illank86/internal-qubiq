@@ -2,13 +2,14 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { UserAddOutlined } from "@ant-design/icons";
+import { LogoutOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import type { AppRole, Profile } from "@/lib/types";
 import { useAction } from "@/features/sales/use-action";
+import { SessionSettingsCard } from "./session-settings-card";
 
 const ROLES: AppRole[] = ["admin", "sales", "editor", "licensing", "viewer"];
 const ROLE_HINT: Record<AppRole, string> = {
@@ -155,21 +156,46 @@ export function UsersPage() {
       key: "actions",
       align: "right",
       render: (_, user) =>
-        user.id === me.id ? null : user.user_type === "internal" ? (
-          <Popconfirm title={`Remove ${user.full_name || user.email} from the team?`} description="Their roles are removed; the account stays, as a customer." okText="Remove" okButtonProps={{ danger: true }} onConfirm={() => setStaff(user, false)}>
-            <Button size="small" danger loading={busy === `type:${user.id}`}>
-              Remove from team
-            </Button>
-          </Popconfirm>
-        ) : (
-          <Popconfirm title={`Make ${user.full_name || user.email} a team member?`} description="They start as a viewer; give them roles after." okText="Make staff" onConfirm={() => setStaff(user, true)}>
-            <Button size="small" loading={busy === `type:${user.id}`}>
-              Make staff
-            </Button>
-          </Popconfirm>
+        user.id === me.id ? null : (
+          <Flex gap={6} justify="flex-end" wrap>
+            <Popconfirm
+              title={`Sign ${user.full_name || user.email} out everywhere?`}
+              description="Every sign-in of this account ends — a forgotten computer, a lost laptop, someone leaving."
+              okText="Sign out everywhere"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => signOutEverywhere(user)}
+            >
+              <Tooltip title="End all their sign-ins">
+                <Button size="small" icon={<LogoutOutlined />} loading={busy === `signout:${user.id}`} aria-label="Sign out everywhere" />
+              </Tooltip>
+            </Popconfirm>
+            {user.user_type === "internal" ? (
+              <Popconfirm title={`Remove ${user.full_name || user.email} from the team?`} description="Their roles are removed; the account stays, as a customer." okText="Remove" okButtonProps={{ danger: true }} onConfirm={() => setStaff(user, false)}>
+                <Button size="small" danger loading={busy === `type:${user.id}`}>
+                  Remove from team
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm title={`Make ${user.full_name || user.email} a team member?`} description="They start as a viewer; give them roles after." okText="Make staff" onConfirm={() => setStaff(user, true)}>
+                <Button size="small" loading={busy === `type:${user.id}`}>
+                  Make staff
+                </Button>
+              </Popconfirm>
+            )}
+          </Flex>
         ),
     },
   ];
+
+  const signOutEverywhere = (user: User) =>
+    run(
+      `signout:${user.id}`,
+      async () => {
+        const { error: signOutError } = await supabase.rpc("sign_out_everywhere", { p_user: user.id });
+        if (signOutError) throw signOutError;
+      },
+      `${user.full_name || user.email} is signed out everywhere. Their devices close within a few minutes.`,
+    );
 
   const matrix = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -226,6 +252,7 @@ export function UsersPage() {
           ]}
         />
       </Card>
+      <SessionSettingsCard />
       <InviteModal open={inviting} onClose={() => setInviting(false)} />
     </>
   );

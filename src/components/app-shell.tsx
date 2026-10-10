@@ -1,4 +1,5 @@
 import { Suspense, useMemo, useState } from "react";
+import { SessionGuard } from "@/auth/session-guard";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { Avatar, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Skeleton, Tag, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
@@ -15,7 +16,13 @@ export function RequireStaff() {
   const location = useLocation();
   if (state.status === "loading") return <FullPageSpinner />;
   if (state.status === "signed-out") return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  return <AppShell />;
+  return (
+    <>
+      <AppShell />
+      {/* Idle and maximum sign-in time, and sessions ended elsewhere. */}
+      <SessionGuard />
+    </>
+  );
 }
 
 const SIDER_WIDTH = 248;

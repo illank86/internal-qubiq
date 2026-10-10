@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      staff_session_settings: {
+        Row: { id: boolean; idle_minutes: number; max_session_hours: number; updated_at: string }
+        Insert: { id?: boolean; idle_minutes?: number; max_session_hours?: number; updated_at?: string }
+        Update: { id?: boolean; idle_minutes?: number; max_session_hours?: number; updated_at?: string }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -3401,6 +3407,7 @@ export type Database = {
       }
     }
     Functions: {
+      sign_out_everywhere: { Args: { p_user: string }; Returns: number }
       sends_directly: { Args: { p_type: string }; Returns: boolean }
       approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }
       approval_link_view: { Args: { p_token_hash: string }; Returns: Json }

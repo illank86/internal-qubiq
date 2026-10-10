@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation } from "react-router";
-import { Alert, Button, Form, Input } from "antd";
+import { Alert, Button, Checkbox, Form, Input, Tooltip } from "antd";
 import { LockOutlined, LoginOutlined, MailOutlined } from "@ant-design/icons";
 import { useAuth } from "@/auth/use-auth";
 import { Captcha } from "@/components/captcha";
 import { CAPTCHA_REQUIRED } from "@/components/captcha-config";
 import { AuthCard } from "@/components/ui";
-import { supabase } from "@/lib/supabase";
+import { setRememberDevice, supabase } from "@/lib/supabase";
+import { markSignedIn } from "@/auth/session-guard";
 
-type Values = { email: string; password: string };
+type Values = { email: string; password: string; remember: boolean };
 
 /**
  * Staff sign-in. There is no "create account" here: staff are invited from
@@ -26,9 +27,11 @@ export function LoginPage() {
   const from = (location.state as { from?: string } | null)?.from ?? "/";
   if (state.status === "ready") return <Navigate to={from} replace />;
 
-  const submit = async ({ email, password }: Values) => {
+  const submit = async ({ email, password, remember }: Values) => {
     setPending(true);
     setError(null);
+    // Before signing in: decides where the sign-in is kept.
+    setRememberDevice(remember);
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -44,6 +47,8 @@ export function LoginPage() {
             ? "The security check did not pass. Wait for it to finish, then try again."
             : "That email and password do not match.",
       );
+    } else {
+      markSignedIn();
     }
     // On success the auth provider checks this is a staff account.
   };
@@ -52,7 +57,7 @@ export function LoginPage() {
 
   return (
     <AuthCard intro="Sales, licensing and content for the QUBIQ team">
-      <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
+      <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending} initialValues={{ remember: false }}>
         {notice ? <Alert type="info" showIcon title={notice} style={{ marginBottom: 16 }} /> : null}
         {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
         <Form.Item label="Email" name="email" rules={[{ required: true, type: "email", message: "Enter your work email" }]}>
@@ -60,6 +65,11 @@ export function LoginPage() {
         </Form.Item>
         <Form.Item label="Password" name="password" rules={[{ required: true, message: "Enter your password" }]}>
           <Input.Password prefix={<LockOutlined style={{ marginInlineEnd: 8, opacity: 0.6 }} />} autoComplete="current-password" size="large" />
+        </Form.Item>
+        <Form.Item name="remember" valuePropName="checked" style={{ marginTop: -8, marginBottom: 16 }}>
+          <Checkbox>
+            <Tooltip title="Untick on a shared or office computer: you are signed out when the browser closes.">Keep me signed in on this device</Tooltip>
+          </Checkbox>
         </Form.Item>
         <Captcha onToken={setCaptchaToken} resetKey={attempt} />
         {/* Without a token Supabase refuses the sign-in, so wait for the check. */}
