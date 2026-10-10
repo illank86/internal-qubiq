@@ -9,7 +9,6 @@ import {
   FileDoneOutlined,
   InboxOutlined,
   KeyOutlined,
-  FundOutlined,
 } from "@ant-design/icons";
 import { useCan, useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
@@ -192,20 +191,14 @@ export function DashboardPage() {
   const first = staff.profile?.full_name?.split(/\s+/)[0];
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
-  const finance = can("accounting.manage");
 
   return (
     <>
       <PageTitle
         title={first ? `Welcome back, ${first}` : "Welcome back"}
-        description="What needs attention across sales, licensing and support. Money and revenue are on the Finance dashboard."
+        description="What needs attention across sales, licensing and support."
         actions={
           <Flex gap={12} align="center" wrap>
-            {finance ? (
-              <Button icon={<FundOutlined />} onClick={() => navigate("/finance")}>
-                Finance dashboard
-              </Button>
-            ) : null}
             <Button icon={<ExportOutlined />} href={env.siteUrl} target="_blank" rel="noreferrer">
               View site
             </Button>
