@@ -31,7 +31,7 @@ export function IntegratorField({ value, onChange, disabled }: { value?: string 
   const [via, setVia] = useState<"direct" | "integrator">(value ? "integrator" : "direct");
   const mode = value ? "integrator" : via;
   return (
-    <Flex vertical gap={8}>
+    <Flex vertical gap={8} align="flex-start">
       <Segmented<"direct" | "integrator">
         value={mode}
         disabled={disabled}
@@ -56,6 +56,7 @@ export function IntegratorField({ value, onChange, disabled }: { value?: string 
           optionFilterProp="label"
           notFoundContent={isLoading ? "Loading…" : "No approved integrators. Approve them in Community → Integrators."}
           options={(integrators ?? []).map((item) => ({ value: item.id, label: `${item.company_name} · ${item.country}` }))}
+          style={{ width: "100%", minWidth: 260, maxWidth: 360 }}
         />
       ) : null}
     </Flex>
