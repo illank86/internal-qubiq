@@ -12,6 +12,7 @@ import { jakartaToday } from "./api";
 import { PAPER, rangeOf, type Preset } from "./report-period";
 import { CheckLine, SignBlock, PaperSheet, PeriodPicker } from "./report-paper";
 import type { Company } from "./exports";
+import type { Note } from "./statement-notes";
 import { loadStatementBook, statementCsv, statementFileBase, type Statement, type StatementBook, type StatementKey } from "./statement-book";
 
 /**
@@ -34,7 +35,7 @@ export function StatementPage() {
   const [preset, setPreset] = useState<Preset>(initialFrom ? "custom" : "year");
   const [custom, setCustom] = useState<[string, string]>(() => [initialFrom ?? rangeOf("year")[0], initialTo ?? jakartaToday()]);
   const [from, to] = preset === "custom" ? custom : rangeOf(preset);
-  const [key, setKey] = useState<StatementKey>("laba-rugi");
+  const [key, setKey] = useState<StatementKey | "calk">("laba-rugi");
   const [busy, setBusy] = useState<string | null>(null);
   const valid = Boolean(from && to && from <= to);
   const allowed = can("accounting.manage");
@@ -79,7 +80,7 @@ export function StatementPage() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
               Back
             </Button>
-            <Tooltip title={statement ? `${statement.title} as plain CSV, no styling` : undefined}>
+            <Tooltip title={statement ? `${statement.title} as plain CSV, no styling` : "The notes are text: use PDF or Excel"}>
               <Button icon={<FileTextOutlined />} disabled={!statement} loading={busy === "csv"} onClick={csv}>
                 CSV
               </Button>
@@ -108,13 +109,22 @@ export function StatementPage() {
           {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
           {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The statements could not be loaded.")} /> : null}
           {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
+          {book && key === "calk" ? (
+            <>
+              <Summary book={book} />
+              <Tabs activeKey={key} onChange={(value) => setKey(value as StatementKey | "calk")} items={tabItems(book)} style={{ marginBottom: -12 }} />
+              <PaperSheet scroll={false} company={book.company} title="Catatan atas Laporan Keuangan" subtitle={`Periode ${book.period}`} printed={book.printed}>
+                <NotesView notes={book.notes} />
+              </PaperSheet>
+            </>
+          ) : null}
           {book && statement ? (
             <>
               <Summary book={book} />
               <Tabs
                 activeKey={key}
-                onChange={(value) => setKey(value as StatementKey)}
-                items={book.statements.map((item) => ({ key: item.key, label: item.key === "laba-rugi" ? "Laba Rugi" : item.key === "neraca" ? "Neraca" : "Arus Kas" }))}
+                onChange={(value) => setKey(value as StatementKey | "calk")}
+                items={tabItems(book)}
                 style={{ marginBottom: -12 }}
               />
               <PaperSheet scroll={false} company={book.company} title={statement.title} subtitle={statement.subtitle} printed={book.printed}>
@@ -229,5 +239,63 @@ function StatementTable({ statement, company }: { statement: Statement; company:
       {statement.note ? <div style={{ marginTop: 4, color: PAPER.muted, fontStyle: "italic", fontSize: 11 }}>{statement.note}</div> : null}
       <SignBlock company={company} />
     </>
+  );
+}
+
+const tabItems = (book: StatementBook) => [
+  ...book.statements.map((item) => ({ key: item.key, label: item.key === "laba-rugi" ? "Laba Rugi" : item.key === "neraca" ? "Neraca" : "Arus Kas" })),
+  { key: "calk", label: `CALK (${book.notes.length})` },
+];
+
+/** The notes (CALK) on the paper: numbered headings, paragraphs, small tables. */
+function NotesView({ notes }: { notes: Note[] }) {
+  return (
+    <div style={{ lineHeight: 1.6 }}>
+      {notes.map((note) => (
+        <div key={note.number} style={{ marginBottom: 16 }}>
+          <div style={{ color: PAPER.brand, fontWeight: 700, fontSize: 12, letterSpacing: 0.6, borderBottom: `1px solid ${PAPER.brand}`, paddingBottom: 3, marginBottom: 6 }}>
+            {note.number}. {note.title.toUpperCase()}
+          </div>
+          {note.paragraphs.map((paragraph, index) => (
+            <p key={index} style={{ margin: "0 0 6px", color: PAPER.ink, textAlign: "justify" }}>
+              {paragraph}
+            </p>
+          ))}
+          {note.table ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${PAPER.ink}`, color: PAPER.muted, fontSize: 11 }}>
+                  {note.table.head.map((cell, index) => (
+                    <th key={index} style={td(index === 0 || !note.table!.money.includes(index) ? (index === 0 ? "left" : "right") : "right", { fontWeight: 600 })}>
+                      {cell}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {note.table.rows.map((row, rowIndex) => (
+                  <tr key={rowIndex} style={{ borderBottom: `1px solid ${PAPER.line}` }}>
+                    {row.map((cell, index) => (
+                      <td key={index} style={td(index === 0 ? "left" : "right")}>
+                        {note.table!.money.includes(index) ? rp(Number(cell), "–") : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {note.table.total ? (
+                  <tr style={{ borderTop: `1px solid ${PAPER.ink}`, fontWeight: 700, color: PAPER.ink }}>
+                    {note.table.total.map((cell, index) => (
+                      <td key={index} style={td(index === 0 ? "left" : "right")}>
+                        {note.table!.money.includes(index) ? rp(Number(cell), "0") : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }

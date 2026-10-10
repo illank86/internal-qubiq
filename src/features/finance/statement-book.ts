@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { company, type Company } from "./exports";
 import { longDateId } from "./ledger-book";
+import { buildNotes, loadNotesData, type Note } from "./statement-notes";
 
 /**
  * The financial statements for a period — Laba Rugi, Neraca, Arus Kas — in one
@@ -47,6 +48,8 @@ export type StatementBook = {
   period: string;
   printed: string;
   statements: Statement[];
+  /** Catatan atas Laporan Keuangan. */
+  notes: Note[];
   /** Headline numbers for the summary. */
   facts: { income: number; expenses: number; profit: number; assets: number; cash: number };
   closedMonths: string[];
@@ -154,14 +157,16 @@ export function buildStatementBook(who: Company, s: Statements): StatementBook {
     period,
     printed: longDateId(new Date().toISOString()),
     statements: [labaRugi, neraca, arusKas],
+    notes: [],
     facts: { income: Number(pl.income), expenses: Number(pl.expenses), profit: Number(pl.profit), assets: totalAssets, cash: Number(cf.closing) },
     closedMonths: s.closed_months ?? [],
   };
 }
 
 export async function loadStatementBook(from: string, to: string): Promise<StatementBook> {
-  const [who, statements] = await Promise.all([company(), loadStatements(from, to)]);
-  return buildStatementBook(who, statements);
+  const [who, statements, notes] = await Promise.all([company(), loadStatements(from, to), loadNotesData(from, to)]);
+  const book = buildStatementBook(who, statements);
+  return { ...book, notes: buildNotes(who.name, who.npwp, statements, notes) };
 }
 
 export const statementFileBase = (book: StatementBook) => `laporan-keuangan_${book.from}_${book.to}`;

@@ -84,6 +84,48 @@ export async function statementExcel(book: StatementBook): Promise<Blob> {
     const name = statement.key === "laba-rugi" ? "Laba Rugi" : statement.key === "neraca" ? "Neraca" : "Arus Kas";
     statementSheet(workbook.addWorksheet(name, { properties: { tabColor: { argb: tabs[index] } } }), book, statement);
   });
+  if (book.notes.length) notesSheet(workbook.addWorksheet("CALK", { properties: { tabColor: { argb: MUTED } } }), book);
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+/** Catatan atas Laporan Keuangan: numbered headings, wrapped paragraphs, small tables. */
+function notesSheet(ws: Worksheet, book: StatementBook) {
+  header(ws, book, "Catatan atas Laporan Keuangan", ["Uraian", "", "", "", ""], [46, 12, 20, 20, 20], [], `Periode ${book.period}`);
+  // Free text: no money format on the columns; tables set it per cell.
+  for (const note of book.notes) {
+    ws.addRow([]);
+    const title = ws.addRow([`${note.number}. ${note.title.toUpperCase()}`]);
+    ws.mergeCells(title.number, 1, title.number, 5);
+    title.getCell(1).font = { bold: true, color: { argb: BRAND } };
+    title.getCell(1).border = { bottom: { style: "thin", color: { argb: BRAND } } };
+    for (const paragraph of note.paragraphs) {
+      const row = ws.addRow([paragraph]);
+      ws.mergeCells(row.number, 1, row.number, 5);
+      row.getCell(1).alignment = { wrapText: true, vertical: "top" };
+      row.height = Math.max(15, Math.ceil(paragraph.length / 110) * 14);
+    }
+    if (note.table) {
+      const table = note.table;
+      // Tables right-align their money into the last columns.
+      const width = table.head.length;
+      const place = (cells: (string | number)[]) => [cells[0], ...Array(5 - width).fill(null), ...cells.slice(1)];
+      const head = ws.addRow(place(table.head));
+      head.font = { bold: true, color: { argb: MUTED } };
+      head.eachCell((cell) => (cell.border = { bottom: { style: "thin", color: { argb: INK } } }));
+      for (const cells of table.rows) {
+        const row = ws.addRow(place(cells));
+        table.money.forEach((index) => (row.getCell(5 - width + 1 + index).numFmt = MONEY));
+        row.eachCell((cell) => (cell.border = { bottom: thin }));
+      }
+      if (table.total) {
+        const row = ws.addRow(place(table.total));
+        table.money.forEach((index) => (row.getCell(5 - width + 1 + index).numFmt = MONEY));
+        row.font = { bold: true, color: { argb: INK } };
+        row.eachCell((cell) => (cell.border = { top: { style: "thin", color: { argb: INK } } }));
+      }
+    }
+  }
+  signBlock(ws, book.company, [1, 4]);
+  footer(ws, book);
 }

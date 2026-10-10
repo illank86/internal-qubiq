@@ -47,7 +47,10 @@ export type Database = {
         Row: {
           approved_by_name: string | null
           approved_by_title: string | null
+          business_activity: string | null
           corporate_rate: number
+          established_on: string | null
+          establishment_deed: string | null
           facility_31e_threshold: number
           faktur_item_code: string
           faktur_supply_type: string
@@ -57,7 +60,9 @@ export type Database = {
           id: boolean
           income_tax_regime: string
           legal_name: string | null
+          management: string | null
           nitku: string | null
+          notes_extra: string | null
           npwp: string | null
           pkp: boolean
           pkp_since: string | null
@@ -69,13 +74,17 @@ export type Database = {
           prepared_by_name: string | null
           prepared_by_title: string | null
           report_city: string | null
+          reporting_framework: string
           tax_registered_on: string | null
           updated_at: string
         }
         Insert: {
           approved_by_name?: string | null
           approved_by_title?: string | null
+          business_activity?: string | null
           corporate_rate?: number
+          established_on?: string | null
+          establishment_deed?: string | null
           facility_31e_threshold?: number
           faktur_item_code?: string
           faktur_supply_type?: string
@@ -85,7 +94,9 @@ export type Database = {
           id?: boolean
           income_tax_regime?: string
           legal_name?: string | null
+          management?: string | null
           nitku?: string | null
+          notes_extra?: string | null
           npwp?: string | null
           pkp?: boolean
           pkp_since?: string | null
@@ -97,13 +108,17 @@ export type Database = {
           prepared_by_name?: string | null
           prepared_by_title?: string | null
           report_city?: string | null
+          reporting_framework?: string
           tax_registered_on?: string | null
           updated_at?: string
         }
         Update: {
           approved_by_name?: string | null
           approved_by_title?: string | null
+          business_activity?: string | null
           corporate_rate?: number
+          established_on?: string | null
+          establishment_deed?: string | null
           facility_31e_threshold?: number
           faktur_item_code?: string
           faktur_supply_type?: string
@@ -113,7 +128,9 @@ export type Database = {
           id?: boolean
           income_tax_regime?: string
           legal_name?: string | null
+          management?: string | null
           nitku?: string | null
+          notes_extra?: string | null
           npwp?: string | null
           pkp?: boolean
           pkp_since?: string | null
@@ -125,6 +142,7 @@ export type Database = {
           prepared_by_name?: string | null
           prepared_by_title?: string | null
           report_city?: string | null
+          reporting_framework?: string
           tax_registered_on?: string | null
           updated_at?: string
         }
@@ -5785,6 +5803,7 @@ export type Database = {
         Args: { p_license_id: string }
         Returns: undefined
       }
+      statement_notes: { Args: { p_from: string; p_to: string }; Returns: Json }
       submit_quote_request: {
         Args: {
           p_company?: string

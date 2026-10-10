@@ -3,6 +3,7 @@ import { BODY, BRAND, BRAND_SOFT, INK, LINE, MUTED } from "@/lib/pdf-theme";
 import { rp } from "./ledger-book";
 import { Footer, Header, SignBlock } from "./ledger-pdf";
 import type { Statement, StatementBook } from "./statement-book";
+import type { Note } from "./statement-notes";
 
 /**
  * The financial statements as a PDF (A4 portrait): Laba Rugi, Neraca and Arus
@@ -100,6 +101,72 @@ export function StatementDocument({ book }: { book: StatementBook }) {
       {book.statements.map((statement, index) => (
         <StatementPage key={statement.key} book={book} statement={statement} first={index === 0} />
       ))}
+      {book.notes.length ? <NotesPage book={book} notes={book.notes} /> : null}
     </Document>
+  );
+}
+
+const n = StyleSheet.create({
+  title: { marginTop: 12, paddingBottom: 3, borderBottomWidth: 0.8, borderColor: BRAND, color: BRAND, fontFamily: "Helvetica-Bold", fontSize: 8.5, letterSpacing: 0.6 },
+  paragraph: { marginTop: 5, color: INK, textAlign: "justify" },
+  head: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: INK, paddingVertical: 3, marginTop: 5, fontFamily: "Helvetica-Bold", fontSize: 7.5, color: MUTED },
+  row: { flexDirection: "row", paddingVertical: 2.6, borderBottomWidth: 0.4, borderColor: LINE },
+  total: { flexDirection: "row", paddingVertical: 3.5, borderTopWidth: 0.8, borderColor: INK, fontFamily: "Helvetica-Bold", color: INK },
+});
+
+/** Catatan atas Laporan Keuangan, after the statements. */
+function NotesPage({ book, notes }: { book: StatementBook; notes: Note[] }) {
+  const money = (value: string | number, zero: string) => {
+    const amount = Math.round(Number(value));
+    if (!amount) return zero;
+    return amount < 0 ? `(${Math.abs(amount).toLocaleString("id-ID")})` : amount.toLocaleString("id-ID");
+  };
+  return (
+    <Page size="A4" style={s.page}>
+      <Header book={book} title="Catatan atas Laporan Keuangan" subtitle={`Periode ${book.period}`} />
+      {notes.map((note) => (
+        <View key={note.number}>
+          <Text style={n.title} minPresenceAhead={40}>
+            {note.number}. {note.title.toUpperCase()}
+          </Text>
+          {note.paragraphs.map((paragraph, index) => (
+            <Text key={index} style={n.paragraph}>
+              {paragraph}
+            </Text>
+          ))}
+          {note.table ? (
+            <View>
+              <View style={n.head} wrap={false} minPresenceAhead={40}>
+                {note.table.head.map((cell, index) => (
+                  <Text key={index} style={{ flex: index === 0 ? 3 : 1.4, paddingHorizontal: 4, textAlign: index === 0 ? "left" : "right" }}>
+                    {cell}
+                  </Text>
+                ))}
+              </View>
+              {note.table.rows.map((row, rowIndex) => (
+                <View key={rowIndex} style={n.row} wrap={false}>
+                  {row.map((cell, index) => (
+                    <Text key={index} style={{ flex: index === 0 ? 3 : 1.4, paddingHorizontal: 4, textAlign: index === 0 ? "left" : "right" }}>
+                      {note.table!.money.includes(index) ? money(cell, "–") : String(cell)}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+              {note.table.total ? (
+                <View style={n.total} wrap={false}>
+                  {note.table.total.map((cell, index) => (
+                    <Text key={index} style={{ flex: index === 0 ? 3 : 1.4, paddingHorizontal: 4, textAlign: index === 0 ? "left" : "right" }}>
+                      {note.table!.money.includes(index) ? money(cell, "0") : String(cell)}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ))}
+      <SignBlock company={book.company} />
+      <Footer book={book} label="Laporan Keuangan" />
+    </Page>
   );
 }
