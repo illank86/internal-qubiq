@@ -374,7 +374,10 @@ export type HistoryEvent = {
   status: string | null;
 };
 
-export async function loadHistory(type: DocumentType, id: string) {
+/** Whose history: the two approved documents, or a delivery order. */
+export type HistoryType = DocumentType | "delivery_order";
+
+export async function loadHistory(type: HistoryType, id: string) {
   const { data, error } = await supabase.rpc("document_history", { p_type: type, p_id: id });
   fail(error);
   return (data as HistoryEvent[] | null) ?? [];

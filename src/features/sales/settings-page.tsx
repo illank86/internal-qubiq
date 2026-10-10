@@ -14,7 +14,7 @@ import { SignatureCard } from "./signature-card";
 type Settings = Database["public"]["Tables"]["invoice_settings"]["Row"];
 type Values = Omit<Settings, "id" | "updated_at">;
 
-const TAB_KEYS = ["general", "invoices", "quotations"] as const;
+const TAB_KEYS = ["general", "invoices", "quotations", "delivery"] as const;
 
 /**
  * Defaults for invoices and quotations. General holds what both documents
@@ -245,6 +245,20 @@ export function SalesSettingsPage() {
                     <Col span={24}>
                       <Form.Item label="Default terms & conditions" name="quote_terms" extra="Printed on every new quotation, and editable on each one.">
                         <RichTextField rows={10} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                ),
+              },
+              {
+                key: "delivery",
+                label: "Delivery orders",
+                forceRender: true,
+                children: (
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Delivery order number prefix" name="do_number_prefix" extra="Numbers look like DO-2026-0001." rules={[{ required: true }]}>
+                        <Input />
                       </Form.Item>
                     </Col>
                   </Row>

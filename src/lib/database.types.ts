@@ -14,6 +14,192 @@ export type Database = {
   }
   public: {
     Tables: {
+      delivery_order_files: {
+        Row: {
+          id: string
+          delivery_order_id: string
+          kind: string
+          path: string
+          file_name: string | null
+          uploaded_by: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          delivery_order_id?: string
+          kind?: string
+          path?: string
+          file_name?: string | null
+          uploaded_by?: string | null
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          delivery_order_id?: string
+          kind?: string
+          path?: string
+          file_name?: string | null
+          uploaded_by?: string | null
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
+      delivery_order_items: {
+        Row: {
+          id: string
+          delivery_order_id: string
+          position: number
+          invoice_group_id: string | null
+          description: string
+          detail: string | null
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          id?: string
+          delivery_order_id?: string
+          position?: number
+          invoice_group_id?: string | null
+          description?: string
+          detail?: string | null
+          quantity?: number
+          unit?: string
+        }
+        Update: {
+          id?: string
+          delivery_order_id?: string
+          position?: number
+          invoice_group_id?: string | null
+          description?: string
+          detail?: string | null
+          quantity?: number
+          unit?: string
+        }
+        Relationships: []
+      }
+      delivery_orders: {
+        Row: {
+          id: string
+          number: string | null
+          invoice_id: string
+          quotation_id: string | null
+          owner_id: string | null
+          status: string
+          issue_date: string
+          delivery_date: string | null
+          method: string
+          invoice_number: string | null
+          quotation_number: string | null
+          po_number: string | null
+          ship_to_name: string
+          ship_to_company: string | null
+          ship_to_address: string | null
+          contact_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          cc_emails: string[]
+          software_version: string | null
+          notes: string | null
+          signature_mode: string
+          signature_id: string | null
+          delivered_by_name: string | null
+          seller: Json | null
+          public_token: string
+          send_count: number
+          issued_at: string | null
+          issued_by: string | null
+          received_at: string | null
+          received_by_name: string | null
+          received_by_title: string | null
+          received_via: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          number?: string | null
+          invoice_id?: string
+          quotation_id?: string | null
+          owner_id?: string | null
+          status?: string
+          issue_date?: string
+          delivery_date?: string | null
+          method?: string
+          invoice_number?: string | null
+          quotation_number?: string | null
+          po_number?: string | null
+          ship_to_name?: string
+          ship_to_company?: string | null
+          ship_to_address?: string | null
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cc_emails?: string[]
+          software_version?: string | null
+          notes?: string | null
+          signature_mode?: string
+          signature_id?: string | null
+          delivered_by_name?: string | null
+          seller?: Json | null
+          public_token?: string
+          send_count?: number
+          issued_at?: string | null
+          issued_by?: string | null
+          received_at?: string | null
+          received_by_name?: string | null
+          received_by_title?: string | null
+          received_via?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          number?: string | null
+          invoice_id?: string
+          quotation_id?: string | null
+          owner_id?: string | null
+          status?: string
+          issue_date?: string
+          delivery_date?: string | null
+          method?: string
+          invoice_number?: string | null
+          quotation_number?: string | null
+          po_number?: string | null
+          ship_to_name?: string
+          ship_to_company?: string | null
+          ship_to_address?: string | null
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cc_emails?: string[]
+          software_version?: string | null
+          notes?: string | null
+          signature_mode?: string
+          signature_id?: string | null
+          delivered_by_name?: string | null
+          seller?: Json | null
+          public_token?: string
+          send_count?: number
+          issued_at?: string | null
+          issued_by?: string | null
+          received_at?: string | null
+          received_by_name?: string | null
+          received_by_title?: string | null
+          received_via?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_session_settings: {
         Row: { id: boolean; idle_minutes: number; max_session_hours: number; updated_at: string }
         Insert: { id?: boolean; idle_minutes?: number; max_session_hours?: number; updated_at?: string }
@@ -963,6 +1149,7 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
+          do_number_prefix: string
           tax_id_label: string
           require_second_approver: boolean
           company_address: string | null
@@ -988,6 +1175,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          do_number_prefix?: string
           tax_id_label?: string
           require_second_approver?: boolean
           company_address?: string | null
@@ -1013,6 +1201,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          do_number_prefix?: string
           tax_id_label?: string
           require_second_approver?: boolean
           company_address?: string | null
@@ -3410,6 +3599,16 @@ export type Database = {
       }
     }
     Functions: {
+      attach_delivery_file: { Args: { p_file_name: string; p_id: string; p_kind: string; p_path: string; p_received_name: string; p_received_on: string; p_received_title: string }; Returns: undefined }
+      cancel_delivery_order: { Args: { p_id: string; p_reason: string }; Returns: undefined }
+      confirm_delivery_by_token: { Args: { p_name: string; p_title: string; p_token: string }; Returns: string }
+      create_delivery_order: { Args: { p_details: Json; p_invoice_id: string; p_lines: Json }; Returns: string }
+      delivery_order_by_token: { Args: { p_token: string }; Returns: Json }
+      delivery_remaining: { Args: { p_invoice_id: string }; Returns: Json }
+      issue_delivery_order: { Args: { p_id: string }; Returns: undefined }
+      remove_delivery_file: { Args: { p_file_id: string }; Returns: string }
+      staff_delivery_signoff: { Args: { p_id: string }; Returns: Json }
+      update_delivery_order: { Args: { p_details: Json; p_id: string; p_lines: Json }; Returns: undefined }
       sign_out_everywhere: { Args: { p_user: string }; Returns: number }
       sends_directly: { Args: { p_type: string }; Returns: boolean }
       approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }

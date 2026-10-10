@@ -8,6 +8,7 @@ import {
   CheckOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
+  CarOutlined,
   DownloadOutlined,
   EditOutlined,
   EyeOutlined,
@@ -40,6 +41,7 @@ import { InfoSection, StandingPanel, StatRow, Totals } from "./drawer-parts";
 import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, signingState } from "./api";
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
+import { InvoiceDeliveries } from "./delivery-orders-page";
 
 type Row = Invoice & {
   license: { label: string } | null;
@@ -350,6 +352,9 @@ function InvoiceRowActions({
     });
   } else if (row.status === "unpaid") {
     next.push({ key: "paid", icon: <CheckCircleOutlined />, label: "Mark paid", onClick: markPaid });
+  } else if (row.status === "paid") {
+    // Paid: what was bought goes out on a delivery order (the server refuses once all is delivered).
+    next.push({ key: "deliver", icon: <CarOutlined />, label: "Create delivery order", onClick: () => navigate(`/sales/delivery-orders?new=${row.id}`) });
   }
 
   const view: Item[] = [
@@ -453,6 +458,7 @@ function InvoiceDetailsDrawer({
   busy: string | null;
 }) {
   const [form] = Form.useForm<DetailValues>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [pending, setPending] = useState(false);
@@ -877,6 +883,17 @@ function InvoiceDetailsDrawer({
                     total={{ label: invoice.status === "paid" ? "Paid" : "Total", value: money(Number(invoice.subtotal) + tax) }}
                   />
                 </Flex>
+              ),
+            },
+            {
+              key: "delivery",
+              label: "Delivery",
+              children: (
+                <InvoiceDeliveries
+                  invoice={invoice}
+                  onCreate={() => navigate(`/sales/delivery-orders?new=${invoice.id}`)}
+                  onOpen={(id) => navigate(`/sales/delivery-orders?do=${id}`)}
+                />
               ),
             },
             { key: "history", label: "History", children: <DocumentHistory type="invoice" id={invoice.id} /> },

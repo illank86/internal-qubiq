@@ -20,6 +20,8 @@ const QuotationBuilderPage = lazy(() => import("@/features/sales/quotation-build
 const QuotationsPage = lazy(() => import("@/features/sales/quotations-page").then((module) => ({ default: module.QuotationsPage })));
 const ConvertPage = lazy(() => import("@/features/sales/convert-page").then((module) => ({ default: module.ConvertPage })));
 const CustomerPage = lazy(() => import("@/features/sales/customer-page").then((module) => ({ default: module.CustomerPage })));
+const DeliveryOrdersPage = lazy(() => import("@/features/sales/delivery-orders-page").then((module) => ({ default: module.DeliveryOrdersPage })));
+const OrdersPage = lazy(() => import("@/features/sales/orders-page").then((module) => ({ default: module.OrdersPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
 const ContentPage = lazy(() => import("@/features/content/content-page").then((module) => ({ default: module.ContentPage })));
@@ -42,6 +44,8 @@ import { CONTENT_SCREENS } from "@/features/content/content-screens";
 const READY: Record<string, React.ReactNode> = {
   "/sales/quotations": <QuotationsPage />,
   "/sales/invoices": <InvoicesPage />,
+  "/sales/delivery-orders": <DeliveryOrdersPage />,
+  "/sales/orders": <OrdersPage />,
   "/sales/quote-requests": <QuoteRequestsPage />,
   "/sales/leads": <LeadsPage />,
   "/sales/editions": <EditionsPage />,

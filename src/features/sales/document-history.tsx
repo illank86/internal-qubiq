@@ -16,7 +16,7 @@ import {
   UploadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { loadHistory, type DocumentType, type HistoryEvent } from "./api";
+import { loadHistory, type HistoryEvent, type HistoryType } from "./api";
 
 /**
  * Everything that happened to a quotation or invoice, newest first and by
@@ -30,6 +30,7 @@ const QUIET = new Set([
   "signature_id", "send_count", "sent_at", "customer_revision", "updated_at", "created_at", "signed_copy_path", "signed_copy_uploaded_by",
   "signed_copy_uploaded_at", "signed_copy_check", "signed_copy_confirmed_by", "signed_copy_confirmed_at", "signed_copy_sent_at", "emeterai_serial",
   "public_token", "claim_token", "id", "number", "seller", "po_file_name",
+  "issued_at", "issued_by", "issue_date", "received_at", "received_via", "cancelled_at",
 ]);
 const PRICED = new Set(["subtotal", "tax_amount", "total"]);
 const STATUS_LABEL: Record<string, string> = {
@@ -41,6 +42,8 @@ const STATUS_LABEL: Record<string, string> = {
   paid: "Marked paid",
   unpaid: "Marked not paid",
   void: "Voided",
+  issued: "Issued",
+  received: "Received",
 };
 const FIELD: Record<string, string> = {
   bill_to_name: "Invoiced to",
@@ -62,6 +65,17 @@ const FIELD: Record<string, string> = {
   po_path: "Purchase order file",
   licensee_name: "Licensed to",
   licensee_address: "Licensee address",
+  ship_to_name: "Deliver to",
+  ship_to_company: "Company",
+  ship_to_address: "Delivery address",
+  contact_phone: "Phone",
+  delivery_date: "Delivery date",
+  method: "Delivered by",
+  software_version: "Software version",
+  delivered_by_name: "Delivered by (name)",
+  received_by_name: "Received by",
+  received_by_title: "Receiver's position",
+  cancel_reason: "Reason",
 };
 const label = (key: string) => FIELD[key] ?? key.replace(/_/g, " ").replace(/^./, (first) => first.toUpperCase());
 
@@ -100,6 +114,9 @@ function describe(event: HistoryEvent, index: number): Entry | null {
       signed_uploaded: { tone: "info", icon: <UploadOutlined />, title: "Signed copy uploaded", detail: event.note ?? undefined },
       signed_confirmed: { tone: "info", icon: <SafetyCertificateOutlined />, title: "Scan checked and confirmed" },
       signed_sent: { tone: "success", icon: <FileDoneOutlined />, title: "Signed copy sent" },
+      delivery_file_signed_do: { tone: "success", icon: <UploadOutlined />, title: "Signed delivery order uploaded", detail: event.summary ?? undefined },
+      delivery_file_bast: { tone: "success", icon: <UploadOutlined />, title: "BAST uploaded", detail: event.summary ?? undefined },
+      delivery_file_other: { tone: "info", icon: <UploadOutlined />, title: "Document uploaded", detail: event.summary ?? undefined },
     };
     const entry = map[event.action];
     return entry ? { ...base, kind: "approval", ...entry } : null;
@@ -207,7 +224,7 @@ function Changes({ changes }: { changes: [string, unknown][] }) {
 
 type Filter = "all" | Kind;
 
-export function DocumentHistory({ type, id }: { type: DocumentType; id: string }) {
+export function DocumentHistory({ type, id }: { type: HistoryType; id: string }) {
   const { token } = theme.useToken();
   const [filter, setFilter] = useState<Filter>("all");
   const { data, isLoading } = useQuery({ queryKey: ["history", type, id], queryFn: () => loadHistory(type, id) });
