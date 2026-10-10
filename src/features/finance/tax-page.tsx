@@ -5,7 +5,7 @@ import { FileExcelOutlined, PlusOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
-import { TAX_TYPES, WITHHOLDING, idr, jakartaToday, money, recordTaxPayment, useBankAccounts } from "./api";
+import { TAX_TYPES, WITHHELD, WITHHOLDING, idr, jakartaToday, money, recordTaxPayment, useBankAccounts } from "./api";
 import { exportExcel } from "./exports";
 import { PpnCard } from "./ppn-card";
 
@@ -23,6 +23,27 @@ type Report = {
   withholdings: { receipt: string; received_on: string; invoice: string | null; customer: string | null; type: string; amount: number; currency: string; amount_idr: number; bukti_potong_number: string | null; bukti_potong_date: string | null }[];
   receipts: { number: string; received_on: string; invoice: string | null; customer: string | null; currency: string; net_received: number; settled: number; reference: string | null }[];
   expenses_list: { number: string; spent_on: string; vendor: string; vendor_npwp: string | null; account: string; currency: string; amount: number; deductible: boolean; faktur_number: string | null }[];
+  withheld: Withheld[];
+  withheld_due: { pph21: number; pph21_payroll: number; pph23: number; pph42: number; pph26: number };
+};
+type Withheld = {
+  id: string;
+  number: string;
+  spent_on: string;
+  vendor: string;
+  vendor_kind: string;
+  vendor_id: string | null;
+  country: string | null;
+  type: string;
+  code: string;
+  code_name: string;
+  base_idr: number;
+  rate: number;
+  amount_idr: number;
+  reference: string | null;
+  treaty: boolean;
+  bupot_number: string | null;
+  bupot_date: string | null;
 };
 
 /** The last 18 tax months, newest first (YYYY-MM, Jakarta time). */
@@ -42,7 +63,7 @@ export function TaxPage() {
   const months = recentMonths();
   // Default: last month — the one whose tax is due now.
   const [masa, setMasa] = useState(months[1]);
-  const [paying, setPaying] = useState(false);
+  const [paying, setPaying] = useState<{ type?: string; amount?: number } | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["tax-report", masa],
     queryFn: async () => {
@@ -62,7 +83,7 @@ export function TaxPage() {
         actions={
           <Flex gap={8}>
             <Select value={masa} onChange={setMasa} style={{ width: 180 }} options={months.map((value) => ({ value, label: masaLabel(value) }))} />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaying(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaying({})}>
               Record tax payment
             </Button>
           </Flex>
@@ -154,6 +175,8 @@ export function TaxPage() {
             />
           </Card>
 
+          <WithheldCard report={data} onPay={(type, amount) => setPaying({ type, amount })} />
+
           <PpnCard masa={data.masa} period={masaLabel(data.masa)} />
 
           <Flex gap={8} wrap>
@@ -185,16 +208,24 @@ export function TaxPage() {
           </Flex>
         </Flex>
       )}
-      {paying ? <TaxPaymentModal masa={masa} suggested={Math.max(due - paidTotal, 0)} regime={data?.regime ?? "general"} onClose={() => setPaying(false)} /> : null}
+      {paying ? (
+        <TaxPaymentModal
+          masa={masa}
+          initialType={paying.type}
+          suggested={paying.amount ?? Math.max(due - paidTotal, 0)}
+          regime={data?.regime ?? "general"}
+          onClose={() => setPaying(null)}
+        />
+      ) : null}
     </>
   );
 }
 
-function TaxPaymentModal({ masa, suggested, regime, onClose }: { masa: string; suggested: number; regime: string; onClose: () => void }) {
+function TaxPaymentModal({ masa, initialType, suggested, regime, onClose }: { masa: string; initialType?: string; suggested: number; regime: string; onClose: () => void }) {
   const { run, busy } = useAction([["tax-report"], ["finance-dashboard"]]);
   const { data: banks } = useBankAccounts();
   const active = (banks ?? []).filter((bank) => bank.active);
-  const [type, setType] = useState(regime === "pp55" ? "pph_final" : "pph25");
+  const [type, setType] = useState(initialType ?? (regime === "pp55" ? "pph_final" : "pph25"));
   const [period, setPeriod] = useState(masa);
   const [amount, setAmount] = useState<number | null>(suggested || null);
   const [paidOn, setPaidOn] = useState(jakartaToday());
@@ -227,5 +258,112 @@ function TaxPaymentModal({ masa, suggested, regime, onClose }: { masa: string; s
         <Input value={ntpn} onChange={(event) => setNtpn(event.target.value)} placeholder="NTPN (from the payment receipt)" maxLength={40} />
       </Flex>
     </Modal>
+  );
+}
+
+/** What QUBIQ withheld this masa (from vendors, freelancers and salaries): to pay by the 15th and report by the 20th, with the bukti potong to make in Coretax. */
+function WithheldCard({ report, onPay }: { report: Report; onPay: (type: string, amount: number) => void }) {
+  const due = report.withheld_due;
+  const paidOf = (type: string) => report.paid.filter((row) => row.type === type).reduce((sum, row) => sum + Number(row.amount), 0);
+  const kinds = [
+    { type: "pph21", label: "PPh 21", note: Number(due.pph21_payroll) ? `salaries ${idr(due.pph21_payroll)}, freelancers ${idr(Number(due.pph21) - Number(due.pph21_payroll))}` : "freelancers and experts", amount: Number(due.pph21), form: "e-Bupot 21/26" },
+    { type: "pph23", label: "PPh 23", note: "Indonesian businesses", amount: Number(due.pph23), form: "e-Bupot Unifikasi" },
+    { type: "pph42", label: "PPh 4(2) final", note: "rent, construction", amount: Number(due.pph42), form: "e-Bupot Unifikasi" },
+    { type: "pph26", label: "PPh 26", note: "vendors abroad", amount: Number(due.pph26), form: "e-Bupot Unifikasi" },
+  ].filter((kind) => kind.amount > 0);
+  const unified = report.withheld.filter((row) => row.type !== "pph21");
+  const freelancers = report.withheld.filter((row) => row.type === "pph21");
+  const missing = report.withheld.filter((row) => !row.bupot_number).length;
+
+  const exportLists = () =>
+    exportExcel(`pemotongan-${report.masa}.xlsx`, `Masa ${report.masa}`, [
+      {
+        name: "Bupot Unifikasi",
+        title: "PPh 23, PPh 4(2) dan PPh 26 yang dipotong (bahan e-Bupot Unifikasi, Coretax)",
+        columns: [
+          { header: "Tanggal", key: "spent_on", kind: "date" }, { header: "Pengeluaran", key: "number", width: 14 }, { header: "Penerima penghasilan", key: "vendor", width: 28 },
+          { header: "NPWP / NIK / TIN", key: "vendor_id", width: 20 }, { header: "Negara", key: "country", width: 14 }, { header: "Jenis PPh", key: "kind", width: 12 },
+          { header: "Kode objek pajak", key: "code", width: 12 }, { header: "Objek", key: "code_name", width: 40 }, { header: "DPP (Rp)", key: "base_idr", kind: "money" },
+          { header: "Tarif (%)", key: "rate", kind: "number", width: 9 }, { header: "PPh dipotong (Rp)", key: "amount_idr", kind: "money" }, { header: "Dokumen dasar", key: "reference", width: 20 },
+          { header: "P3B / SKD", key: "treaty_text", width: 9 }, { header: "No. bukti potong", key: "bupot_number", width: 22 },
+        ],
+        rows: unified.map((row) => ({ ...row, kind: WITHHELD[row.type] ?? row.type, treaty_text: row.treaty ? "ya" : "" })),
+        totals: { vendor: "JUMLAH", base_idr: unified.reduce((sum, row) => sum + Number(row.base_idr), 0), amount_idr: unified.reduce((sum, row) => sum + Number(row.amount_idr), 0) },
+      },
+      {
+        name: "PPh 21 bukan pegawai",
+        title: "PPh 21 atas bukan pegawai (bahan e-Bupot 21/26, Coretax)",
+        columns: [
+          { header: "Tanggal", key: "spent_on", kind: "date" }, { header: "Pengeluaran", key: "number", width: 14 }, { header: "Nama", key: "vendor", width: 28 },
+          { header: "NIK / NPWP", key: "vendor_id", width: 20 }, { header: "Kode objek pajak", key: "code", width: 12 }, { header: "Penghasilan bruto (Rp)", key: "base_idr", kind: "money" },
+          { header: "DPP 50% (Rp)", key: "half", kind: "money" }, { header: "Tarif efektif (%)", key: "rate", kind: "number", width: 11 }, { header: "PPh 21 dipotong (Rp)", key: "amount_idr", kind: "money" },
+          { header: "No. bukti potong", key: "bupot_number", width: 22 },
+        ],
+        rows: freelancers.map((row) => ({ ...row, half: Math.floor(Number(row.base_idr) / 2) })),
+        totals: { vendor: "JUMLAH", base_idr: freelancers.reduce((sum, row) => sum + Number(row.base_idr), 0), amount_idr: freelancers.reduce((sum, row) => sum + Number(row.amount_idr), 0) },
+      },
+    ]);
+
+  return (
+    <Card
+      title="Tax we withheld (pay by the 15th, report by the 20th)"
+      extra={
+        <Button size="small" icon={<FileExcelOutlined />} disabled={!report.withheld.length} onClick={exportLists}>
+          Lists for Coretax
+        </Button>
+      }
+    >
+      {kinds.length === 0 ? (
+        <Typography.Text type="secondary">Nothing withheld this month.</Typography.Text>
+      ) : (
+        <Flex vertical gap={12}>
+          <Row gutter={[12, 12]}>
+            {kinds.map((kind) => {
+              const paid = paidOf(kind.type);
+              const left = Math.max(kind.amount - paid, 0);
+              return (
+                <Col key={kind.type} xs={24} sm={12} lg={6}>
+                  <Card size="small">
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {kind.label} · {kind.note}
+                    </Typography.Text>
+                    <div style={{ fontSize: 18, fontWeight: 600 }}>{idr(kind.amount)}</div>
+                    <Flex justify="space-between" align="center" gap={6} style={{ marginTop: 4 }}>
+                      <Tag color={left === 0 ? "success" : "warning"}>{left === 0 ? "Paid" : `${idr(left)} to pay`}</Tag>
+                      {left > 0 ? (
+                        <Button size="small" type="link" onClick={() => onPay(kind.type, left)} style={{ paddingInline: 0 }}>
+                          Record payment
+                        </Button>
+                      ) : null}
+                    </Flex>
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                      Report in {kind.form}
+                    </Typography.Text>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+          {report.withheld.length ? (
+            <>
+              {missing ? <Alert type="warning" showIcon title={`${missing} bukti potong not recorded yet — make them in Coretax and note the numbers on Money out.`} /> : null}
+              <Table
+                size="small"
+                rowKey="id"
+                pagination={false}
+                dataSource={report.withheld}
+                scroll={{ x: 760 }}
+                columns={[
+                  { title: "Vendor", key: "vendor", render: (_, row) => <Flex vertical><span>{row.vendor}</span><Typography.Text type="secondary" style={{ fontSize: 12 }}>{row.number} · {dateLabel(row.spent_on)}</Typography.Text></Flex> },
+                  { title: "Tax", key: "tax", render: (_, row) => <Flex vertical><span>{WITHHELD[row.type] ?? row.type} · {row.code}</span><Typography.Text type="secondary" style={{ fontSize: 12 }}>{Number(row.rate)}%{row.treaty ? " (treaty)" : ""} of {idr(row.base_idr)}</Typography.Text></Flex> },
+                  { title: "Bukti potong", key: "bp", render: (_, row) => row.bupot_number ?? <Typography.Text type="warning">Not recorded</Typography.Text> },
+                  { title: "Withheld", key: "amount", align: "right", render: (_, row) => idr(row.amount_idr) },
+                ]}
+              />
+            </>
+          ) : null}
+        </Flex>
+      )}
+    </Card>
   );
 }

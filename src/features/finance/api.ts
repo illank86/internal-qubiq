@@ -33,9 +33,10 @@ export const TAX_TYPES: Record<string, string> = {
   pph25: "PPh 25 (monthly instalment)",
   pph29: "PPh 29 (annual corporate tax)",
   pph_final: "PPh final 0.5% (PP 55)",
-  pph21: "PPh 21 (employees)",
+  pph21: "PPh 21 (employees and freelancers)",
   pph23: "PPh 23 (withheld from vendors)",
   pph42: "PPh 4(2) (withheld from vendors)",
+  pph26: "PPh 26 (withheld from vendors abroad)",
   ppn: "PPN (VAT)",
   other: "Other",
 };
@@ -117,3 +118,28 @@ export async function accountingFileBlob(path: string) {
 /** "PT Vendor Jaya" → "pt-vendor-jaya": the vendor's folder. */
 export const vendorFolder = (vendor: string) =>
   `vendor/${vendor.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "unknown"}`;
+
+/** Tax QUBIQ withholds when paying (expenses): what each type is. */
+export const WITHHELD: Record<string, string> = {
+  pph23: "PPh 23",
+  pph42: "PPh 4(2) final",
+  pph26: "PPh 26",
+  pph21: "PPh 21 (non-employee)",
+};
+export type WithholdingCode = { code: string; tax_type: "pph23" | "pph42" | "pph26" | "pph21"; name: string; rate: number | null; common: boolean };
+
+export function useWithholdingCodes() {
+  return useQuery({
+    queryKey: ["withholding-codes"],
+    staleTime: Infinity,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("withholding_codes").select("*").order("code");
+      fail(error);
+      return (data ?? []) as WithholdingCode[];
+    },
+  });
+}
+
+export const withholdingPreview = (code: string, base: number, hasId: boolean, treatyRate: number | null) =>
+  call<{ rate: number; amount: number; type: string }>("withholding_preview", { p_code: code, p_base: base, p_has_id: hasId, ...(treatyRate === null ? {} : { p_treaty_rate: treatyRate }) });
+export const setExpenseBupot = (id: string, number: string, date: string) => call<void>("set_expense_bupot", { p_id: id, p_number: number, p_date: date });

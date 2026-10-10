@@ -1172,6 +1172,8 @@ export type Database = {
           attachment_name: string | null
           attachment_path: string | null
           bank_account_id: string | null
+          bupot_date: string | null
+          bupot_number: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -1185,12 +1187,23 @@ export type Database = {
           paid_on: string | null
           payment_journal_id: string | null
           ppn_in_amount: number
+          reference_number: string | null
           spent_on: string
           status: string
+          treaty: boolean
+          vendor_country: string | null
+          vendor_kind: string
           vendor_name: string
+          vendor_nik: string | null
           vendor_npwp: string | null
+          vendor_tin: string | null
           void_reason: string | null
           voided_at: string | null
+          withholding_amount: number
+          withholding_base: number | null
+          withholding_code: string | null
+          withholding_rate: number | null
+          withholding_type: string | null
         }
         Insert: {
           account_id: string
@@ -1198,6 +1211,8 @@ export type Database = {
           attachment_name?: string | null
           attachment_path?: string | null
           bank_account_id?: string | null
+          bupot_date?: string | null
+          bupot_number?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1211,12 +1226,23 @@ export type Database = {
           paid_on?: string | null
           payment_journal_id?: string | null
           ppn_in_amount?: number
+          reference_number?: string | null
           spent_on: string
           status?: string
+          treaty?: boolean
+          vendor_country?: string | null
+          vendor_kind?: string
           vendor_name: string
+          vendor_nik?: string | null
           vendor_npwp?: string | null
+          vendor_tin?: string | null
           void_reason?: string | null
           voided_at?: string | null
+          withholding_amount?: number
+          withholding_base?: number | null
+          withholding_code?: string | null
+          withholding_rate?: number | null
+          withholding_type?: string | null
         }
         Update: {
           account_id?: string
@@ -1224,6 +1250,8 @@ export type Database = {
           attachment_name?: string | null
           attachment_path?: string | null
           bank_account_id?: string | null
+          bupot_date?: string | null
+          bupot_number?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1237,12 +1265,23 @@ export type Database = {
           paid_on?: string | null
           payment_journal_id?: string | null
           ppn_in_amount?: number
+          reference_number?: string | null
           spent_on?: string
           status?: string
+          treaty?: boolean
+          vendor_country?: string | null
+          vendor_kind?: string
           vendor_name?: string
+          vendor_nik?: string | null
           vendor_npwp?: string | null
+          vendor_tin?: string | null
           void_reason?: string | null
           voided_at?: string | null
+          withholding_amount?: number
+          withholding_base?: number | null
+          withholding_code?: string | null
+          withholding_rate?: number | null
+          withholding_type?: string | null
         }
         Relationships: [
           {
@@ -1279,6 +1318,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "journal_entries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_withholding_code_fkey"
+            columns: ["withholding_code"]
+            isOneToOne: false
+            referencedRelation: "withholding_codes"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -4963,6 +5009,30 @@ export type Database = {
           },
         ]
       }
+      withholding_codes: {
+        Row: {
+          code: string
+          common: boolean
+          name: string
+          rate: number | null
+          tax_type: string
+        }
+        Insert: {
+          code: string
+          common?: boolean
+          name: string
+          rate?: number | null
+          tax_type: string
+        }
+        Update: {
+          code?: string
+          common?: boolean
+          name?: string
+          rate?: number | null
+          tax_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       download_stats_by_artifact: {
@@ -5333,6 +5403,10 @@ export type Database = {
         }
         Returns: string
       }
+      set_expense_bupot: {
+        Args: { p_date: string; p_id: string; p_number: string }
+        Returns: undefined
+      }
       set_invoice_faktur: {
         Args: {
           p_date: string
@@ -5447,6 +5521,15 @@ export type Database = {
       void_tax_payment: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
+      }
+      withholding_preview: {
+        Args: {
+          p_base: number
+          p_code: string
+          p_has_id: boolean
+          p_treaty_rate?: number
+        }
+        Returns: Json
       }
     }
     Enums: {

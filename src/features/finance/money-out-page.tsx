@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Button, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Modal, Row, Segmented, Select, Table, Tag, Tooltip, Typography, Upload } from "antd";
 import type { TableColumnsType } from "antd";
-import { CheckCircleOutlined, EyeOutlined, FileExcelOutlined, PaperClipOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { AuditOutlined, CheckCircleOutlined, EyeOutlined, FileExcelOutlined, PaperClipOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -15,14 +15,17 @@ import {
   money,
   payExpense,
   recordExpense,
+  setExpenseBupot,
   uploadAccountingFile,
   useAccountingSettings,
   useAccounts,
   useBankAccounts,
   vendorFolder,
   voidExpense,
+  WITHHELD,
   type Expense,
 } from "./api";
+import { VendorTaxFields, WithholdingFields, type VendorKind } from "./withholding-fields";
 import { exportExcel } from "./exports";
 
 type Row = Expense & { account: { code: string; name: string } | null };
@@ -39,6 +42,7 @@ export function MoneyOutPage() {
   const [paying, setPaying] = useState<Row | null>(null);
   const [voiding, setVoiding] = useState<Row | null>(null);
   const [reason, setReason] = useState("");
+  const [bupot, setBupot] = useState<Row | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["expenses"],
@@ -100,7 +104,23 @@ export function MoneyOutPage() {
         </Flex>
       ),
     },
-    { title: "Amount", key: "amount", align: "right", render: (_, row) => <Typography.Text strong>{money(row.amount, row.currency)}</Typography.Text> },
+    {
+      title: "Amount",
+      key: "amount",
+      align: "right",
+      render: (_, row) => (
+        <Flex vertical align="flex-end">
+          <Typography.Text strong>{money(row.amount, row.currency)}</Typography.Text>
+          {Number(row.withholding_amount) > 0 ? (
+            <Tooltip title={`${row.withholding_code} · ${Number(row.withholding_rate)}%${row.bupot_number ? ` · bukti potong ${row.bupot_number}` : " · bukti potong not recorded yet"}`}>
+              <Typography.Text type={row.bupot_number || row.voided_at ? "secondary" : "warning"} style={{ fontSize: 12 }}>
+                {WITHHELD[row.withholding_type ?? ""] ?? row.withholding_type} {money(row.withholding_amount, row.currency)}
+              </Typography.Text>
+            </Tooltip>
+          ) : null}
+        </Flex>
+      ),
+    },
     {
       title: "Status",
       key: "status",
@@ -129,6 +149,11 @@ export function MoneyOutPage() {
               <PaperClipOutlined style={{ color: "var(--ant-color-warning)", padding: "0 6px" }} />
             </Tooltip>
           )}
+          {!row.voided_at && Number(row.withholding_amount) > 0 ? (
+            <Tooltip title={row.bupot_number ? `Bukti potong ${row.bupot_number}` : "Record the bukti potong made in Coretax"}>
+              <Button size="small" type="text" icon={<AuditOutlined />} aria-label="Bukti potong" onClick={() => setBupot(row)} style={row.bupot_number ? undefined : { color: "var(--ant-color-warning)" }} />
+            </Tooltip>
+          ) : null}
           {!row.voided_at && row.status === "unpaid" ? (
             <Button size="small" icon={<CheckCircleOutlined />} onClick={() => setPaying(row)}>
               Pay
@@ -150,9 +175,13 @@ export function MoneyOutPage() {
         { header: "Mata uang", key: "currency", width: 9 }, { header: "Jumlah", key: "amount", kind: "money" }, { header: "PPN Masukan", key: "ppn_in_amount", kind: "money" },
         { header: "No. faktur", key: "faktur_number", width: 22 }, { header: "Dapat dibiayakan", key: "deductible_text", width: 12 }, { header: "Status", key: "status_text", width: 10 },
         { header: "Tgl bayar", key: "paid_on", kind: "date" }, { header: "Batal", key: "voided", width: 8 },
+        { header: "Jenis pemotongan", key: "withholding_text", width: 18 }, { header: "Kode objek pajak", key: "withholding_code", width: 14 },
+        { header: "DPP", key: "withholding_base", kind: "money" }, { header: "Tarif (%)", key: "withholding_rate", kind: "number", width: 9 },
+        { header: "PPh dipotong", key: "withholding_amount", kind: "money" }, { header: "No. bukti potong", key: "bupot_number", width: 22 },
       ],
       rows: rows.map((row) => ({ ...row, account_name: row.account ? `${row.account.code} ${row.account.name}` : "", deductible_text: row.deductible ? "ya" : "tidak",
-        status_text: row.status === "paid" ? "lunas" : "terutang", voided: row.voided_at ? "ya" : "" })),
+        status_text: row.status === "paid" ? "lunas" : "terutang", voided: row.voided_at ? "ya" : "",
+        withholding_text: row.withholding_type ? WITHHELD[row.withholding_type] ?? row.withholding_type : "" })),
     }]);
 
   return (
@@ -178,6 +207,7 @@ export function MoneyOutPage() {
       </Flex>
       <Table<Row> rowKey="id" loading={isLoading} columns={columns} dataSource={rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 880 }} locale={{ emptyText: "No expenses yet." }} />
       <ExpenseDrawer open={adding} onClose={() => setAdding(false)} />
+      {bupot ? <BupotModal expense={bupot} onClose={() => setBupot(null)} run={run} /> : null}
       {paying ? <PayModal expense={paying} onClose={() => setPaying(null)} run={run} /> : null}
       <Modal
         open={Boolean(voiding)}
@@ -217,6 +247,14 @@ type Values = {
   idr_paid: number | null;
   ppn_in_amount: number | null;
   faktur_number: string;
+  vendor_kind: VendorKind;
+  vendor_nik: string;
+  vendor_country: string;
+  vendor_tin: string;
+  reference_number: string;
+  withholding_code: string | undefined;
+  withholding_base: number | null;
+  treaty_rate: number | null;
 };
 
 function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -257,6 +295,14 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
             idr_paid: values.currency !== "IDR" && bank?.currency === "IDR" ? values.idr_paid : null,
             ppn_in_amount: values.ppn_in_amount,
             faktur_number: values.faktur_number,
+            vendor_kind: values.vendor_kind,
+            vendor_nik: values.vendor_kind === "individual" ? values.vendor_nik : null,
+            vendor_country: values.vendor_kind === "foreign" ? values.vendor_country : null,
+            vendor_tin: values.vendor_kind === "foreign" ? values.vendor_tin : null,
+            reference_number: values.reference_number,
+            withholding_code: values.withholding_code ?? null,
+            withholding_base: values.withholding_code ? values.withholding_base : null,
+            treaty_rate: values.withholding_code?.startsWith("27-") ? values.treaty_rate : null,
             attachment_path: stored?.path,
             attachment_name: stored?.name,
           }),
@@ -294,7 +340,7 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         requiredMark="optional"
         onFinish={save}
         disabled={pending}
-        initialValues={{ spent_on: jakartaToday(), currency: "IDR", deductible: true, paid: "paid", bank_account_id: (banks ?? []).find((item) => item.active)?.id }}
+        initialValues={{ spent_on: jakartaToday(), currency: "IDR", deductible: true, paid: "paid", vendor_kind: "company", bank_account_id: (banks ?? []).find((item) => item.active)?.id }}
         onValuesChange={(changed) => {
           if ("account_id" in changed) {
             const account = (accounts ?? []).find((item) => item.id === changed.account_id);
@@ -313,15 +359,13 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
               <Select showSearch optionFilterProp="label" options={expenseAccounts.map((account) => ({ value: account.id, label: `${account.code} ${account.name}` }))} />
             </Form.Item>
           </Col>
-          <Col xs={24} sm={14}>
+          <Col span={24}>
             <Form.Item label="Vendor" name="vendor_name" rules={[{ required: true, whitespace: true }, { max: 200 }]}>
               <Input placeholder="e.g. Amazon Web Services" />
             </Form.Item>
           </Col>
-          <Col xs={24} sm={10}>
-            <Form.Item label="Vendor NPWP" name="vendor_npwp" rules={[{ pattern: /^[0-9.\-\s]{15,22}$/, message: "15–16 digits" }]}>
-              <Input placeholder="Optional" />
-            </Form.Item>
+          <Col span={24}>
+            <VendorTaxFields />
           </Col>
           <Col span={24}>
             <Form.Item label="Description" name="description" rules={[{ required: true, whitespace: true }, { max: 300 }]}>
@@ -358,6 +402,7 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
             </Col>
           </Row>
         ) : null}
+        <WithholdingFields />
         <Form.Item name="paid" label="Paid?">
           <Segmented options={[{ value: "paid", label: "Paid now" }, { value: "unpaid", label: "Owed, pay later" }]} />
         </Form.Item>
@@ -408,13 +453,42 @@ function PayModal({ expense, onClose, run }: { expense: Row; onClose: () => void
     >
       <Flex vertical gap={12}>
         <Typography.Text>
-          {expense.vendor_name}: {money(expense.amount, expense.currency)}
+          {expense.vendor_name}: {money(Number(expense.amount) - Number(expense.withholding_amount), expense.currency)}
+          {Number(expense.withholding_amount) > 0 ? (
+            <Typography.Text type="secondary"> ({money(expense.amount, expense.currency)} less {WITHHELD[expense.withholding_type ?? ""]} {money(expense.withholding_amount, expense.currency)} withheld)</Typography.Text>
+          ) : null}
         </Typography.Text>
         <Input type="date" value={paidOn} max={jakartaToday()} onChange={(event) => setPaidOn(event.target.value)} />
         <Select value={bank?.id} onChange={setBankId} options={active.map((item) => ({ value: item.id, label: `${item.name} (${item.currency})` }))} placeholder="Bank account" />
         {expense.currency !== "IDR" && bank?.currency === "IDR" ? (
           <InputNumber value={idrPaid} onChange={(value) => setIdrPaid(value === null ? null : Number(value))} min={0} suffix="IDR" style={{ width: "100%" }} placeholder="Rupiah actually paid" />
         ) : null}
+      </Flex>
+    </Modal>
+  );
+}
+
+/** The bukti potong made in Coretax for what was withheld on an expense. */
+function BupotModal({ expense, onClose, run }: { expense: Row; onClose: () => void; run: ReturnType<typeof useAction>["run"] }) {
+  const [number, setNumber] = useState(expense.bupot_number ?? "");
+  const [date, setDate] = useState(expense.bupot_date ?? jakartaToday());
+  return (
+    <Modal
+      open
+      onCancel={onClose}
+      title={`Bukti potong · ${expense.number}`}
+      okText="Save"
+      okButtonProps={{ disabled: !number.trim() || !date }}
+      onOk={() => run(`bupot:${expense.id}`, () => setExpenseBupot(expense.id, number.trim(), date), "Bukti potong recorded.").then((ok) => ok && onClose())}
+      destroyOnHidden
+    >
+      <Typography.Paragraph type="secondary">
+        {WITHHELD[expense.withholding_type ?? ""]} {expense.withholding_code} on {expense.vendor_name}: {money(expense.withholding_amount, expense.currency)}. Make the bukti potong in Coretax
+        ({expense.withholding_type === "pph21" ? "e-Bupot 21/26" : "e-Bupot Unifikasi"}), send it to the vendor, and note its number here.
+      </Typography.Paragraph>
+      <Flex vertical gap={10}>
+        <Input value={number} onChange={(event) => setNumber(event.target.value)} placeholder="Bukti potong number" maxLength={60} />
+        <Input type="date" value={date} max={jakartaToday()} onChange={(event) => setDate(event.target.value)} />
       </Flex>
     </Modal>
   );
