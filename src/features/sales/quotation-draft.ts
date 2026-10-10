@@ -97,7 +97,7 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
     },
     cc: [],
     licensee: { name: request?.licensee_name ?? "", address: request?.licensee_address ?? "" },
-    integratorId: null,
+    integratorId: request?.integrator_id ?? null,
     signatureMode: "digital",
     sales: person
       ? { profileId: person.id, name: person.name, title: person.title, email: person.email || catalog.salesDesk.email, phone: person.phone || catalog.salesDesk.phone }

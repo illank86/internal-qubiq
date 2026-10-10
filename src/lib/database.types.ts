@@ -2914,6 +2914,8 @@ export type Database = {
           edition_name: string | null
           edition_slug: string | null
           id: string
+          integrator_id: string | null
+          integrator_name: string | null
           internal_notes: string | null
           is_custom: boolean
           job_title: string | null
@@ -2925,6 +2927,7 @@ export type Database = {
           page_path: string | null
           phone: string | null
           reference: string
+          requester_type: string | null
           status: Database["public"]["Enums"]["quote_status"]
           updated_at: string
         }
@@ -2940,6 +2943,8 @@ export type Database = {
           edition_name?: string | null
           edition_slug?: string | null
           id?: string
+          integrator_id?: string | null
+          integrator_name?: string | null
           internal_notes?: string | null
           is_custom?: boolean
           job_title?: string | null
@@ -2951,6 +2956,7 @@ export type Database = {
           page_path?: string | null
           phone?: string | null
           reference?: string
+          requester_type?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           updated_at?: string
         }
@@ -2966,6 +2972,8 @@ export type Database = {
           edition_name?: string | null
           edition_slug?: string | null
           id?: string
+          integrator_id?: string | null
+          integrator_name?: string | null
           internal_notes?: string | null
           is_custom?: boolean
           job_title?: string | null
@@ -2977,6 +2985,7 @@ export type Database = {
           page_path?: string | null
           phone?: string | null
           reference?: string
+          requester_type?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           updated_at?: string
         }
@@ -3810,9 +3819,12 @@ export type Database = {
           p_modules?: Json
           p_page_path?: string
           p_phone?: string
+          p_requester_type?: string
+          p_integrator_name?: string
         }
         Returns: string
       }
+      my_integrator: { Args: never; Returns: string | null }
       unsubscribe_newsletter: { Args: { p_token: string }; Returns: boolean }
       update_invoice_details: {
         Args: {

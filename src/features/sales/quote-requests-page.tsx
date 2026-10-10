@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Descriptions, Drawer, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Typography } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, Button, Descriptions, Drawer, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { DeleteOutlined, FileAddOutlined } from "@ant-design/icons";
 import { useCan } from "@/auth/use-auth";
@@ -11,8 +11,11 @@ import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { QuotationStatusTag } from "./quotation-parts";
 import { useAction } from "./use-action";
+import { ChannelTag, IntegratorField } from "./integrator-field";
+import { errorText } from "@/lib/sales";
 
 type QuoteRequest = Database["public"]["Tables"]["quote_requests"]["Row"] & {
+  integrator: { id: string; company_name: string } | null;
   quotations: { id: string; number: string | null; status: Database["public"]["Enums"]["quotation_status"]; valid_until: string; total: number; currency: string; decimal_places: number }[];
 };
 type Status = Database["public"]["Enums"]["quote_status"];
@@ -36,7 +39,7 @@ export function QuoteRequestsPage() {
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("quote_requests")
-        .select("*, quotations(id, number, status, valid_until, total, currency, decimal_places)")
+        .select("*, quotations(id, number, status, valid_until, total, currency, decimal_places), integrator:integrators!quote_requests_integrator_id_fkey(id, company_name)")
         .order("created_at", { ascending: false })
         .limit(1000);
       if (error) throw error;
@@ -67,6 +70,7 @@ export function QuoteRequestsPage() {
       render: (_, row) => (
         <Flex vertical>
           <span>{row.company || row.contact_name}</span>
+          <RequesterNote row={row} />
           {row.licensee_name ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               For {row.licensee_name}
@@ -213,6 +217,12 @@ function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest 
           <Typography.Text copyable>{request.contact_email}</Typography.Text>
         </Descriptions.Item>
         {request.company ? <Descriptions.Item label="Company">{request.company}</Descriptions.Item> : null}
+        <Descriptions.Item label="Requested as">
+          {request.requester_type === "integrator" ? "Integrator or reseller" : request.requester_type === "end_user" ? "End user" : "Not asked (older request)"}
+          {request.requester_type === "integrator" && !request.integrator_id && request.integrator_name ? (
+            <div style={{ color: "var(--ant-color-text-secondary)" }}>Named their company: {request.integrator_name}</div>
+          ) : null}
+        </Descriptions.Item>
         {request.licensee_name ? (
           <Descriptions.Item label="Licensed to (end user)">
             {request.licensee_name}
@@ -247,6 +257,11 @@ function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest 
       </Flex>
 
       <Typography.Title level={5} style={{ marginTop: 20 }}>
+        Order via
+      </Typography.Title>
+      <RequestIntegrator request={request} />
+
+      <Typography.Title level={5} style={{ marginTop: 20 }}>
         Pipeline
       </Typography.Title>
       <Form
@@ -270,5 +285,44 @@ function RequestDrawer({ request, onClose, run, busy }: { request: QuoteRequest 
         </Button>
       </Form>
     </Drawer>
+  );
+}
+
+/** "Integrator: X" (linked), "Says integrator: X" (to link), or nothing for an end user. */
+function RequesterNote({ row }: { row: QuoteRequest }) {
+  if (row.integrator) return <ChannelTag name={row.integrator.company_name} />;
+  if (row.requester_type !== "integrator") return null;
+  return (
+    <Typography.Text type="warning" style={{ fontSize: 12 }}>
+      Integrator{row.integrator_name ? `: ${row.integrator_name}` : ""} — not linked yet
+    </Typography.Text>
+  );
+}
+
+/**
+ * Linked automatically when a signed-in integrator asked; otherwise linked
+ * here. A quotation made from the request takes the link.
+ */
+function RequestIntegrator({ request }: { request: QuoteRequest }) {
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+  const [saving, setSaving] = useState(false);
+  const save = async (integratorId: string | null) => {
+    setSaving(true);
+    const { error } = await supabase.from("quote_requests").update({ integrator_id: integratorId }).eq("id", request.id);
+    setSaving(false);
+    if (error) return message.error(errorText(error, "That could not be saved. Please try again."));
+    message.success(integratorId ? "Linked to the integrator." : "Marked as direct.");
+    await queryClient.invalidateQueries({ queryKey: ["quote-requests"] });
+  };
+  return (
+    <Flex vertical gap={6}>
+      <IntegratorField key={request.integrator_id ?? "direct"} value={request.integrator_id} onChange={save} disabled={saving} />
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {request.integrator_id && request.requester_type === "integrator" && !request.integrator_name
+          ? "Linked automatically: they asked while signed in to their integrator account."
+          : "A quotation created from this request takes this link; change it later in Order overview."}
+      </Typography.Text>
+    </Flex>
   );
 }
