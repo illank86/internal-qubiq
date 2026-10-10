@@ -12,8 +12,10 @@ export function StatRow({ stats }: { stats: { label: string; value: React.ReactN
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(auto-fit, minmax(140px, 1fr))`,
+        // Wrapping flex rather than a grid: the amount takes the width it needs
+        // (never cut short), the rest share what is left and fill each row.
+        display: "flex",
+        flexWrap: "wrap",
         gap: 1,
         background: token.colorBorderSecondary,
         border: `1px solid ${token.colorBorderSecondary}`,
@@ -22,7 +24,7 @@ export function StatRow({ stats }: { stats: { label: string; value: React.ReactN
       }}
     >
       {stats.map((stat) => (
-        <div key={stat.label} style={{ background: token.colorBgContainer, padding: "12px 16px", minWidth: 0 }}>
+        <div key={stat.label} style={{ background: token.colorBgContainer, padding: "12px 16px", flex: stat.strong ? "1 0 auto" : "1 1 140px", minWidth: stat.strong ? undefined : 0, maxWidth: "100%" }}>
           <Typography.Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, display: "block" }}>
             {stat.label}
           </Typography.Text>
@@ -34,9 +36,7 @@ export function StatRow({ stats }: { stats: { label: string; value: React.ReactN
               fontVariantNumeric: "tabular-nums",
               display: "block",
               marginTop: 2,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              ...(stat.strong ? { overflowWrap: "anywhere" } : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
             }}
           >
             {stat.value}
@@ -76,14 +76,14 @@ export function Totals({ rows, total }: { rows: { label: string; value: string }
   const { token } = theme.useToken();
   return (
     <Flex justify="flex-end">
-      <Flex vertical gap={6} style={{ width: "100%", maxWidth: 320 }}>
+      <Flex vertical gap={6} style={{ width: "100%", maxWidth: 380 }}>
         {rows.map((row) => (
-          <Flex key={row.label} justify="space-between">
+          <Flex key={row.label} justify="space-between" gap={12} wrap>
             <Typography.Text type="secondary">{row.label}</Typography.Text>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>{row.value}</span>
           </Flex>
         ))}
-        <Flex justify="space-between" align="center" style={{ marginTop: 4, padding: "10px 12px", borderRadius: token.borderRadius, background: token.colorPrimaryBg }}>
+        <Flex justify="space-between" align="center" gap={12} wrap style={{ marginTop: 4, padding: "10px 12px", borderRadius: token.borderRadius, background: token.colorPrimaryBg }}>
           <Typography.Text strong>{total.label}</Typography.Text>
           <Typography.Text strong style={{ fontSize: 16, color: token.colorPrimary, fontVariantNumeric: "tabular-nums" }}>
             {total.value}
