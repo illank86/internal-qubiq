@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Col, Form, Input, InputNumber, Result, Row, Skeleton, Tabs } from "antd";
+import { Alert, App, Button, Card, Col, Divider, Form, Input, InputNumber, Result, Row, Skeleton, Tabs } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
@@ -19,7 +19,8 @@ const TAB_KEYS = ["general", "invoices", "quotations"] as const;
 /**
  * Defaults for invoices and quotations. General holds what both documents
  * print or compute the same way; each document's tab holds only its own.
- * Our company name, address, email and phone come from Site settings.
+ * Our company name, address, email and phone, as printed on both, are set
+ * here; Site settings' address is the website's and the customer emails'.
  */
 export function SalesSettingsPage() {
   const [params, setParams] = useSearchParams();
@@ -58,7 +59,7 @@ export function SalesSettingsPage() {
     <>
       <PageTitle
         title="Sales settings"
-        description="Defaults for invoices and quotations. Our company name, address, email and phone come from Site settings — the same details the website shows."
+        description="Defaults for invoices and quotations, and our company details as they print on them."
         actions={
           <Button type="primary" icon={<SaveOutlined />} loading={pending} onClick={() => form.submit()}>
             Save settings
@@ -80,6 +81,34 @@ export function SalesSettingsPage() {
                 forceRender: true,
                 children: (
                   <Row gutter={16}>
+                    <Col span={24}>
+                      <Divider titlePlacement="start" style={{ marginTop: 0 }}>
+                        Our company, as printed on quotations and invoices
+                      </Divider>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Company name" name="company_name" rules={[{ required: true, whitespace: true, message: "Enter the company name" }, { max: 200 }]}>
+                        <Input placeholder="QUBIQ Inovasi Digital" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Email" name="company_email" rules={[{ type: "email", message: "Enter a valid email" }]} extra="Printed under our address, e.g. sales@goqubiq.com.">
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Address" name="company_address" rules={[{ max: 500 }]} extra="One line per row, as it should print.">
+                        <Input.TextArea autoSize={{ minRows: 4, maxRows: 8 }} placeholder={"Street and number\nArea\nCity, province\nCountry"} />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Phone" name="company_phone" rules={[{ max: 60 }]}>
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Divider titlePlacement="start">Tax and documents</Divider>
+                    </Col>
                     <Col xs={24} md={12}>
                       <Form.Item label="Tax name" name="tax_label" extra="As printed, e.g. PPN or VAT." rules={[{ required: true }]}>
                         <Input />
