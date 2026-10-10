@@ -10,16 +10,29 @@ import { supabase } from "@/lib/supabase";
 export type Column = { header: string; key: string; width?: number; kind?: "text" | "money" | "number" | "date" };
 export type Sheet = { name: string; title: string; columns: Column[]; rows: Record<string, unknown>[]; totals?: Record<string, number | string> };
 
-export type Company = { name: string; npwp: string | null };
+export type Signer = { name: string | null; title: string | null };
+/** Who signs the reports, set on Finance settings → Reports; `date` (ISO) is chosen when a report is made. */
+export type Signoff = { city: string | null; date: string | null; prepared: Signer; approved: Signer };
+export type Company = { name: string; npwp: string | null; signoff: Signoff };
 
 export async function company(): Promise<Company> {
   const [{ data: accounting }, { data: invoice }] = await Promise.all([
-    supabase.from("accounting_settings").select("legal_name, npwp").eq("id", true).maybeSingle(),
+    supabase
+      .from("accounting_settings")
+      .select("legal_name, npwp, report_city, prepared_by_name, prepared_by_title, approved_by_name, approved_by_title")
+      .eq("id", true)
+      .maybeSingle(),
     supabase.from("invoice_settings").select("company_name, local_company_name, tax_id").eq("id", true).maybeSingle(),
   ]);
   return {
     name: accounting?.legal_name || invoice?.local_company_name || invoice?.company_name || "QUBIQ",
     npwp: accounting?.npwp || invoice?.tax_id || null,
+    signoff: {
+      city: accounting?.report_city || null,
+      date: null,
+      prepared: { name: accounting?.prepared_by_name || null, title: accounting?.prepared_by_title || null },
+      approved: { name: accounting?.approved_by_name || null, title: accounting?.approved_by_title || null },
+    },
   };
 }
 

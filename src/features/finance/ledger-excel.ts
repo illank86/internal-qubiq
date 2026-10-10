@@ -1,5 +1,6 @@
 import type { Fill, Font, Worksheet } from "exceljs";
-import { npwpLine, type LedgerBook, type ReportDoc, TYPE_ID } from "./ledger-book";
+import type { Company } from "./exports";
+import { npwpLine, signoffOf, type LedgerBook, type ReportDoc, TYPE_ID } from "./ledger-book";
 
 /**
  * The ledger book as an Excel workbook — three sheets, laid out like the PDF:
@@ -66,6 +67,31 @@ export function footer(ws: Worksheet, book: ReportDoc) {
   ws.addRow([]);
   const row = ws.addRow([`Dicetak ${book.printed} dari QUBIQ Admin`]);
   row.font = { italic: true, size: 9, color: { argb: MUTED } };
+}
+
+/** Place and date, then the preparer and approver: a gap to sign in, the name (or a blank) and the title. */
+export function signBlock(ws: Worksheet, company: Company, [left, right]: [number, number]) {
+  const { place, people } = signoffOf(company);
+  ws.addRow([]);
+  ws.addRow([]);
+  const at = (values: [string | null, string | null], font: Partial<Font>) => {
+    const row = ws.addRow([]);
+    row.getCell(left).value = values[0];
+    row.getCell(right).value = values[1];
+    for (const column of [left, right]) {
+      row.getCell(column).font = { name: "Calibri", ...font };
+      row.getCell(column).alignment = { horizontal: "center" };
+    }
+    return row;
+  };
+  at([null, place], { color: { argb: INK } });
+  at([`${people[0].label},`, `${people[1].label},`], { color: { argb: MUTED } });
+  ws.addRow([]);
+  ws.addRow([]);
+  ws.addRow([]);
+  const names = at([people[0].name ?? "(                              )", people[1].name ?? "(                              )"], { bold: true, color: { argb: INK } });
+  for (const column of [left, right]) names.getCell(column).border = { top: { style: "thin", color: { argb: INK } } };
+  if (people.some((person) => person.title)) at([people[0].title, people[1].title], { size: 9, color: { argb: MUTED } });
 }
 
 function balanceNote(ws: Worksheet, span: number, debit: number, credit: number) {
@@ -170,16 +196,7 @@ function trialSheet(ws: Worksheet, book: LedgerBook) {
   const last = ws.lastRow?.number ?? 6;
   totalRow(ws, [null, "JUMLAH", null, sum("D", 7, last, book.totals.trialDebit), sum("E", 7, last, book.totals.trialCredit)], money);
   balanceNote(ws, 5, book.totals.trialDebit, book.totals.trialCredit);
-  // Sign-off: prepared and approved.
-  ws.addRow([]);
-  ws.addRow([]);
-  const labels = ws.addRow([null, "Disiapkan oleh,", null, "Disetujui oleh,"]);
-  labels.font = { color: { argb: MUTED } };
-  ws.addRow([]);
-  ws.addRow([]);
-  ws.addRow([]);
-  const lines = ws.addRow([null, "(                                        )", null, "(                                        )"]);
-  lines.font = { color: { argb: MUTED } };
+  signBlock(ws, book.company, [2, 4]);
   footer(ws, book);
 }
 

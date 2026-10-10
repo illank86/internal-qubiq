@@ -1,7 +1,8 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { INVOICE_LOGO_DATA_URI, INVOICE_LOGO_HEIGHT, INVOICE_LOGO_WIDTH } from "@/lib/invoice-logo";
 import { BODY, BRAND, BRAND_SOFT, INK, LINE, MUTED, PANEL } from "@/lib/pdf-theme";
-import { npwpLine, rp, shortDateId, TYPE_ID, type LedgerAccount, type LedgerBook, type ReportDoc } from "./ledger-book";
+import type { Company } from "./exports";
+import { npwpLine, rp, shortDateId, signoffOf, TYPE_ID, type LedgerAccount, type LedgerBook, type ReportDoc } from "./ledger-book";
 
 /**
  * The ledger book as a PDF (A4 portrait): Jurnal Umum, Buku Besar and Neraca
@@ -43,7 +44,8 @@ const s = StyleSheet.create({
   fact: { flex: 1, borderWidth: 0.6, borderColor: LINE, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 8 },
   factLabel: { fontSize: 6.5, color: MUTED, textTransform: "uppercase", letterSpacing: 0.6 },
   factValue: { fontSize: 10, fontFamily: "Helvetica-Bold", color: INK, marginTop: 2 },
-  signs: { flexDirection: "row", justifyContent: "space-around", marginTop: 36 },
+  signs: { flexDirection: "row", justifyContent: "space-around", marginTop: 6 },
+  place: { marginTop: 30, textAlign: "right", paddingRight: 40, color: BODY },
   sign: { width: 170, alignItems: "center" },
   signLine: { marginTop: 48, width: 150, borderTopWidth: 0.6, borderColor: INK },
 });
@@ -246,17 +248,29 @@ function TrialPage({ book }: { book: LedgerBook }) {
         <Text style={cell(T[4], num)}>{rp(book.totals.trialCredit, "0")}</Text>
       </View>
       <Balanced debit={book.totals.trialDebit} credit={book.totals.trialCredit} />
-      <View style={s.signs} wrap={false}>
-        {["Disiapkan oleh", "Disetujui oleh"].map((label) => (
-          <View key={label} style={s.sign}>
-            <Text style={s.muted}>{label},</Text>
+      <SignBlock company={book.company} />
+      <Footer book={book} />
+    </Page>
+  );
+}
+
+/** Place and date, then the preparer and approver with a line to sign on (names and titles from Finance settings). */
+export function SignBlock({ company }: { company: Company }) {
+  const { place, people } = signoffOf(company);
+  return (
+    <View wrap={false}>
+      <Text style={s.place}>{place}</Text>
+      <View style={s.signs}>
+        {people.map((person) => (
+          <View key={person.label} style={s.sign}>
+            <Text style={s.muted}>{person.label},</Text>
             <View style={s.signLine} />
-            <Text style={[s.muted, { marginTop: 3, fontSize: 7 }]}>Nama & tanggal</Text>
+            {person.name ? <Text style={{ marginTop: 3, fontFamily: "Helvetica-Bold", color: INK }}>{person.name}</Text> : <Text style={[s.muted, { marginTop: 3, fontSize: 7 }]}>Nama</Text>}
+            {person.title ? <Text style={[s.muted, { fontSize: 7.5 }]}>{person.title}</Text> : null}
           </View>
         ))}
       </View>
-      <Footer book={book} />
-    </Page>
+    </View>
   );
 }
 

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Button, Flex, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { Link } from "react-router";
+import { Alert, App, Button, Flex, Input, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
 import { CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { errorText } from "@/lib/sales";
-import { downloadBlob, fileBase, ledgerCsv, loadLedgerBook, PART_TITLE, rp, shortDateId, TYPE_ID, type LedgerBook, type LedgerPart } from "./ledger-book";
+import { downloadBlob, fileBase, signedOn, ledgerCsv, loadLedgerBook, PART_TITLE, rp, shortDateId, TYPE_ID, type LedgerBook, type LedgerPart } from "./ledger-book";
 import { jakartaToday } from "./api";
 import { PAPER, rangeOf, type Preset } from "./report-period";
-import { CheckLine, PaperEmpty as Empty, PaperSheet, PeriodPicker } from "./report-paper";
+import { CheckLine, SignBlock, PaperEmpty as Empty, PaperSheet, PeriodPicker } from "./report-paper";
 
 /**
  * "Jurnal & Buku Besar": pick the period, look at it as it will print, then
@@ -27,7 +28,10 @@ export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }
   const [busy, setBusy] = useState<string | null>(null);
   const valid = Boolean(from && to && from <= to);
 
-  const { data: book, isLoading, error } = useQuery({ queryKey: ["ledger-book", from, to], enabled: valid, queryFn: () => loadLedgerBook(from, to) });
+  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["ledger-book", from, to], enabled: valid, queryFn: () => loadLedgerBook(from, to) });
+  // The date written above the signatures; today unless changed.
+  const [signDate, setSignDate] = useState(jakartaToday);
+  const book = loaded ? signedOn(loaded, signDate) : undefined;
 
   const run = async (key: string, work: () => Promise<void>) => {
     setBusy(key);
@@ -80,7 +84,16 @@ export function LedgerPreviewModal({ from: initialFrom, to: initialTo, onClose }
       }
     >
       <Flex vertical gap={12}>
-        <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+        <Flex gap={8} align="center" justify="space-between" wrap>
+          <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+          <Flex gap={6} align="center">
+            <Typography.Text type="secondary">Signed on</Typography.Text>
+            <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
+            <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
+              Who signs?
+            </Link>
+          </Flex>
+        </Flex>
         {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
         {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The journal could not be loaded.")} /> : null}
         {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
@@ -318,15 +331,7 @@ function TrialTable({ book }: { book: LedgerBook }) {
         </tfoot>
       </table>
       <Balanced debit={book.totals.trialDebit} credit={book.totals.trialCredit} />
-      <Flex justify="space-around" style={{ marginTop: 32, color: PAPER.muted }}>
-        {["Disiapkan oleh", "Disetujui oleh"].map((label) => (
-          <div key={label} style={{ width: 200, textAlign: "center" }}>
-            {label},
-            <div style={{ marginTop: 56, borderTop: `1px solid ${PAPER.ink}` }} />
-            <div style={{ fontSize: 10, marginTop: 3 }}>Nama & tanggal</div>
-          </div>
-        ))}
-      </Flex>
+      <SignBlock company={book.company} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { Flex, Input, Segmented, Typography } from "antd";
 import { INVOICE_LOGO_DATA_URI } from "@/lib/invoice-logo";
-import { npwpLine } from "./ledger-book";
+import { npwpLine, signoffOf } from "./ledger-book";
 import type { Company } from "./exports";
 import { PAPER, PRESET_OPTIONS, type Preset } from "./report-period";
 
@@ -65,3 +65,23 @@ export function CheckLine({ ok, text }: { ok: boolean; text: string }) {
 }
 
 export const PaperEmpty = ({ text }: { text: string }) => <div style={{ padding: "24px 0", color: PAPER.muted, textAlign: "center" }}>{text}</div>;
+
+/** Place and date, then the preparer and approver with a line to sign on. */
+export function SignBlock({ company }: { company: Company }) {
+  const { place, people } = signoffOf(company);
+  return (
+    <div style={{ marginTop: 28, color: PAPER.body }}>
+      <div style={{ textAlign: "right", paddingRight: 24 }}>{place}</div>
+      <Flex justify="space-around" style={{ marginTop: 8 }}>
+        {people.map((person) => (
+          <div key={person.label} style={{ width: 220, textAlign: "center" }}>
+            <div style={{ color: PAPER.muted }}>{person.label},</div>
+            <div style={{ marginTop: 56, borderTop: `1px solid ${PAPER.ink}` }} />
+            {person.name ? <div style={{ marginTop: 4, fontWeight: 700, color: PAPER.ink }}>{person.name}</div> : <div style={{ marginTop: 4, fontSize: 10, color: PAPER.muted }}>Nama</div>}
+            {person.title ? <div style={{ fontSize: 11, color: PAPER.muted }}>{person.title}</div> : null}
+          </div>
+        ))}
+      </Flex>
+    </div>
+  );
+}

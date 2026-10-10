@@ -8,9 +8,10 @@ import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { CompanySettings, InvoicePaymentSettings } from "./document-settings";
+import { ReportSettings } from "./report-settings";
 import { money, useAccounts, useBankAccounts, type Account, type BankAccount } from "./api";
 
-const TABS = ["company", "invoices", "tax", "accounts", "banks", "rates"] as const;
+const TABS = ["company", "invoices", "tax", "reports", "accounts", "banks", "rates"] as const;
 
 /** Finance settings: the tax profile (and the tax used on quotations and invoices), the chart of accounts, bank accounts and KMK exchange rates. */
 export function FinanceSettingsPage() {
@@ -18,7 +19,7 @@ export function FinanceSettingsPage() {
   const tab = TABS.includes(params.get("tab") as (typeof TABS)[number]) ? (params.get("tab") as string) : "company";
   return (
     <>
-      <PageTitle title="Finance settings" description="Company details, invoices and ways to pay, tax, chart of accounts, bank accounts and exchange rates." />
+      <PageTitle title="Finance settings" description="Company details, invoices and ways to pay, tax, who signs the reports, chart of accounts, bank accounts and exchange rates." />
       <Card>
         <Tabs
           activeKey={tab}
@@ -27,6 +28,7 @@ export function FinanceSettingsPage() {
             { key: "company", label: "Company & documents", children: <CompanySettings /> },
             { key: "invoices", label: "Invoices & payment", children: <InvoicePaymentSettings /> },
             { key: "tax", label: "Tax", children: <TaxSettings /> },
+            { key: "reports", label: "Reports", children: <ReportSettings /> },
             { key: "accounts", label: "Chart of accounts", children: <AccountsTab /> },
             { key: "banks", label: "Bank accounts", children: <BanksTab /> },
             { key: "rates", label: "Exchange rates (KMK)", children: <RatesTab /> },

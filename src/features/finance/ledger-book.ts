@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { company, type Company } from "./exports";
+import { company, type Company, type Signer } from "./exports";
 
 /**
  * The "Jurnal & Buku Besar" for a period, in one shape that the preview, the
@@ -69,6 +69,23 @@ export const shortDateId = (iso: string) => {
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;
 };
+
+/**
+ * The sign-off under a report: "Jakarta, 10 Oktober 2026" (the signing date,
+ * or the print date when none was chosen), then the preparer and approver —
+ * their names and titles from Finance settings, or a blank to fill by hand.
+ */
+export function signoffOf(who: Company, printedIso = new Date().toISOString()) {
+  const { city, date } = who.signoff;
+  const signer = (label: string, person: Signer) => ({ label, name: person.name, title: person.title });
+  return {
+    place: [city, longDateId(date || printedIso)].filter(Boolean).join(", "),
+    people: [signer("Disiapkan oleh", who.signoff.prepared), signer("Disetujui oleh", who.signoff.approved)],
+  };
+}
+
+/** The same report, signed on another date. */
+export const signedOn = <T extends { company: Company }>(report: T, date: string): T => ({ ...report, company: { ...report.company, signoff: { ...report.company.signoff, date } } });
 
 /** Rupiah without the symbol, Indonesian grouping; negatives in brackets, zero as a dash. */
 export const rp = (value: number, zero = "–") => {

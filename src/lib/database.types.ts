@@ -22,6 +22,8 @@ export type Database = {
       }
       accounting_settings: {
         Row: {
+          approved_by_name: string | null
+          approved_by_title: string | null
           corporate_rate: number
           facility_31e_threshold: number
           faktur_item_code: string
@@ -41,10 +43,15 @@ export type Database = {
           ppn_dpp_denominator: number
           ppn_dpp_numerator: number
           ppn_rate: number
+          prepared_by_name: string | null
+          prepared_by_title: string | null
+          report_city: string | null
           tax_registered_on: string | null
           updated_at: string
         }
         Insert: {
+          approved_by_name?: string | null
+          approved_by_title?: string | null
           corporate_rate?: number
           facility_31e_threshold?: number
           faktur_item_code?: string
@@ -64,10 +71,15 @@ export type Database = {
           ppn_dpp_denominator?: number
           ppn_dpp_numerator?: number
           ppn_rate?: number
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
+          report_city?: string | null
           tax_registered_on?: string | null
           updated_at?: string
         }
         Update: {
+          approved_by_name?: string | null
+          approved_by_title?: string | null
           corporate_rate?: number
           facility_31e_threshold?: number
           faktur_item_code?: string
@@ -87,6 +99,9 @@ export type Database = {
           ppn_dpp_denominator?: number
           ppn_dpp_numerator?: number
           ppn_rate?: number
+          prepared_by_name?: string | null
+          prepared_by_title?: string | null
+          report_city?: string | null
           tax_registered_on?: string | null
           updated_at?: string
         }

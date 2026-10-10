@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Button, Flex, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { Link } from "react-router";
+import { Alert, App, Button, Flex, Input, Modal, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
 import { CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined, LockOutlined } from "@ant-design/icons";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { errorText } from "@/lib/sales";
-import { downloadBlob, rp } from "./ledger-book";
+import { downloadBlob, rp, signedOn } from "./ledger-book";
 import { jakartaToday } from "./api";
 import { PAPER, rangeOf, type Preset } from "./report-period";
-import { CheckLine, PaperSheet, PeriodPicker } from "./report-paper";
+import { CheckLine, SignBlock, PaperSheet, PeriodPicker } from "./report-paper";
+import type { Company } from "./exports";
 import { loadStatementBook, statementCsv, statementFileBase, type Statement, type StatementBook, type StatementKey } from "./statement-book";
 
 /**
@@ -26,7 +28,10 @@ export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClos
   const [busy, setBusy] = useState<string | null>(null);
   const valid = Boolean(from && to && from <= to);
 
-  const { data: book, isLoading, error } = useQuery({ queryKey: ["statement-book", from, to], enabled: valid, queryFn: () => loadStatementBook(from, to) });
+  const { data: loaded, isLoading, error } = useQuery({ queryKey: ["statement-book", from, to], enabled: valid, queryFn: () => loadStatementBook(from, to) });
+  // The date written above the signatures; today unless changed.
+  const [signDate, setSignDate] = useState(jakartaToday);
+  const book = loaded ? signedOn(loaded, signDate) : undefined;
   const statement = book?.statements.find((item) => item.key === key);
 
   const run = async (name: string, work: () => Promise<void>) => {
@@ -80,7 +85,16 @@ export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClos
       }
     >
       <Flex vertical gap={12}>
-        <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+        <Flex gap={8} align="center" justify="space-between" wrap>
+          <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
+          <Flex gap={6} align="center">
+            <Typography.Text type="secondary">Signed on</Typography.Text>
+            <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
+            <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
+              Who signs?
+            </Link>
+          </Flex>
+        </Flex>
         {!valid ? <Alert type="warning" showIcon title="Choose a start date on or before the end date." /> : null}
         {error ? <Alert type="error" showIcon title={errorText(error as { code?: string; message?: string }, "The statements could not be loaded.")} /> : null}
         {isLoading ? <Skeleton active paragraph={{ rows: 12 }} /> : null}
@@ -94,7 +108,7 @@ export function StatementPreviewModal({ from: initialFrom, to: initialTo, onClos
               style={{ marginBottom: -12 }}
             />
             <PaperSheet company={book.company} title={statement.title} subtitle={statement.subtitle} printed={book.printed}>
-              <StatementTable statement={statement} />
+              <StatementTable statement={statement} company={book.company} />
             </PaperSheet>
           </>
         ) : null}
@@ -147,7 +161,7 @@ function Summary({ book }: { book: StatementBook }) {
 const td = (align: "left" | "right" = "left", extra: React.CSSProperties = {}): React.CSSProperties => ({ padding: "5px 8px", textAlign: align, fontVariantNumeric: "tabular-nums", verticalAlign: "top", ...extra });
 const th = (align: "left" | "right" = "left"): React.CSSProperties => ({ background: PAPER.brand, color: "#fff", fontWeight: 600, fontSize: 11, padding: "6px 8px", textAlign: align, whiteSpace: "nowrap" });
 
-function StatementTable({ statement }: { statement: Statement }) {
+function StatementTable({ statement, company }: { statement: Statement; company: Company }) {
   return (
     <>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -202,15 +216,7 @@ function StatementTable({ statement }: { statement: Statement }) {
       </table>
       {statement.check ? <CheckLine ok={statement.check.ok} text={statement.check.text} /> : null}
       {statement.note ? <div style={{ marginTop: 4, color: PAPER.muted, fontStyle: "italic", fontSize: 11 }}>{statement.note}</div> : null}
-      <Flex justify="space-around" style={{ marginTop: 32, color: PAPER.muted }}>
-        {["Disiapkan oleh", "Disetujui oleh"].map((label) => (
-          <div key={label} style={{ width: 200, textAlign: "center" }}>
-            {label},
-            <div style={{ marginTop: 56, borderTop: `1px solid ${PAPER.ink}` }} />
-            <div style={{ fontSize: 10, marginTop: 3 }}>Nama & tanggal</div>
-          </div>
-        ))}
-      </Flex>
+      <SignBlock company={company} />
     </>
   );
 }

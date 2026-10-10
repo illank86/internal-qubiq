@@ -1,7 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { BODY, BRAND, BRAND_SOFT, INK, LINE, MUTED } from "@/lib/pdf-theme";
 import { rp } from "./ledger-book";
-import { Footer, Header } from "./ledger-pdf";
+import { Footer, Header, SignBlock } from "./ledger-pdf";
 import type { Statement, StatementBook } from "./statement-book";
 
 /**
@@ -27,9 +27,6 @@ const s = StyleSheet.create({
   total: { flexDirection: "row", paddingVertical: 5.5, marginTop: 6, backgroundColor: BRAND_SOFT, borderTopWidth: 0.8, borderBottomWidth: 2, borderColor: INK, fontFamily: "Helvetica-Bold", color: INK, fontSize: 9 },
   check: { marginTop: 8, fontSize: 8, fontFamily: "Helvetica-Bold" },
   note: { marginTop: 4, fontSize: 7.5, color: MUTED, fontFamily: "Helvetica-Oblique" },
-  signs: { flexDirection: "row", justifyContent: "space-around", marginTop: 36 },
-  sign: { width: 170, alignItems: "center" },
-  signLine: { marginTop: 48, width: 150, borderTopWidth: 0.6, borderColor: INK },
 });
 
 // Columns: Kode | Keterangan | Jumlah
@@ -90,15 +87,7 @@ function StatementPage({ book, statement, first }: { book: StatementBook; statem
       })}
       {statement.check ? <Text style={[s.check, { color: statement.check.ok ? GOOD : BAD }]}>{statement.check.text}</Text> : null}
       {statement.note ? <Text style={s.note}>{statement.note}</Text> : null}
-      <View style={s.signs} wrap={false}>
-        {["Disiapkan oleh", "Disetujui oleh"].map((label) => (
-          <View key={label} style={s.sign}>
-            <Text style={{ color: MUTED }}>{label},</Text>
-            <View style={s.signLine} />
-            <Text style={{ color: MUTED, marginTop: 3, fontSize: 7 }}>Nama & tanggal</Text>
-          </View>
-        ))}
-      </View>
+      <SignBlock company={book.company} />
       <Footer book={book} label="Laporan Keuangan" />
     </Page>
   );

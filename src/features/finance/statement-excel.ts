@@ -1,5 +1,5 @@
 import type { Worksheet } from "exceljs";
-import { BAD, BRAND, fill, footer, GOOD, header, INK, MONEY, MUTED, SOFT, thin } from "./ledger-excel";
+import { BAD, BRAND, fill, footer, GOOD, header, INK, MONEY, MUTED, signBlock, SOFT, thin } from "./ledger-excel";
 import type { Statement, StatementBook } from "./statement-book";
 
 /**
@@ -69,16 +69,7 @@ function statementSheet(ws: Worksheet, book: StatementBook, statement: Statement
     row.font = { size: 9, italic: true, color: { argb: MUTED } };
     row.getCell(2).alignment = { wrapText: true };
   }
-  // Sign-off under the statements, as for the trial balance.
-  ws.addRow([]);
-  ws.addRow([]);
-  const labels = ws.addRow([null, "Disiapkan oleh,", "Disetujui oleh,"]);
-  labels.font = { color: { argb: MUTED } };
-  ws.addRow([]);
-  ws.addRow([]);
-  ws.addRow([]);
-  const lines = ws.addRow([null, "(                                        )", "(                              )"]);
-  lines.font = { color: { argb: MUTED } };
+  signBlock(ws, book.company, [2, 3]);
   footer(ws, book);
 }
 
