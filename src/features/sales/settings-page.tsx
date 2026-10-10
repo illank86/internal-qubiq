@@ -16,7 +16,7 @@ import { TierDiscounts } from "./tier-discounts";
 type Settings = Database["public"]["Tables"]["invoice_settings"]["Row"];
 type Values = Omit<Settings, "id" | "updated_at">;
 
-const TAB_KEYS = ["general", "invoices", "quotations", "delivery"] as const;
+const TAB_KEYS = ["general", "quotations", "invoices", "delivery"] as const;
 
 /**
  * Defaults for invoices and quotations. General holds what both documents
@@ -227,43 +227,6 @@ export function SalesSettingsPage() {
                 ),
               },
               {
-                key: "invoices",
-                label: "Invoices",
-                forceRender: true,
-                children: (
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="Invoice number prefix" name="number_prefix" extra="Numbers look like INV-2026-0001." rules={[{ required: true }]}>
-                        <Input />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="Payment due after" name="payment_terms_days" extra="Sets the due date of a new invoice." rules={[{ required: true }]}>
-                        <InputNumber min={0} max={365} suffix="days" style={{ width: "100%" }} />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item
-                        label="Ways to pay"
-                        name="payment_methods"
-                        extra="Printed on the How to pay page of every unpaid invoice — its own page, a card per way to pay. Give a way to pay a currency to show it only on invoices in that currency."
-                      >
-                        <PaymentMethodsField />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item
-                        label="Payment note"
-                        name="bank_details"
-                        extra="Optional. Printed above the ways to pay — e.g. who pays bank charges. With no ways to pay set up, this is printed instead."
-                      >
-                        <RichTextField rows={4} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                ),
-              },
-              {
                 key: "quotations",
                 label: "Quotations",
                 forceRender: true,
@@ -301,6 +264,43 @@ export function SalesSettingsPage() {
                         Integrators → Integrator tiers.
                       </Typography.Paragraph>
                       <TierDiscounts />
+                    </Col>
+                  </Row>
+                ),
+              },
+              {
+                key: "invoices",
+                label: "Invoices",
+                forceRender: true,
+                children: (
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Invoice number prefix" name="number_prefix" extra="Numbers look like INV-2026-0001." rules={[{ required: true }]}>
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Item label="Payment due after" name="payment_terms_days" extra="Sets the due date of a new invoice." rules={[{ required: true }]}>
+                        <InputNumber min={0} max={365} suffix="days" style={{ width: "100%" }} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Form.Item
+                        label="Ways to pay"
+                        name="payment_methods"
+                        extra="Printed on the How to pay page of every unpaid invoice — its own page, a card per way to pay. Give a way to pay a currency to show it only on invoices in that currency."
+                      >
+                        <PaymentMethodsField />
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Form.Item
+                        label="Payment note"
+                        name="bank_details"
+                        extra="Optional. Printed above the ways to pay — e.g. who pays bank charges. With no ways to pay set up, this is printed instead."
+                      >
+                        <RichTextField rows={4} />
+                      </Form.Item>
                     </Col>
                   </Row>
                 ),
