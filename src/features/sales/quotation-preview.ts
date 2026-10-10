@@ -11,7 +11,7 @@ import { loadSignatureInfo } from "./api";
 async function loadSeller() {
   const { data: settings } = await supabase
     .from("invoice_settings")
-    .select("company_name, company_address, company_email, company_phone, local_company_name, tax_id, bank_details, footer_note, payment_methods")
+    .select("company_name, company_address, company_email, company_phone, local_company_name, tax_id, tax_id_label, bank_details, footer_note, payment_methods")
     .eq("id", true)
     .maybeSingle();
   return {
@@ -23,6 +23,7 @@ async function loadSeller() {
     payment_methods: settings?.payment_methods ?? [],
     website: "goqubiq.com",
     tax_id: settings?.tax_id ?? null,
+    tax_id_label: settings?.tax_id_label ?? "Tax ID",
     bank_details: settings?.bank_details ?? null,
     footer_note: settings?.footer_note ?? null,
   };

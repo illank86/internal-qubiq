@@ -963,6 +963,7 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
+          tax_id_label: string
           require_second_approver: boolean
           company_address: string | null
           company_email: string | null
@@ -987,6 +988,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          tax_id_label?: string
           require_second_approver?: boolean
           company_address?: string | null
           company_email?: string | null
@@ -1011,6 +1013,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          tax_id_label?: string
           require_second_approver?: boolean
           company_address?: string | null
           company_email?: string | null

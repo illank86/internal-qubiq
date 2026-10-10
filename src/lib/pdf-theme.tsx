@@ -131,6 +131,8 @@ export type SellerBlock = {
   company_name?: string | null;
   address?: string | null;
   tax_id?: string | null;
+  /** What the tax number is called where we are: NPWP, VAT No., GST No.… (default "Tax ID"). */
+  tax_id_label?: string | null;
   email?: string | null;
   phone?: string | null;
   website?: string | null;
@@ -351,7 +353,7 @@ export function SellerParty({ seller, label = "From" }: { seller: SellerBlock; l
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.partyName}>{seller.company_name ?? "QUBIQ"}</Text>
       <Lines text={seller.address} />
-      {seller.tax_id ? <Text>Tax ID {seller.tax_id}</Text> : null}
+      {seller.tax_id ? <Text>{seller.tax_id_label?.trim() || "Tax ID"} {seller.tax_id}</Text> : null}
       {seller.email ? <Text>{seller.email}</Text> : null}
       {seller.phone ? <Text>{seller.phone}</Text> : null}
     </View>

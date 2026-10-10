@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Switch, Tabs, Typography } from "antd";
+import { Alert, App, AutoComplete, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Space, Switch, Tabs, Typography } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
@@ -148,8 +148,22 @@ export function SalesSettingsPage() {
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={12}>
-                      <Form.Item label="Our tax ID (NPWP / VAT number)" name="tax_id" extra="Printed with our address.">
-                        <Input />
+                      <Form.Item label="Our tax number" extra="Printed under our address on invoices and quotations, e.g. NPWP 01.234.567.8-901.000.">
+                        <Space.Compact block>
+                          <Form.Item name="tax_id_label" noStyle rules={[{ required: true, whitespace: true }, { max: 40 }]}>
+                            {/* What it is called in your country; pick one or type your own. */}
+                            <AutoComplete
+                              style={{ width: 150 }}
+                              options={["NPWP", "Tax ID", "VAT No.", "GST No.", "TIN", "EIN", "ABN", "UEN", "SST No.", "TRN"].map((value) => ({ value }))}
+                              filterOption={false}
+                              placeholder="Tax ID"
+                              aria-label="Name of the tax number"
+                            />
+                          </Form.Item>
+                          <Form.Item name="tax_id" noStyle>
+                            <Input placeholder="e.g. 01.234.567.8-901.000" aria-label="Tax number" />
+                          </Form.Item>
+                        </Space.Compact>
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={12}>
