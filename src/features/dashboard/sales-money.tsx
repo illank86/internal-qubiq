@@ -181,7 +181,7 @@ export function RevenueCard({ money }: { money: SalesMoney }) {
  * Quotations as a flow: Draft → Awaiting reply → Won, each with how many and
  * what they are worth; Expired (to renew) and Lost beside it, and the win rate.
  */
-export function PipelineFlow({ money, counts }: { money: SalesMoney | null; counts: { draft: number; open: number; expired: number; accepted: number; lost: number } }) {
+export function PipelineFlow({ money = null, counts }: { money?: SalesMoney | null; counts: { draft: number; open: number; expired: number; accepted: number; lost: number } }) {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const stage = (key: "draft" | "awaiting" | "expired" | "won" | "lost", fallback: number) => ({
@@ -202,11 +202,13 @@ export function PipelineFlow({ money, counts }: { money: SalesMoney | null; coun
     <div style={{ flex: "1 1 150px", minWidth: 0, padding: "14px 16px", borderRadius: token.borderRadiusLG, background, borderTop: `3px solid ${color}` }}>
       <Typography.Text style={{ fontSize: 12, fontWeight: 600, color: token.colorTextSecondary }}>{label}</Typography.Text>
       <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.2, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{value.count}</div>
-      <Tooltip title={value.amount !== null ? formatExact(value.amount, currency) : undefined}>
-        <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
-          {value.amount !== null && value.count ? formatCompact(value.amount, currency) : "—"}
-        </Typography.Text>
-      </Tooltip>
+      {money ? (
+        <Tooltip title={value.amount !== null ? formatExact(value.amount, currency) : undefined}>
+          <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+            {value.amount !== null && value.count ? formatCompact(value.amount, currency) : "—"}
+          </Typography.Text>
+        </Tooltip>
+      ) : null}
       <Typography.Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 2 }}>
         {hint}
       </Typography.Text>

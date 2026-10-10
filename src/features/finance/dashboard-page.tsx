@@ -5,7 +5,7 @@ import { Alert, Card, Col, Empty, Flex, Row, Segmented, Skeleton, Tag, Tooltip, 
 import { BankOutlined, CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
-import { formatCompact } from "@/features/dashboard/sales-money";
+import { CurrencySwitch, RatesNote, RevenueCard, formatCompact, useSalesMoney } from "@/features/dashboard/sales-money";
 import { idr, jakartaToday } from "./api";
 
 const CashChart = lazy(() => import("./cash-chart").then((module) => ({ default: module.CashChart })));
@@ -154,6 +154,8 @@ export function FinanceDashboardPage() {
             </Col>
           </Row>
 
+          <SalesRevenue />
+
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
               <Card title="Bank accounts">
@@ -197,5 +199,28 @@ export function FinanceDashboardPage() {
         </Flex>
       )}
     </>
+  );
+}
+
+/** Revenue per month from invoices and payments, shown in IDR or USD. */
+function SalesRevenue() {
+  const navigate = useNavigate();
+  const { money, currency, choose } = useSalesMoney(true);
+  if (!money?.months) return null;
+  return (
+    <Card
+      title="Revenue"
+      extra={
+        <Flex gap={12} align="center">
+          <CurrencySwitch value={currency} onChange={choose} />
+          <Typography.Link onClick={() => navigate("/sales/invoices")}>Invoices</Typography.Link>
+        </Flex>
+      }
+    >
+      <RevenueCard money={money} />
+      <div style={{ marginTop: 8 }}>
+        <RatesNote money={money} />
+      </div>
+    </Card>
   );
 }

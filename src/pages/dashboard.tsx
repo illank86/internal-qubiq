@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Col, Empty, Flex, Progress, Row, Skeleton, Tag, Timeline, Tooltip, Typography, theme } from "antd";
+import { Button, Card, Col, Empty, Flex, Progress, Row, Skeleton, Tag, Timeline, Typography, theme } from "antd";
 import {
   ArrowRightOutlined,
   BugOutlined,
@@ -9,13 +9,12 @@ import {
   FileDoneOutlined,
   InboxOutlined,
   KeyOutlined,
-  TransactionOutlined,
+  FundOutlined,
 } from "@ant-design/icons";
 import { useCan, useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { env } from "@/lib/env";
-import { formatMoney } from "@/lib/invoices";
-import { CurrencySwitch, PipelineFlow, RatesNote, RevenueCard, formatCompact, formatExact, useSalesMoney } from "@/features/dashboard/sales-money";
+import { PipelineFlow } from "@/features/dashboard/sales-money";
 import { supabase } from "@/lib/supabase";
 import type { AppPermission } from "@/lib/types";
 
@@ -23,34 +22,19 @@ const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 const shortDate = (value: string) => new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
-type Money = { currency: string; amount: number; decimals: number };
-
-/** Sums per currency, the largest first. */
-function sumByCurrency(rows: { total: number | string; currency: string; decimal_places: number }[]): Money[] {
-  const map = new Map<string, Money>();
-  for (const row of rows) {
-    const entry = map.get(row.currency) ?? { currency: row.currency, amount: 0, decimals: row.decimal_places };
-    entry.amount += Number(row.total);
-    map.set(row.currency, entry);
-  }
-  return [...map.values()].sort((a, b) => b.amount - a.amount);
-}
-
 /** Everything the dashboard shows, in one round of queries; RLS answers nothing for what a role cannot see. */
 async function loadDashboard(can: (permission: AppPermission) => boolean) {
   const none = Promise.resolve({ data: null, count: null });
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
-  const finance = can("accounting.manage");
-  const [leads, requests, quotations, invoices, licences, bugs, integrators, recentRequests, recentLeads, activity] = await Promise.all([
+  const [leads, requests, quotations, licences, bugs, integrators, recentRequests, recentLeads, activity] = await Promise.all([
     sales ? supabase.from("leads").select("status, created_at").limit(5000) : none,
     sales ? supabase.from("quote_requests").select("status, created_at").limit(5000) : none,
-    can("quotations.manage") ? supabase.from("quotations").select("status, valid_until, total, currency, decimal_places").limit(5000) : none,
-    finance ? supabase.from("invoices").select("status, due_date, total, currency, decimal_places, paid_at").limit(5000) : none,
+    can("quotations.manage") ? supabase.from("quotations").select("status, valid_until").limit(5000) : none,
     licensing ? supabase.from("licenses").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
     sales ? supabase.from("bug_reports").select("status, severity").limit(5000) : none,
     can("content.manage") ? supabase.from("integrators").select("id", { count: "exact", head: true }).eq("status", "pending") : none,
-    sales ? supabase.from("quote_requests").select("id, reference, company, contact_name, edition_name, licence_total, currency, status, created_at").order("created_at", { ascending: false }).limit(5) : none,
+    sales ? supabase.from("quote_requests").select("id, reference, company, contact_name, edition_name, status, created_at").order("created_at", { ascending: false }).limit(5) : none,
     sales ? supabase.from("leads").select("id, name, company, type, status, created_at").order("created_at", { ascending: false }).limit(5) : none,
     supabase.from("audit_log").select("id, action, resource, summary, actor_email, created_at").order("created_at", { ascending: false }).limit(8),
   ]);
@@ -59,12 +43,10 @@ async function loadDashboard(can: (permission: AppPermission) => boolean) {
   const leadRows = leads.data ?? [];
   const requestRows = requests.data ?? [];
   const quoteRows = quotations.data ?? [];
-  const invoiceRows = invoices.data ?? [];
   const bugRows = bugs.data ?? [];
   const closed = ["fixed", "wont_fix", "duplicate", "cannot_reproduce"];
   const isExpired = (row: { status: string; valid_until: string }) => row.status === "sent" && row.valid_until < today();
   const open = quoteRows.filter((row) => row.status === "sent" && !isExpired(row));
-  const unpaid = invoiceRows.filter((row) => row.status === "unpaid");
 
   return {
     leads: { fresh: leadRows.filter((row) => row.status === "new").length, month: leadRows.filter((row) => row.created_at > monthAgo).length },
@@ -75,13 +57,6 @@ async function loadDashboard(can: (permission: AppPermission) => boolean) {
       expired: quoteRows.filter(isExpired).length,
       accepted: quoteRows.filter((row) => row.status === "accepted").length,
       lost: quoteRows.filter((row) => row.status === "declined" || row.status === "cancelled").length,
-      pipeline: sumByCurrency(open),
-    },
-    invoices: {
-      unpaid: unpaid.length,
-      overdue: unpaid.filter((row) => row.due_date < today()).length,
-      outstanding: sumByCurrency(unpaid),
-      paidMonth: sumByCurrency(invoiceRows.filter((row) => row.status === "paid" && (row.paid_at ?? "") > monthAgo)),
     },
     licences: licences.count ?? 0,
     bugs: {
@@ -100,19 +75,6 @@ async function loadDashboard(can: (permission: AppPermission) => boolean) {
 }
 
 type Data = Awaited<ReturnType<typeof loadDashboard>>;
-
-function MoneyLine({ money, empty }: { money: Money[]; empty: string }) {
-  if (money.length === 0) return <>{empty}</>;
-  const [first, ...rest] = money;
-  return (
-    <Tooltip title={rest.length ? money.map((entry) => formatMoney(entry.amount, entry.currency, entry.decimals)).join(" · ") : undefined}>
-      <span>
-        {formatMoney(first.amount, first.currency, first.decimals)}
-        {rest.length ? <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}> +{rest.length}</Typography.Text> : null}
-      </span>
-    </Tooltip>
-  );
-}
 
 /** A headline figure: what it is, the number, and the context that makes it mean something. */
 function Kpi({ label, value, hint, icon, color, to, alert }: { label: string; value: React.ReactNode; hint: React.ReactNode; icon: React.ReactNode; color: string; to: string; alert?: boolean }) {
@@ -231,18 +193,19 @@ export function DashboardPage() {
   const sales = can("leads.manage");
   const licensing = can("licenses.manage");
   const finance = can("accounting.manage");
-  // Money in one currency (IDR or USD), for sales or finance.
-  const seesMoney = finance || can("quotations.manage");
-  const { money, currency, choose } = useSalesMoney(seesMoney);
 
   return (
     <>
       <PageTitle
         title={first ? `Welcome back, ${first}` : "Welcome back"}
-        description="What needs attention across sales, licensing and support."
+        description="What needs attention across sales, licensing and support. Money and revenue are on the Finance dashboard."
         actions={
           <Flex gap={12} align="center" wrap>
-            {seesMoney ? <CurrencySwitch value={currency} onChange={choose} /> : null}
+            {finance ? (
+              <Button icon={<FundOutlined />} onClick={() => navigate("/finance")}>
+                Finance dashboard
+              </Button>
+            ) : null}
             <Button icon={<ExportOutlined />} href={env.siteUrl} target="_blank" rel="noreferrer">
               View site
             </Button>
@@ -254,50 +217,6 @@ export function DashboardPage() {
       ) : (
         <Flex vertical gap={16}>
           <Row gutter={[16, 16]}>
-            {finance ? (
-              <Col xs={24} sm={12} xl={6}>
-                <Kpi
-                  label="Outstanding invoices"
-                  value={
-                    money?.outstanding ? (
-                      money.outstanding.count ? (
-                        <Tooltip
-                          title={
-                            <>
-                              {formatExact(money.outstanding.amount, money.currency)}
-                              {money.outstanding.by_currency.some((entry) => entry.currency !== money.currency) ? (
-                                <div style={{ opacity: 0.8 }}>
-                                  As invoiced: {money.outstanding.by_currency.map((entry) => formatMoney(entry.amount, entry.currency, entry.decimals)).join(" · ")}
-                                </div>
-                              ) : null}
-                            </>
-                          }
-                        >
-                          <span>{formatCompact(money.outstanding.amount, money.currency)}</span>
-                        </Tooltip>
-                      ) : (
-                        "All paid"
-                      )
-                    ) : (
-                      <MoneyLine money={data.invoices.outstanding} empty="All paid" />
-                    )
-                  }
-                  hint={
-                    data.invoices.unpaid
-                      ? `${data.invoices.unpaid} unpaid${
-                          data.invoices.overdue
-                            ? ` · ${data.invoices.overdue} overdue${money?.outstanding?.overdue_amount ? ` (${formatCompact(money.outstanding.overdue_amount, money.currency)})` : ""}`
-                            : ""
-                        }`
-                      : "Nothing waiting for payment"
-                  }
-                  icon={<TransactionOutlined />}
-                  color="#c2410c"
-                  to="/sales/invoices"
-                  alert={data.invoices.overdue > 0}
-                />
-              </Col>
-            ) : null}
             {sales ? (
               <Col xs={24} sm={12} xl={6}>
                 <Kpi
@@ -326,28 +245,20 @@ export function DashboardPage() {
               <Col xs={24} sm={12} xl={6}>
                 <Kpi label="Licence requests" value={data.licences} hint={data.licences ? "Fingerprints waiting for a .qlf" : "Nothing waiting"} icon={<KeyOutlined />} color="#13c2c2" to="/licensing/licences" />
               </Col>
-            ) : sales ? (
+            ) : null}
+            {sales ? (
               <Col xs={24} sm={12} xl={6}>
                 <Kpi label="Open bug reports" value={data.bugs.open} hint={data.bugs.critical ? `${data.bugs.critical} critical` : "None critical"} icon={<BugOutlined />} color="#f5222d" to="/community/bug-reports" alert={data.bugs.critical > 0} />
               </Col>
             ) : null}
           </Row>
 
-          {finance && money?.months ? (
-            <Panel title="Revenue" to="/sales/invoices">
-              <RevenueCard money={money} />
-              <div style={{ marginTop: 8 }}>
-                <RatesNote money={money} />
-              </div>
-            </Panel>
-          ) : null}
-
-          {sales || licensing ? (
+          {sales ? (
             <Row gutter={[16, 16]}>
               {sales ? (
                 <Col xs={24} lg={14}>
                   <Panel title="Sales pipeline" to="/sales/quotations">
-                    <PipelineFlow money={money} counts={data.quotations} />
+                    <PipelineFlow counts={data.quotations} />
                   </Panel>
                 </Col>
               ) : null}
@@ -372,12 +283,9 @@ export function DashboardPage() {
                       title: row.company || row.contact_name,
                       detail: `${row.reference} · ${row.edition_name ?? "Custom"} · ${shortDate(row.created_at)}`,
                       right: (
-                        <Flex vertical align="flex-end" gap={2}>
-                          <Typography.Text style={{ fontSize: 13 }}>{row.licence_total != null ? formatMoney(row.licence_total, row.currency ?? "USD") : "—"}</Typography.Text>
-                          <Tag style={{ marginInlineEnd: 0 }} color={row.status === "new" ? "processing" : undefined}>
-                            {row.status}
-                          </Tag>
-                        </Flex>
+                        <Tag style={{ marginInlineEnd: 0 }} color={row.status === "new" ? "processing" : undefined}>
+                          {row.status}
+                        </Tag>
                       ),
                       onClick: () => navigate("/sales/quote-requests"),
                     }))}
