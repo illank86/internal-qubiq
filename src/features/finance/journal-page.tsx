@@ -31,6 +31,9 @@ const SOURCE: Record<string, { label: string; color: string }> = {
   tax_payment: { label: "Tax paid", color: "purple" },
   payroll: { label: "Payroll", color: "cyan" },
   bpjs_payment: { label: "BPJS paid", color: "geekblue" },
+  asset: { label: "Asset bought", color: "lime" },
+  depreciation: { label: "Depreciation", color: "volcano" },
+  asset_disposal: { label: "Asset disposed", color: "magenta" },
   manual: { label: "Manual", color: "default" },
   reversal: { label: "Reversal", color: "red" },
 };

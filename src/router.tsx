@@ -32,6 +32,7 @@ const LedgerBookPage = lazy(() => import("@/features/finance/ledger-book-page").
 const StatementPage = lazy(() => import("@/features/finance/statement-page").then((module) => ({ default: module.StatementPage })));
 const PayrollPage = lazy(() => import("@/features/finance/payroll-page").then((module) => ({ default: module.PayrollPage })));
 const PayrollRunPage = lazy(() => import("@/features/finance/payroll-run-page").then((module) => ({ default: module.PayrollRunPage })));
+const AssetsPage = lazy(() => import("@/features/finance/assets-page").then((module) => ({ default: module.AssetsPage })));
 const FinanceSettingsPage = lazy(() => import("@/features/finance/settings-page").then((module) => ({ default: module.FinanceSettingsPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
 const BugReportsPage = lazy(() => import("@/features/community/bug-reports-page").then((module) => ({ default: module.BugReportsPage })));
@@ -63,6 +64,7 @@ const READY: Record<string, React.ReactNode> = {
   "/finance/reports": <ReportsPage />,
   "/finance/journal": <JournalPage />,
   "/finance/payroll": <PayrollPage />,
+  "/finance/assets": <AssetsPage />,
   "/finance/settings": <FinanceSettingsPage />,
   "/sales/delivery-orders": <DeliveryOrdersPage />,
   "/sales/orders": <OrdersPage />,
