@@ -122,7 +122,6 @@ function InvoiceDocument({
           title="INVOICE"
           number={invoice.number}
           references={[
-            ["Invoice no.", invoice.number],
             ["Quotation ref.", invoice.quotation_number],
             ["PO ref.", invoice.po_number],
           ]}
@@ -213,6 +212,20 @@ function InvoiceDocument({
               <Text style={styles.factLabel}>Payment reference</Text>
               <Text style={styles.factValue}>{invoice.number}</Text>
             </View>
+          </View>
+
+          {/* Who is paid, and our tax number (NPWP, VAT No.…) — what a payer's finance team asks for. */}
+          <View style={[styles.payee, { marginTop: 16 }]} wrap={false}>
+            <View style={{ flex: 1.3 }}>
+              <Text style={styles.factLabel}>Pay to</Text>
+              <Text style={styles.payeeValue}>{seller.company_name ?? "QUBIQ"}</Text>
+            </View>
+            {seller.tax_id ? (
+              <View style={[{ flex: 1 }, styles.payeeRule]}>
+                <Text style={styles.factLabel}>{seller.tax_id_label?.trim() || "Tax ID"}</Text>
+                <Text style={styles.payeeValue}>{seller.tax_id}</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={{ marginTop: 22 }}>

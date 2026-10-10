@@ -52,6 +52,10 @@ export const styles = StyleSheet.create({
   title: { fontSize: 20, lineHeight: 1.2, fontFamily: "Helvetica-Bold", color: INK, letterSpacing: 1.5 },
   number: { fontSize: 9.5, lineHeight: 1.2, color: MUTED, marginTop: 3 },
   // The references under the title: a small two-column table, right-aligned.
+  // Pay to / tax number, on the invoice's How to pay page.
+  payee: { flexDirection: "row", borderWidth: 0.6, borderColor: LINE, borderLeftWidth: 3, borderLeftColor: BRAND, borderRadius: 6, paddingVertical: 10, paddingHorizontal: 14, gap: 14 },
+  payeeRule: { borderLeftWidth: 0.6, borderColor: LINE, paddingLeft: 14 },
+  payeeValue: { fontSize: 10.5, color: INK, fontFamily: "Helvetica-Bold" },
   // The references under the title: one row of columns, label above value.
   refTable: { marginTop: 6, flexDirection: "row", borderWidth: 0.6, borderColor: LINE, borderRadius: 3 },
   refCell: { paddingVertical: 4, paddingHorizontal: 8 },
@@ -308,10 +312,7 @@ export function DocumentHeader({
   number: string | null;
   /** A line under the number, e.g. "Quotation ref. QUO-2026-0001". */
   reference?: string | null;
-  /**
-   * The document's references as a small table under the title, in place of
-   * the number line: number, quotation ref., PO ref. Empty values are left out.
-   */
+  /** References as a small table under the number: quotation ref., PO ref. Empty values are left out. */
   references?: [string, string | null | undefined][];
   stamp: string;
   stampColor: string;
@@ -323,6 +324,8 @@ export function DocumentHeader({
       <Image src={INVOICE_LOGO_DATA_URI} style={styles.logo} />
       <View style={styles.titleBlock}>
         <Text style={styles.title}>{title}</Text>
+        <Text style={styles.number}>{number}</Text>
+        {reference ? <Text style={[styles.number, { marginTop: 1 }]}>{reference}</Text> : null}
         {rows.length ? (
           <View style={styles.refTable}>
             {rows.map(([label, value], index) => (
@@ -332,12 +335,7 @@ export function DocumentHeader({
               </View>
             ))}
           </View>
-        ) : (
-          <>
-            <Text style={styles.number}>{number}</Text>
-            {reference ? <Text style={[styles.number, { marginTop: 1 }]}>{reference}</Text> : null}
-          </>
-        )}
+        ) : null}
         <View style={[styles.status, { borderColor: stampColor }]}>
           <Text style={[styles.statusText, { color: stampColor }]}>{stamp}</Text>
         </View>
@@ -353,7 +351,6 @@ export function SellerParty({ seller, label = "From" }: { seller: SellerBlock; l
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.partyName}>{seller.company_name ?? "QUBIQ"}</Text>
       <Lines text={seller.address} />
-      {seller.tax_id ? <Text>{seller.tax_id_label?.trim() || "Tax ID"} {seller.tax_id}</Text> : null}
       {seller.email ? <Text>{seller.email}</Text> : null}
       {seller.phone ? <Text>{seller.phone}</Text> : null}
     </View>

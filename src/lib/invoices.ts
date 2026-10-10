@@ -14,6 +14,8 @@ export type InvoiceSeller = {
   company_name?: string | null;
   address?: string | null;
   tax_id?: string | null;
+  /** What the tax number is called: NPWP, VAT No.… */
+  tax_id_label?: string | null;
   email?: string | null;
   phone?: string | null;
   website?: string | null;
