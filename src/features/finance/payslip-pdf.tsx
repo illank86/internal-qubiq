@@ -100,7 +100,7 @@ function Slip({ company, run, line, employee, printed }: { company: Company; run
       <View style={s.columns}>
         <View style={s.column}>
           <Text style={s.head}>PENGHASILAN</Text>
-          <Row label="Gaji pokok" value={line.base_salary} />
+          <Row label={line.pay_basis === "daily" ? "Upah harian" : "Gaji pokok"} value={line.base_salary} note={line.pay_basis === "daily" ? `${rp(line.daily_rate ?? 0)} × ${line.days_worked ?? 0} hari` : null} />
           {Number(line.allowance) ? <Row label="Tunjangan tetap" value={line.allowance} /> : null}
           {Number(line.other_income) ? <Row label="Penghasilan lain" value={line.other_income} note={line.other_income_note} /> : null}
           <View style={s.subtotal}>
@@ -116,7 +116,13 @@ function Slip({ company, run, line, employee, printed }: { company: Company; run
           <Row
             label={Number(line.pph21) < 0 ? "PPh 21 (kelebihan dikembalikan)" : "PPh 21"}
             value={line.pph21}
-            note={line.pph21_method === "ter" ? `TER kategori ${line.ter_category} ${Number(line.ter_rate)}% × ${rp(line.gross)}` : "Perhitungan setahun (Pasal 17)"}
+            note={
+              line.pph21_method === "ter"
+                ? `TER kategori ${line.ter_category} ${Number(line.ter_rate)}% × ${rp(line.gross)}`
+                : line.pph21_method === "daily"
+                  ? `TER harian ${Number(line.ter_rate)}% × ${rp(line.gross)}`
+                  : "Perhitungan setahun (Pasal 17)"
+            }
           />
           <View style={s.subtotal}>
             <Text>Jumlah potongan</Text>

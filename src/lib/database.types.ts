@@ -1207,6 +1207,7 @@ export type Database = {
           bpjs_ketenagakerjaan_number: string | null
           created_at: string
           email: string | null
+          employment_type: string
           fixed_allowance: number
           full_name: string
           id: string
@@ -1215,6 +1216,7 @@ export type Database = {
           nik: string | null
           notes: string | null
           npwp: string | null
+          pay_basis: string
           position: string | null
           ptkp_status: string
           updated_at: string
@@ -1230,6 +1232,7 @@ export type Database = {
           bpjs_ketenagakerjaan_number?: string | null
           created_at?: string
           email?: string | null
+          employment_type?: string
           fixed_allowance?: number
           full_name: string
           id?: string
@@ -1238,6 +1241,7 @@ export type Database = {
           nik?: string | null
           notes?: string | null
           npwp?: string | null
+          pay_basis?: string
           position?: string | null
           ptkp_status?: string
           updated_at?: string
@@ -1253,6 +1257,7 @@ export type Database = {
           bpjs_ketenagakerjaan_number?: string | null
           created_at?: string
           email?: string | null
+          employment_type?: string
           fixed_allowance?: number
           full_name?: string
           id?: string
@@ -1261,6 +1266,7 @@ export type Database = {
           nik?: string | null
           notes?: string | null
           npwp?: string | null
+          pay_basis?: string
           position?: string | null
           ptkp_status?: string
           updated_at?: string
@@ -3422,8 +3428,12 @@ export type Database = {
           allowance: number
           annual: Json | null
           base_salary: number
+          below_minimum: boolean
+          daily_rate: number | null
+          days_worked: number | null
           employee_id: string
           employee_name: string
+          employment_type: string
           gross: number
           id: string
           jht_employee: number
@@ -3439,6 +3449,7 @@ export type Database = {
           npwp: string | null
           other_income: number
           other_income_note: string | null
+          pay_basis: string
           payslip_error: string | null
           payslip_sent_at: string | null
           payslip_sent_to: string | null
@@ -3454,8 +3465,12 @@ export type Database = {
           allowance?: number
           annual?: Json | null
           base_salary?: number
+          below_minimum?: boolean
+          daily_rate?: number | null
+          days_worked?: number | null
           employee_id: string
           employee_name: string
+          employment_type?: string
           gross?: number
           id?: string
           jht_employee?: number
@@ -3471,6 +3486,7 @@ export type Database = {
           npwp?: string | null
           other_income?: number
           other_income_note?: string | null
+          pay_basis?: string
           payslip_error?: string | null
           payslip_sent_at?: string | null
           payslip_sent_to?: string | null
@@ -3486,8 +3502,12 @@ export type Database = {
           allowance?: number
           annual?: Json | null
           base_salary?: number
+          below_minimum?: boolean
+          daily_rate?: number | null
+          days_worked?: number | null
           employee_id?: string
           employee_name?: string
+          employment_type?: string
           gross?: number
           id?: string
           jht_employee?: number
@@ -3503,6 +3523,7 @@ export type Database = {
           npwp?: string | null
           other_income?: number
           other_income_note?: string | null
+          pay_basis?: string
           payslip_error?: string | null
           payslip_sent_at?: string | null
           payslip_sent_to?: string | null
@@ -3641,6 +3662,7 @@ export type Database = {
           kes_employee: number
           kes_employer: number
           kes_wage_cap: number
+          minimum_wage: number | null
           updated_at: string
         }
         Insert: {
@@ -3655,6 +3677,7 @@ export type Database = {
           kes_employee?: number
           kes_employer?: number
           kes_wage_cap?: number
+          minimum_wage?: number | null
           updated_at?: string
         }
         Update: {
@@ -3669,6 +3692,7 @@ export type Database = {
           kes_employee?: number
           kes_employer?: number
           kes_wage_cap?: number
+          minimum_wage?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -5455,6 +5479,10 @@ export type Database = {
       }
       fixed_asset_list: { Args: never; Returns: Json }
       fixed_asset_schedule: { Args: { p_asset: string }; Returns: Json }
+      form_1721a1: {
+        Args: { p_employee: string; p_year: number }
+        Returns: Json
+      }
       has_approval_pin: { Args: never; Returns: boolean }
       increment_post_views: { Args: { post_slug: string }; Returns: undefined }
       invoice_by_token: { Args: { p_token: string }; Returns: Json }

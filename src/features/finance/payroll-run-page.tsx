@@ -69,7 +69,7 @@ export function PayrollRunPage() {
       exportExcel(`pph21_${due.masa}.xlsx`, `Masa ${due.masa}`, [
         {
           name: "PPh 21",
-          title: "Daftar pemotongan PPh 21 pegawai tetap (bahan e-Bupot 21/26, Coretax)",
+          title: "Daftar pemotongan PPh 21 pegawai (bahan e-Bupot 21/26, Coretax)",
           columns: [
             { header: "NIK / NPWP", key: "nik", width: 20 },
             { header: "Nama", key: "name", width: 28 },
@@ -84,9 +84,9 @@ export function PayrollRunPage() {
             nik: line.npwp || line.nik || "",
             name: line.employee_name,
             ptkp: line.ptkp_status,
-            code: "21-100-01",
+            code: line.employment_type === "permanent" ? "21-100-01" : "21-100-03",
             gross: Number(line.gross),
-            method: line.pph21_method === "ter" ? `TER kategori ${line.ter_category}` : "Pasal 17 (setahun)",
+            method: line.pph21_method === "ter" ? `TER kategori ${line.ter_category}` : line.pph21_method === "daily" ? "TER harian" : "Pasal 17 (setahun)",
             rate: line.ter_rate === null ? null : Number(line.ter_rate),
             pph21: Number(line.pph21),
           })),
@@ -104,9 +104,11 @@ export function PayrollRunPage() {
         <div>
           <Typography.Text strong>{line.employee_name}</Typography.Text>
           <div style={{ fontSize: 12, opacity: 0.65 }}>
-            {line.ptkp_status} · TER {line.ter_category}
+            {line.ptkp_status} · {line.employment_type === "permanent" ? `TER ${line.ter_category}` : line.pay_basis === "daily" ? `by the day, ${line.days_worked ?? 0} days` : `non-permanent · TER ${line.ter_category}`}
             {line.position ? ` · ${line.position}` : ""}
           </div>
+          {line.below_minimum ? <Tag color="warning" style={{ marginTop: 2 }}>Below minimum wage</Tag> : null}
+          {line.pay_basis === "daily" && !line.days_worked ? <Tag color="warning" style={{ marginTop: 2 }}>Enter days worked</Tag> : null}
         </div>
       ),
     },
@@ -137,7 +139,7 @@ export function PayrollRunPage() {
       render: (_, line) => (
         <div>
           {idr(line.pph21)}
-          <div style={{ fontSize: 12, opacity: 0.65 }}>{line.pph21_method === "ter" ? `TER ${Number(line.ter_rate)}%` : "Year-end (Art. 17)"}</div>
+          <div style={{ fontSize: 12, opacity: 0.65 }}>{line.pph21_method === "ter" ? `TER ${Number(line.ter_rate)}%` : line.pph21_method === "daily" ? `Daily ${Number(line.ter_rate)}%` : "Year-end (Art. 17)"}</div>
         </div>
       ),
     },
@@ -358,7 +360,7 @@ const rupiah = {
   addonBefore: "Rp",
 };
 
-type LineValues = { base_salary: number; allowance: number; other_income: number; other_income_note: string };
+type LineValues = { base_salary: number; daily_rate: number; days_worked: number; allowance: number; other_income: number; other_income_note: string };
 
 function EditLine({ line, busy, onClose, onSave }: { line: PayrollLine; busy: boolean; onClose: () => void; onSave: (values: LineValues) => void }) {
   const [form] = Form.useForm<LineValues>();
@@ -367,13 +369,28 @@ function EditLine({ line, busy, onClose, onSave }: { line: PayrollLine; busy: bo
       <Form<LineValues>
         form={form}
         layout="vertical"
-        initialValues={{ base_salary: Number(line.base_salary), allowance: Number(line.allowance), other_income: Number(line.other_income), other_income_note: line.other_income_note ?? "" }}
+        initialValues={{ base_salary: Number(line.base_salary), daily_rate: Number(line.daily_rate ?? 0), days_worked: line.days_worked ?? 0, allowance: Number(line.allowance), other_income: Number(line.other_income), other_income_note: line.other_income_note ?? "" }}
         onFinish={onSave}
       >
         <Typography.Paragraph type="secondary">Only this month changes; the employee's usual salary stays as it is. PPh 21 and BPJS are worked out again on save.</Typography.Paragraph>
-        <Form.Item label="Base salary" name="base_salary" extra="E.g. pro-rated for someone who joined mid-month.">
-          <InputNumber {...rupiah} />
-        </Form.Item>
+        {line.pay_basis === "daily" ? (
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item label="Days worked" name="days_worked">
+                <InputNumber min={0} max={31} style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Day rate" name="daily_rate">
+                <InputNumber {...rupiah} />
+              </Form.Item>
+            </Col>
+          </Row>
+        ) : (
+          <Form.Item label="Base salary" name="base_salary" extra="E.g. pro-rated for someone who joined mid-month.">
+            <InputNumber {...rupiah} />
+          </Form.Item>
+        )}
         <Form.Item label="Fixed allowance" name="allowance">
           <InputNumber {...rupiah} />
         </Form.Item>

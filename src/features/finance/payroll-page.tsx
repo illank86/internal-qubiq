@@ -10,9 +10,10 @@ import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
+import { YearEnd } from "./payroll-year-end";
 import { createPayrollRun, periodLabel, PTKP_LABEL, PTKP_STATUSES, totals, useEmployees, usePayrollRuns, usePayrollSettings, type Employee } from "./payroll-api";
 
-const TABS = ["runs", "employees", "bpjs"] as const;
+const TABS = ["runs", "employees", "a1", "bpjs"] as const;
 
 /** Payroll: monthly runs, the employees on them, and the BPJS rates. Finance only. */
 export function PayrollPage() {
@@ -30,6 +31,7 @@ export function PayrollPage() {
           items={[
             { key: "runs", label: "Payroll runs", children: <Runs /> },
             { key: "employees", label: "Employees", children: <Employees /> },
+            { key: "a1", label: "Year-end (1721-A1)", children: <YearEnd /> },
             { key: "bpjs", label: "BPJS rates", children: <BpjsSettings /> },
           ]}
         />
@@ -122,7 +124,8 @@ function Employees() {
       ),
     },
     { title: "PTKP", dataIndex: "ptkp_status", key: "ptkp" },
-    { title: "Base salary", key: "base", align: "right", render: (_, item) => idr(item.base_salary) },
+    { title: "Type", key: "type", render: (_, item) => (item.employment_type === "permanent" ? "Permanent" : item.pay_basis === "daily" ? "Non-permanent, by the day" : "Non-permanent, monthly") },
+    { title: "Base salary", key: "base", align: "right", render: (_, item) => (item.pay_basis === "daily" ? `${idr(item.base_salary)} / day` : idr(item.base_salary)) },
     { title: "Fixed allowance", key: "allowance", align: "right", render: (_, item) => idr(item.fixed_allowance) },
     { title: "BPJS", key: "bpjs", render: (_, item) => [item.bpjs_kesehatan ? "Kesehatan" : null, item.bpjs_ketenagakerjaan ? "Ketenagakerjaan" : null].filter(Boolean).join(", ") || "—" },
     { title: "Joined", dataIndex: "joined_on", key: "joined" },
@@ -151,6 +154,8 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
   const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const employment = Form.useWatch("employment_type", form) ?? employee?.employment_type ?? "permanent";
+  const basis = Form.useWatch("pay_basis", form) ?? employee?.pay_basis ?? "monthly";
 
   const save = async (values: EmployeeValues) => {
     setPending(true);
@@ -171,6 +176,7 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
       bank_account_name: clean(values.bank_account_name),
       notes: clean(values.notes),
       base_salary: values.base_salary ?? 0,
+      pay_basis: values.employment_type === "permanent" ? "monthly" : values.pay_basis,
       fixed_allowance: values.fixed_allowance ?? 0,
     };
     const { error: saveError } = employee
@@ -202,7 +208,7 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
         requiredMark="optional"
         onFinish={save}
         disabled={pending}
-        initialValues={employee ?? { joined_on: jakartaToday(), ptkp_status: "TK/0", base_salary: 0, fixed_allowance: 0, bpjs_kesehatan: true, bpjs_ketenagakerjaan: true }}
+        initialValues={employee ?? { joined_on: jakartaToday(), ptkp_status: "TK/0", employment_type: "permanent", pay_basis: "monthly", base_salary: 0, fixed_allowance: 0, bpjs_kesehatan: true, bpjs_ketenagakerjaan: true }}
       >
         <Row gutter={16}>
           <Col xs={24} sm={14}>
@@ -239,7 +245,23 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
         <Typography.Title level={5}>Pay and tax</Typography.Title>
         <Row gutter={16}>
           <Col xs={24} sm={12}>
-            <Form.Item label="Base salary (monthly)" name="base_salary" rules={[{ required: true }]}>
+            <Form.Item label="Employment" name="employment_type" extra={employment === "permanent" ? "PPh 21 by TER; December settles the year." : "Pegawai tidak tetap: TER each month, no year-end settlement."}>
+              <Select
+                options={[
+                  { value: "permanent", label: "Permanent (pegawai tetap)" },
+                  { value: "non_permanent", label: "Non-permanent (pegawai tidak tetap)" },
+                ]}
+                onChange={(value) => value === "permanent" && form.setFieldValue("pay_basis", "monthly")}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item label="Paid" name="pay_basis" extra={basis === "daily" ? "Daily TER: 0% up to Rp450,000 a day, 0.5% up to Rp2,500,000." : undefined}>
+              <Select disabled={employment === "permanent"} options={[{ value: "monthly", label: "Monthly" }, { value: "daily", label: "By the day" }]} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item label={basis === "daily" ? "Day rate" : "Base salary (monthly)"} name="base_salary" rules={[{ required: true }]}>
               <InputNumber {...rupiah} />
             </Form.Item>
           </Col>
@@ -302,7 +324,7 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
 
 // ------------------------------------------------------------------ BPJS settings
 
-type BpjsValues = { jht_employer: number; jht_employee: number; jp_employer: number; jp_employee: number; jp_wage_cap: number; jkk_rate: number; jkm_rate: number; kes_employer: number; kes_employee: number; kes_wage_cap: number };
+type BpjsValues = { minimum_wage: number | null; jht_employer: number; jht_employee: number; jp_employer: number; jp_employee: number; jp_wage_cap: number; jkk_rate: number; jkm_rate: number; kes_employer: number; kes_employee: number; kes_wage_cap: number };
 
 function BpjsSettings() {
   const [form] = Form.useForm<BpjsValues>();
@@ -351,6 +373,11 @@ function BpjsSettings() {
       <Typography.Paragraph type="secondary">
         Percent of the wage (base salary + fixed allowance). The government revises the JP wage cap each year (Rp11,086,300 for 2026); BPJS Kesehatan counts the wage up to Rp12,000,000.
       </Typography.Paragraph>
+      <Card size="small" title="Minimum wage (UMK)" style={{ marginBottom: 16, maxWidth: 440 }}>
+        <Form.Item name="minimum_wage" extra="The UMK (or UMP) where your people work. BPJS is counted on at least this; a monthly salary below it is flagged." style={{ marginBottom: 0 }}>
+          <InputNumber {...rupiah} step={1000} placeholder="e.g. 5,400,000" />
+        </Form.Item>
+      </Card>
       <Row gutter={[16, 16]}>
         {pair("BPJS Kesehatan", "kes_employer", "kes_employee", "kes_wage_cap", "Health insurance: 4% company, 1% employee.")}
         {pair("JHT — Jaminan Hari Tua", "jht_employer", "jht_employee", null, "Old-age savings: 3.7% company, 2% employee; no cap.")}
