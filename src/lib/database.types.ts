@@ -1279,6 +1279,7 @@ export type Database = {
           due_date: string
           exchange_rate: number | null
           id: string
+          integrator_id: string | null
           issue_date: string
           license_id: string | null
           licensee_address: string | null
@@ -1337,6 +1338,7 @@ export type Database = {
           due_date: string
           exchange_rate?: number | null
           id?: string
+          integrator_id?: string | null
           issue_date?: string
           license_id?: string | null
           licensee_address?: string | null
@@ -1395,6 +1397,7 @@ export type Database = {
           due_date?: string
           exchange_rate?: number | null
           id?: string
+          integrator_id?: string | null
           issue_date?: string
           license_id?: string | null
           licensee_address?: string | null
@@ -2697,6 +2700,7 @@ export type Database = {
           declined_at: string | null
           exchange_rate: number | null
           id: string
+          integrator_id: string | null
           internal_note: string | null
           introduction: string | null
           issue_date: string
@@ -2765,6 +2769,7 @@ export type Database = {
           declined_at?: string | null
           exchange_rate?: number | null
           id?: string
+          integrator_id?: string | null
           internal_note?: string | null
           introduction?: string | null
           issue_date?: string
@@ -2833,6 +2838,7 @@ export type Database = {
           declined_at?: string | null
           exchange_rate?: number | null
           id?: string
+          integrator_id?: string | null
           internal_note?: string | null
           introduction?: string | null
           issue_date?: string

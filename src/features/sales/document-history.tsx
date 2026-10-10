@@ -65,6 +65,7 @@ const FIELD: Record<string, string> = {
   po_path: "Purchase order file",
   licensee_name: "Licensed to",
   licensee_address: "Licensee address",
+  integrator_id: "Integrator (order via)",
   ship_to_name: "Deliver to",
   ship_to_company: "Company",
   ship_to_address: "Delivery address",

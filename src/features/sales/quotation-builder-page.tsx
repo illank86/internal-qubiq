@@ -10,6 +10,7 @@ import { loadSalesCatalog, newGroup, priceGroups, errorText, type GroupDraft, ty
 import { supabase } from "@/lib/supabase";
 import { newQuotationDraft, savedQuotationDraft, type QuotationDraft } from "./quotation-draft";
 import { ServerGroupsEditor } from "./server-groups-editor";
+import { IntegratorField } from "./integrator-field";
 import { renderQuotationPreview } from "./quotation-preview";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
@@ -39,6 +40,7 @@ type Values = {
   for_end_user: boolean;
   licensee_name: string;
   licensee_address: string;
+  integrator_id: string | null;
   sales_profile_id: string;
   sales_name: string;
   sales_title: string;
@@ -239,6 +241,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
         // Empty: the licence is the customer's own.
         licensee_name: values.for_end_user ? opt(values.licensee_name) ?? null : null,
         licensee_address: values.for_end_user && opt(values.licensee_name) ? opt(values.licensee_address) ?? null : null,
+        // Who the order came through; its invoices follow.
+        integrator_id: values.integrator_id ?? null,
       })
       .eq("id", quotationId);
     if (ccError) {
@@ -288,6 +292,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     for_end_user: Boolean(draft.licensee.name),
     licensee_name: draft.licensee.name,
     licensee_address: draft.licensee.address,
+    integrator_id: draft.integratorId,
     sales_profile_id: draft.sales.profileId,
     sales_name: draft.sales.name,
     sales_title: draft.sales.title,
@@ -342,6 +347,9 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                     <Segmented options={SOURCES} />
                   </Form.Item>
                 ) : null}
+                <Form.Item label="Order via" name="integrator_id" extra="Through an integrator: the partner who brought this order. Shown in Order overview; the customer does not see it.">
+                  <IntegratorField />
+                </Form.Item>
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
                     <Form.Item label="Contact name" name="contact_name" rules={[{ required: true, whitespace: true, message: "Enter who the quotation is for" }, { max: 200 }]}>

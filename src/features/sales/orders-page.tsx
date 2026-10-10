@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Drawer, Flex, Input, Segmented, Table, Tag, Typography, theme } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, App, Button, Drawer, Flex, Input, Segmented, Select, Table, Tag, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
 import {
   CarOutlined,
@@ -23,6 +23,8 @@ import { supabase } from "@/lib/supabase";
 import { invoicePdf, purchaseOrderPdf, quotationPdf } from "./api";
 import { FILE_KIND_LABEL, deliveryFileRequest, deliveryOrderPdf, type DeliveryFile, type FileKind } from "./delivery-api";
 import { DeliveryStatusTag } from "./delivery-orders-page";
+import { ChannelTag, IntegratorField, useIntegrators } from "./integrator-field";
+import { errorText } from "@/lib/sales";
 import { InvoiceStatusTag } from "./invoices-page";
 
 type Do = {
@@ -73,6 +75,8 @@ type Order = {
   invoices: InvoiceRow[];
   /** An invoice with no quotation behind it (made directly, or its quotation was removed). */
   direct?: boolean;
+  integrator_id: string | null;
+  integrator: { id: string; company_name: string } | null;
 };
 
 type Stage = "quoting" | "accepted" | "invoiced" | "licence" | "to_deliver" | "partly_delivered" | "awaiting_receipt" | "delivered" | "closed";
@@ -88,13 +92,13 @@ const STAGE: Record<Stage, { label: string; color: string }> = {
   closed: { label: "Closed", color: "default" },
 };
 
-const INVOICE_FIELDS = `id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
+const INVOICE_FIELDS = `id, number, status, integrator_id, integrator:integrators(id, company_name), issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
     groups:invoice_groups(quantity),
     licenses:licenses!licenses_invoice_id_fkey(id, label, status, issued_at),
     license:licenses!invoices_license_id_fkey(id, label, status, issued_at),
     delivery_orders!delivery_orders_invoice_id_fkey(id, number, status, received_via, received_by_name, received_at, delivery_date, items:delivery_order_items(quantity), files:delivery_order_files(*))`;
 
-const SELECT = `id, number, status, company, contact_name, contact_email, issue_date, sent_at, accepted_at, total, currency, decimal_places, created_at,
+const SELECT = `id, number, status, integrator_id, integrator:integrators(id, company_name), company, contact_name, contact_email, issue_date, sent_at, accepted_at, total, currency, decimal_places, created_at,
   quote_request:quote_requests(id, reference, created_at, edition_name),
   invoices!invoices_quotation_id_fkey(id, number, status, issue_date, due_date, paid_at, total, currency, decimal_places, po_number, po_path, po_file_name,
     groups:invoice_groups(quantity),
@@ -135,6 +139,9 @@ function stageOf(order: Order): Stage {
 export function OrdersPage() {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState<"all" | Stage>("all");
+  // "all", "direct", or an integrator's id.
+  const [via, setVia] = useState<string>("all");
+  const { data: integrators } = useIntegrators();
   const [openId, setOpenId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -152,7 +159,14 @@ export function OrdersPage() {
       ]);
       if (loadError) throw loadError;
       if (looseError) throw looseError;
-      type Loose = InvoiceRow & { bill_to_name: string; bill_to_company: string | null; bill_to_email: string | null; created_at: string };
+      type Loose = InvoiceRow & {
+        bill_to_name: string;
+        bill_to_company: string | null;
+        bill_to_email: string | null;
+        created_at: string;
+        integrator_id: string | null;
+        integrator: { id: string; company_name: string } | null;
+      };
       const direct: Order[] = ((loose ?? []) as unknown as Loose[]).map((invoice) => ({
         id: invoice.id,
         number: null,
@@ -170,6 +184,8 @@ export function OrdersPage() {
         quote_request: null,
         invoices: [invoice],
         direct: true,
+        integrator_id: invoice.integrator_id,
+        integrator: invoice.integrator,
       }));
       return [...((rows ?? []) as unknown as Order[]), ...direct]
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -181,19 +197,27 @@ export function OrdersPage() {
     const query = search.trim().toLowerCase();
     return (data ?? []).filter((order) => {
       if (stage !== "all" && order.stage !== stage) return false;
+      if (via === "direct" ? order.integrator_id : via !== "all" && order.integrator_id !== via) return false;
       if (!query) return true;
       const numbers = [
         order.number,
         order.company,
         order.contact_name,
         order.quote_request?.reference,
+        order.integrator?.company_name,
         ...order.invoices.flatMap((invoice) => [invoice.number, invoice.po_number, ...invoice.delivery_orders.map((item) => item.number)]),
       ];
       return numbers.some((value) => (value ?? "").toLowerCase().includes(query));
     });
-  }, [data, search, stage]);
+  }, [data, search, stage, via]);
 
   const columns: TableColumnsType<Order & { stage: Stage }> = [
+    {
+      title: "Via",
+      key: "via",
+      width: 170,
+      render: (_, order) => <ChannelTag name={order.integrator?.company_name} />,
+    },
     {
       title: "Customer",
       key: "customer",
@@ -283,7 +307,25 @@ export function OrdersPage() {
             { value: "delivered", label: "Delivered" },
           ]}
         />
-        <Input.Search allowClear value={search} placeholder="QUO, PO, INV or DO number, or customer" onChange={(event) => setSearch(event.target.value)} style={{ maxWidth: 340 }} />
+        <Flex gap={8} wrap style={{ flex: "1 1 auto", justifyContent: "flex-end" }}>
+          <Select
+            value={via}
+            onChange={setVia}
+            showSearch
+            optionFilterProp="label"
+            style={{ minWidth: 220 }}
+            aria-label="Filter by who the order came through"
+            options={[
+              { value: "all", label: "Direct and integrators" },
+              { value: "direct", label: `Direct customers (${(data ?? []).filter((order) => !order.integrator_id).length})` },
+              ...(integrators ?? []).map((item) => ({
+                value: item.id,
+                label: `${item.company_name} (${(data ?? []).filter((order) => order.integrator_id === item.id).length})`,
+              })),
+            ]}
+          />
+          <Input.Search allowClear value={search} placeholder="QUO, PO, INV or DO number, customer, integrator" onChange={(event) => setSearch(event.target.value)} style={{ maxWidth: 340 }} />
+        </Flex>
       </Flex>
       <Table
         rowKey="id"
@@ -306,7 +348,22 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
   const { token } = theme.useToken();
   const viewPdf = usePdfViewer();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+  const [savingVia, setSavingVia] = useState(false);
   if (!order) return <Drawer open={false} onClose={onClose} />;
+
+  // On the quotation (its invoices follow), or on the invoice when there is no quotation.
+  const setIntegrator = async (integratorId: string | null) => {
+    setSavingVia(true);
+    const { error } = order.direct
+      ? await supabase.from("invoices").update({ integrator_id: integratorId }).eq("id", order.id)
+      : await supabase.from("quotations").update({ integrator_id: integratorId }).eq("id", order.id);
+    setSavingVia(false);
+    if (error) return message.error(errorText(error, "That could not be saved. Please try again."));
+    message.success(integratorId ? "Linked to the integrator." : "Marked as a direct customer.");
+    await queryClient.invalidateQueries({ queryKey: ["order-overview"] });
+  };
   const invoice = invoiceOf(order);
   const dos = invoice?.delivery_orders ?? [];
   const left = invoice ? ordered(invoice) - delivered(invoice) : 0;
@@ -473,6 +530,12 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
         </Flex>
       }
     >
+      <Flex vertical gap={6} style={{ marginBottom: 20, padding: "12px 16px", borderRadius: token.borderRadiusLG, background: token.colorFillQuaternary }}>
+        <Typography.Text strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+          Order via
+        </Typography.Text>
+        <IntegratorField key={order.integrator_id ?? "direct"} value={order.integrator_id} onChange={setIntegrator} disabled={savingVia} />
+      </Flex>
       <div>
         {steps.map((step, index) => {
           const last = index === steps.length - 1;
