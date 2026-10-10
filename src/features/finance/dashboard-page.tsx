@@ -19,7 +19,7 @@ type Dashboard = {
   receivables: { total: number; count: number; current: number; d31_60: number; d61_90: number; over_90: number };
   profit: { revenue: number; expenses: number; non_deductible: number; profit: number; taxable: number; estimated_tax: number; credits: number; estimated_due: number };
   deadlines: { key: string; label: string; due: string; needed: boolean; paid: boolean }[];
-  warnings: { missing_bukti_potong: number; expenses_without_receipt: number; estimated_rates: number; ppn_before_pkp: number; no_bank_account: boolean; paid_without_receipt: number };
+  warnings: { missing_faktur?: number; missing_bukti_potong: number; expenses_without_receipt: number; estimated_rates: number; ppn_before_pkp: number; no_bank_account: boolean; paid_without_receipt: number };
 };
 
 const dateLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -57,6 +57,7 @@ export function FinanceDashboardPage() {
 
   const warnings = data
     ? [
+        (data.warnings.missing_faktur ?? 0) > 0 && { text: `${data.warnings.missing_faktur} invoice(s) issued as PKP have no faktur pajak attached yet.`, to: "/sales/invoices" },
         data.warnings.no_bank_account && { text: "Add your bank accounts in Finance → Settings before recording payments.", to: "/finance/settings?tab=banks" },
         data.warnings.paid_without_receipt > 0 && { text: `${data.warnings.paid_without_receipt} invoice(s) marked paid before Finance existed: record what was actually received.`, to: "/finance/money-in" },
         data.warnings.ppn_before_pkp > 0 && { text: `${idr(data.warnings.ppn_before_pkp)} was charged as tax before PKP. Review it with your tax consultant (Finance → Settings → Tax lists the documents).`, to: "/finance/settings" },

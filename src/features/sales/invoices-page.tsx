@@ -42,6 +42,7 @@ import { needsSigning, purchaseOrderPdf, setInvoicePurchaseOrder, signingHint, s
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { useAction } from "./use-action";
 import { RecordPaymentModal } from "@/features/finance/record-payment-modal";
+import { FakturModal, FakturPanel, FakturTag, needsFaktur } from "@/features/finance/faktur-modal";
 import { discountLines } from "@/lib/pdf-theme";
 import { InvoiceDeliveries } from "./delivery-orders-page";
 
@@ -182,6 +183,7 @@ export function InvoicesPage() {
         <Flex vertical gap={2} align="flex-start">
           <InvoiceStatusTag invoice={row} />
           <SigningTag row={row} />
+          <FakturTag invoice={row} />
           {row.approval_status === "none" && row.send_count === 0 && row.status !== "void" ? (
             <Tag icon={<SendOutlined />} style={{ marginInlineEnd: 0 }}>
               Not sent
@@ -277,6 +279,7 @@ function InvoiceRowActions({
   const [rejecting, setRejecting] = useState(false);
   const [history, setHistory] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [faktur, setFaktur] = useState(false);
   const k = (name: string) => `${name}:${row.id}`;
   const title = `invoice ${row.number ?? ""}`.trim();
   const waiting = row.approval_status === "pending";
@@ -361,6 +364,9 @@ function InvoiceRowActions({
     next.push({ key: "deliver", icon: <CarOutlined />, label: "Create delivery order", onClick: () => navigate(`/sales/delivery-orders?new=${row.id}`) });
   }
 
+  // Issued as PKP: its faktur pajak (from Coretax) comes first.
+  if (needsFaktur(row) && !row.faktur_path) next.unshift({ key: "faktur", icon: <FileProtectOutlined />, label: "Attach faktur pajak", onClick: () => setFaktur(true) });
+
   const view: Item[] = [
     { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onEdit },
     { key: "pdf", icon: <FilePdfOutlined />, label: "View PDF", onClick: () => viewPdf(invoicePdf(row.id, row.number)) },
@@ -417,6 +423,7 @@ function InvoiceRowActions({
       />
       <ApprovalHistoryModal type="invoice" id={row.id} title={title} open={history} onClose={() => setHistory(false)} />
       {paying ? <RecordPaymentModal invoice={row} open onClose={() => setPaying(false)} /> : null}
+      {faktur ? <FakturModal invoice={row} onClose={() => setFaktur(false)} /> : null}
       {signingMenu.modal}
     </Flex>
   );
@@ -486,6 +493,7 @@ function InvoiceDetailsDrawer({
   const ccWatched = Form.useWatch("cc_emails", form);
 
   const [tab, setTab] = useState("overview");
+  const [fakturOpen, setFakturOpen] = useState(false);
   const { data: lines } = useQuery({
     queryKey: ["invoice-lines", invoice?.id],
     enabled: Boolean(invoice),
@@ -581,6 +589,7 @@ function InvoiceDetailsDrawer({
           <span style={{ fontFamily: "Geist Mono, monospace" }}>{invoice.number ?? "Invoice"}</span>
           <InvoiceStatusTag invoice={invoice} />
           <SigningTag row={invoice} />
+          <FakturTag invoice={invoice} />
         </Flex>
       }
       size={820}
@@ -622,6 +631,7 @@ function InvoiceDetailsDrawer({
           />
           {invoice.approval_status === "none" && invoice.send_count === 0 ? <Typography.Text type="secondary">Not sent yet.</Typography.Text> : null}
           {invoice.status === "paid" && invoice.paid_at ? <PaymentRecord invoice={invoice} /> : null}
+          <FakturPanel invoice={invoice} onUpload={() => setFakturOpen(true)} />
           {needsSigning(invoice) ? (
             <>
               <Typography.Text type="secondary" style={{ fontSize: 13 }}>
@@ -909,6 +919,7 @@ function InvoiceDetailsDrawer({
           ]}
         />
       </Flex>
+      {fakturOpen ? <FakturModal invoice={invoice} onClose={() => setFakturOpen(false)} /> : null}
     </Drawer>
   );
 }

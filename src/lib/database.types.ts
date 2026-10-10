@@ -1770,6 +1770,12 @@ export type Database = {
           discount_label: string | null
           discount_amount: number
           due_date: string
+          faktur_date: string | null
+          faktur_file_name: string | null
+          faktur_number: string | null
+          faktur_path: string | null
+          faktur_uploaded_at: string | null
+          faktur_uploaded_by: string | null
           exchange_rate: number | null
           id: string
           integrator_id: string | null
@@ -1839,6 +1845,12 @@ export type Database = {
           discount_label?: string | null
           discount_amount?: number
           due_date: string
+          faktur_date: string | null
+          faktur_file_name: string | null
+          faktur_number: string | null
+          faktur_path: string | null
+          faktur_uploaded_at: string | null
+          faktur_uploaded_by: string | null
           exchange_rate?: number | null
           id?: string
           integrator_id?: string | null
@@ -1908,6 +1920,12 @@ export type Database = {
           discount_label?: string | null
           discount_amount?: number
           due_date?: string
+          faktur_date?: string | null
+          faktur_file_name?: string | null
+          faktur_number?: string | null
+          faktur_path?: string | null
+          faktur_uploaded_at?: string | null
+          faktur_uploaded_by?: string | null
           exchange_rate?: number | null
           id?: string
           integrator_id?: string | null
@@ -4374,6 +4392,7 @@ export type Database = {
       monthly_tax_report: { Args: { p_masa: string }; Returns: Json }
       invoice_open_balance: { Args: { p_invoice: string }; Returns: number }
       tax_before_pkp_documents: { Args: never; Returns: Json }
+      set_invoice_faktur: { Args: { p_id: string; p_number: string; p_date: string; p_path: string; p_file_name?: string }; Returns: undefined }
       set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }
