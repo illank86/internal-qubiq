@@ -119,8 +119,8 @@ function stageOf(order: Order): Stage {
 
 /**
  * One order, end to end, on one page: the quote request, the quotation, the
- * customer's PO, the invoice and its payment, every delivery order with the
- * signed DO and BAST, and the licences — each with its document.
+ * customer's PO, the invoice and its payment, the licences, then every
+ * delivery order with the signed DO and BAST — each with its document.
  */
 export function OrdersPage() {
   const [search, setSearch] = useState("");
@@ -385,6 +385,28 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
       ),
     },
     {
+      key: "licences",
+      icon: <KeyOutlined />,
+      title: "Licences",
+      done: Boolean(invoice?.licenses.some((licence) => licence.status === "issued")),
+      // Paid: the licence is the next thing to issue, before it is delivered.
+      current: invoice?.status === "paid" && !invoice.licenses.some((licence) => licence.status === "issued"),
+      children: invoice?.licenses.length ? (
+        <Flex gap={6} wrap align="center">
+          {invoice.licenses.map((licence) => (
+            <Tag key={licence.id} color={licence.status === "issued" ? "success" : "default"}>
+              {licence.label} · {licence.status}
+            </Tag>
+          ))}
+          <Button size="small" type="link" onClick={() => navigate("/licensing/licences")}>
+            Licences
+          </Button>
+        </Flex>
+      ) : (
+        meta("None yet.")
+      ),
+    },
+    {
       key: "delivery",
       icon: <CarOutlined />,
       title: "Delivery",
@@ -424,26 +446,6 @@ function OrderDrawer({ order, onClose }: { order: (Order & { stage: Stage }) | n
             </div>
           ))}
         </Flex>
-      ),
-    },
-    {
-      key: "licences",
-      icon: <KeyOutlined />,
-      title: "Licences",
-      done: Boolean(invoice?.licenses.some((licence) => licence.status === "issued")),
-      children: invoice?.licenses.length ? (
-        <Flex gap={6} wrap align="center">
-          {invoice.licenses.map((licence) => (
-            <Tag key={licence.id} color={licence.status === "issued" ? "success" : "default"}>
-              {licence.label} · {licence.status}
-            </Tag>
-          ))}
-          <Button size="small" type="link" onClick={() => navigate("/licensing/licences")}>
-            Licences
-          </Button>
-        </Flex>
-      ) : (
-        meta("None yet.")
       ),
     },
   ];
