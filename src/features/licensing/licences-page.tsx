@@ -5,6 +5,7 @@ import { App, Button, Dropdown, Flex, Input, Popconfirm, Segmented, Select, Spac
 import type { MenuProps, TableColumnsType } from "antd";
 import { DownloadOutlined, FileAddOutlined, KeyOutlined, MoreOutlined, StopOutlined, UploadOutlined, WarningOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
+import { useCan } from "@/auth/use-auth";
 import type { Database } from "@/lib/database.types";
 import { formatInvoiceDate, isOverdue } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
@@ -69,6 +70,7 @@ async function download(path: string, name: string) {
  * checks it is there before marking the licence issued (which emails the customer).
  */
 export function LicencesPage() {
+  const canQuote = useCan()("quotations.manage");
   const navigate = useNavigate();
   const { message } = App.useApp();
   const [filter, setFilter] = useState<Filter>("pending");
@@ -256,7 +258,7 @@ export function LicencesPage() {
           ...(row.license_path
             ? [{ key: "qlf", icon: <KeyOutlined />, label: `Licence file (${row.license_name ?? "license.qlf"})`, onClick: () => run(`qlf:${row.id}`, () => download(row.license_path!, row.license_name ?? "license.qlf")) }]
             : []),
-          ...(!row.quotation_group_id && invoicesFor(row).length === 0
+          ...(!row.quotation_group_id && invoicesFor(row).length === 0 && canQuote
             ? [{ key: "quote", icon: <FileAddOutlined />, label: "Create quotation", onClick: () => navigate(`/sales/quotations/new?license=${row.id}`) }]
             : []),
         ];

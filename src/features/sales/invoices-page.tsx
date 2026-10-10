@@ -334,7 +334,8 @@ function InvoiceRowActions({
     });
 
   const signingMenu = useSigningMenu({ type: "invoice", row, isApprover, run });
-  const licensing = useCan()("licenses.manage");
+  const can = useCan();
+  const licensing = can("licenses.manage");
   const meId = useStaff().id;
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   // Asks the day the money arrived: received money is reported at that day's rate.
@@ -385,7 +386,7 @@ function InvoiceRowActions({
     ...(approved && row.status === "unpaid" && (signing === "none" || signing === "sent")
       ? [{ key: "resend", icon: <SendOutlined />, label: sendsDirectly ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
-    ...(row.quotation_id && !row.owner_id
+    ...(row.quotation_id && !row.owner_id && can("quotations.manage")
       ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
       : []),
     ...(row.status === "paid" ? [{ key: "unpaid", icon: <UndoOutlined />, label: "Mark not paid", onClick: () => run(k("unpaid"), () => setInvoiceStatus(row.id, "unpaid"), "Marked not paid.") }] : []),

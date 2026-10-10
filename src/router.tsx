@@ -9,6 +9,8 @@ import { LoginPage } from "@/pages/login";
 import { SetPasswordPage } from "@/pages/set-password";
 import { NAV_ITEMS } from "@/nav";
 import { FullPageSpinner } from "@/components/ui";
+import { RequirePermission } from "@/components/require-permission";
+import type { AppPermission } from "@/lib/types";
 
 /*
  * Each screen is its own download, fetched the first time it is opened: the
@@ -86,6 +88,11 @@ const READY: Record<string, React.ReactNode> = {
   ...Object.fromEntries(Object.keys(CONTENT_SCREENS).map((path) => [path, <ContentPage key={path} path={path} />])),
 };
 
+/** A route only for the roles that may use it (the same rule as the menu). */
+function guarded(path: string, permissions: AppPermission[], element: React.ReactNode) {
+  return { path, element: <RequirePermission permissions={permissions}>{element}</RequirePermission> };
+}
+
 /**
  * Signed-out screens: sign in, forgot password, set password (invite and
  * reset links). No sign-up — staff are invited.
@@ -116,14 +123,15 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
           { path: "/account", element: <ProfilePage /> },
-          ...NAV_ITEMS.map((item) => ({ path: item.path, element: READY[item.path] ?? <ComingSoonPage item={item} /> })),
-          { path: "/sales/quotations/new", element: <QuotationBuilderPage /> },
-          { path: "/sales/quotations/:id/edit", element: <QuotationBuilderPage /> },
-          { path: "/sales/quotations/:id/convert", element: <ConvertPage /> },
-          { path: "/sales/quotations/:id/customer", element: <CustomerPage /> },
-          { path: "/finance/journal/book", element: <LedgerBookPage /> },
-          { path: "/finance/reports/statements", element: <StatementPage /> },
-          { path: "/finance/payroll/:id", element: <PayrollRunPage /> },
+          ...NAV_ITEMS.map((item) => guarded(item.path, item.permissions, READY[item.path] ?? <ComingSoonPage item={item} />)),
+          // Screens off the menu: the permission the database asks for there.
+          guarded("/sales/quotations/new", ["quotations.manage"], <QuotationBuilderPage />),
+          guarded("/sales/quotations/:id/edit", ["quotations.manage"], <QuotationBuilderPage />),
+          guarded("/sales/quotations/:id/convert", ["accounting.manage"], <ConvertPage />),
+          guarded("/sales/quotations/:id/customer", ["quotations.manage"], <CustomerPage />),
+          guarded("/finance/journal/book", ["accounting.manage"], <LedgerBookPage />),
+          guarded("/finance/reports/statements", ["accounting.manage"], <StatementPage />),
+          guarded("/finance/payroll/:id", ["accounting.manage"], <PayrollRunPage />),
           { path: "*", element: <NotFoundPage /> },
         ],
       },
