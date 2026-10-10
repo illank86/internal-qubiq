@@ -53,6 +53,9 @@ type TaxValues = {
   tax_rate: number;
   tax_id_label: string;
   reporting_currency: string;
+  faktur_supply_type: "A" | "B";
+  faktur_item_code: string;
+  faktur_unit: string;
 };
 
 function TaxSettings() {
@@ -101,6 +104,9 @@ function TaxSettings() {
       pph25_monthly: values.pph25_monthly ?? 0,
       corporate_rate: values.corporate_rate,
       facility_31e_threshold: values.facility_31e_threshold,
+      faktur_supply_type: values.faktur_supply_type,
+      faktur_item_code: values.faktur_item_code,
+      faktur_unit: values.faktur_unit,
     };
     const invoice = {
       tax_label: values.tax_label,
@@ -156,6 +162,9 @@ function TaxSettings() {
         tax_rate: Number(i.tax_rate),
         tax_id_label: i.tax_id_label ?? "NPWP",
         reporting_currency: i.reporting_currency ?? "IDR",
+        faktur_supply_type: (a.faktur_supply_type as "A" | "B") ?? "A",
+        faktur_item_code: a.faktur_item_code ?? "000000",
+        faktur_unit: a.faktur_unit ?? "UM.0033",
       }}
     >
       <Divider titlePlacement="start" style={{ marginTop: 0 }}>
@@ -270,6 +279,21 @@ function TaxSettings() {
           <Col xs={12} md={6}>
             <Form.Item label="PPN rate" name="ppn_rate">
               <InputNumber min={0} max={100} suffix="%" style={{ width: "100%" }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item label="On the faktur pajak, we supply" name="faktur_supply_type" extra="A software licence is an intangible good (A); choose B if you invoice services.">
+              <Segmented options={[{ value: "A", label: "Goods, incl. licences (A)" }, { value: "B", label: "Services (B)" }]} />
+            </Form.Item>
+          </Col>
+          <Col xs={12} md={6}>
+            <Form.Item label="Goods/service code" name="faktur_item_code" extra="000000 when there is no specific code." rules={[{ pattern: /^[0-9]{6}$/, message: "6 digits" }]}>
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={12} md={6}>
+            <Form.Item label="Unit code" name="faktur_unit" extra="UM.0033 = other.">
+              <Input />
             </Form.Item>
           </Col>
         </Row>

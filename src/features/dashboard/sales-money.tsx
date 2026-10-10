@@ -171,7 +171,7 @@ export function RevenueCard({ money }: { money: SalesMoney }) {
         <RevenueChart months={months} currency={money.currency} />
       </Suspense>
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Received = invoices paid that month, excluding tax. Profit needs costs as well, which are not recorded yet.
+        Received = money that reached the bank that month (recorded payments, after tax the customer withheld and bank charges). Invoiced excludes tax. Profit is in Finance → Reports.
       </Typography.Text>
     </Flex>
   );

@@ -117,18 +117,3 @@ export async function accountingFileBlob(path: string) {
 /** "PT Vendor Jaya" → "pt-vendor-jaya": the vendor's folder. */
 export const vendorFolder = (vendor: string) =>
   `vendor/${vendor.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "unknown"}`;
-
-/** Rows to a CSV file download (for Coretax input or the accountant). */
-export function downloadCsv(fileName: string, header: string[], rows: (string | number | null | undefined)[][]) {
-  const cell = (value: string | number | null | undefined) => {
-    const text = value === null || value === undefined ? "" : String(value);
-    return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const csv = [header, ...rows].map((row) => row.map(cell).join(",")).join("\r\n");
-  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}

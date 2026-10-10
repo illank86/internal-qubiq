@@ -14,10 +14,20 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_periods: {
+        Row: { closed_at: string; closed_by: string | null; month: string; note: string | null }
+        Insert: { closed_at?: string; closed_by?: string | null; month: string; note?: string | null }
+        Update: { closed_at?: string; closed_by?: string | null; month?: string; note?: string | null }
+        Relationships: []
+      }
       accounting_settings: {
         Row: {
           corporate_rate: number
           facility_31e_threshold: number
+          faktur_item_code: string
+          faktur_supply_type: string
+          faktur_trx_code: string
+          faktur_unit: string
           fiscal_year_start_month: number
           id: boolean
           income_tax_regime: string
@@ -37,6 +47,10 @@ export type Database = {
         Insert: {
           corporate_rate?: number
           facility_31e_threshold?: number
+          faktur_item_code?: string
+          faktur_supply_type?: string
+          faktur_trx_code?: string
+          faktur_unit?: string
           fiscal_year_start_month?: number
           id?: boolean
           income_tax_regime?: string
@@ -56,6 +70,10 @@ export type Database = {
         Update: {
           corporate_rate?: number
           facility_31e_threshold?: number
+          faktur_item_code?: string
+          faktur_supply_type?: string
+          faktur_trx_code?: string
+          faktur_unit?: string
           fiscal_year_start_month?: number
           id?: boolean
           income_tax_regime?: string
@@ -1754,6 +1772,8 @@ export type Database = {
           cc_emails: string[]
           base_currency: string | null
           bill_to_address: string | null
+          buyer_nitku: string | null
+          buyer_npwp: string | null
           book_rate: number | null
           bill_to_company: string | null
           bill_to_email: string | null
@@ -1829,6 +1849,8 @@ export type Database = {
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
+          buyer_nitku?: string | null
+          buyer_npwp?: string | null
           book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
@@ -1904,6 +1926,8 @@ export type Database = {
           cc_emails?: string[]
           base_currency?: string | null
           bill_to_address?: string | null
+          buyer_nitku?: string | null
+          buyer_npwp?: string | null
           book_rate?: number | null
           bill_to_company?: string | null
           bill_to_email?: string | null
@@ -4393,6 +4417,11 @@ export type Database = {
       invoice_open_balance: { Args: { p_invoice: string }; Returns: number }
       tax_before_pkp_documents: { Args: never; Returns: Json }
       set_invoice_faktur: { Args: { p_id: string; p_number: string; p_date: string; p_path: string; p_file_name?: string }; Returns: undefined }
+      ppn_recap: { Args: { p_masa: string }; Returns: Json }
+      coretax_faktur_rows: { Args: { p_masa: string }; Returns: Json }
+      financial_statements: { Args: { p_from: string; p_to: string }; Returns: Json }
+      close_month: { Args: { p_month: string; p_note?: string }; Returns: undefined }
+      reopen_month: { Args: { p_month: string; p_reason: string }; Returns: undefined }
       set_invoice_status: { Args: { p_id: string; p_status: string; p_paid_on?: string; p_reference?: string }; Returns: undefined }
       sales_money: { Args: { p_currency?: string }; Returns: Json }
       start_license_reissue: { Args: { p_license_id: string }; Returns: undefined }

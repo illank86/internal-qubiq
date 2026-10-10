@@ -18,6 +18,7 @@ type FakturInvoice = {
   faktur_date?: string | null;
   faktur_path?: string | null;
   faktur_file_name?: string | null;
+  buyer_npwp?: string | null;
 };
 
 /** Issued while PKP (approved, not void): it needs its faktur pajak from Coretax. */
@@ -43,6 +44,8 @@ export function FakturPanel({ invoice, onUpload }: { invoice: FakturInvoice; onU
   const viewPdf = usePdfViewer();
   if (!needsFaktur(invoice)) return null;
   return (
+    <Flex vertical gap={6}>
+      <BuyerNpwp invoice={invoice} />
     <Flex align="center" gap={8} wrap>
       <FileProtectOutlined style={{ color: "var(--ant-color-primary)" }} />
       {invoice.faktur_path ? (
@@ -68,6 +71,47 @@ export function FakturPanel({ invoice, onUpload }: { invoice: FakturInvoice; onU
         </>
       )}
     </Flex>
+    </Flex>
+  );
+}
+
+/** The customer's NPWP (on the faktur pajak): shown, or added inline. */
+function BuyerNpwp({ invoice }: { invoice: FakturInvoice }) {
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(invoice.buyer_npwp ?? "");
+  const [saving, setSaving] = useState(false);
+  const digits = value.replace(/\D/g, "");
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("invoices").update({ buyer_npwp: digits || null }).eq("id", invoice.id);
+    setSaving(false);
+    if (error) return message.error(errorText(error, "The NPWP could not be saved (15–16 digits)."));
+    await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    message.success("Customer NPWP saved.");
+    setEditing(false);
+  };
+  if (editing) {
+    return (
+      <Flex gap={6} align="center" wrap>
+        <Typography.Text type="secondary">Customer NPWP</Typography.Text>
+        <Input size="small" value={value} onChange={(event) => setValue(event.target.value)} placeholder="16 digits" style={{ width: 200 }}
+          status={value && (digits.length < 15 || digits.length > 16) ? "error" : undefined} />
+        <Button size="small" type="primary" loading={saving} disabled={Boolean(value) && (digits.length < 15 || digits.length > 16)} onClick={save}>
+          Save
+        </Button>
+        <Button size="small" type="text" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </Flex>
+    );
+  }
+  return (
+    <Typography.Text type={invoice.buyer_npwp ? "secondary" : "warning"} style={{ fontSize: 13 }}>
+      Customer NPWP: {invoice.buyer_npwp ?? "not added — needed on the faktur pajak"}{" "}
+      <Typography.Link onClick={() => setEditing(true)}>{invoice.buyer_npwp ? "Change" : "Add"}</Typography.Link>
+    </Typography.Text>
   );
 }
 

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Input, InputNumber, Modal, Row, Select, Skeleton, Table, Tag, Typography } from "antd";
-import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
+import { FileExcelOutlined, PlusOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
-import { TAX_TYPES, WITHHOLDING, downloadCsv, idr, jakartaToday, money, recordTaxPayment, useBankAccounts } from "./api";
+import { TAX_TYPES, WITHHOLDING, idr, jakartaToday, money, recordTaxPayment, useBankAccounts } from "./api";
+import { exportExcel } from "./exports";
+import { PpnCard } from "./ppn-card";
 
 type Report = {
   masa: string;
@@ -118,10 +120,19 @@ export function TaxPage() {
           <Card
             title="Tax withheld by customers (bukti potong received)"
             extra={
-              <Button size="small" icon={<DownloadOutlined />} disabled={!data.withholdings.length}
-                onClick={() => downloadCsv(`bukti-potong-${data.masa}.csv`, ["Penerimaan", "Tanggal", "Invoice", "Pemotong", "Jenis", "Jumlah", "Mata uang", "Jumlah (Rp)", "No. bukti potong", "Tgl bukti potong"],
-                  data.withholdings.map((row) => [row.receipt, row.received_on, row.invoice, row.customer, WITHHOLDING[row.type] ?? row.type, row.amount, row.currency, row.amount_idr, row.bukti_potong_number, row.bukti_potong_date]))}>
-                Export
+              <Button size="small" icon={<FileExcelOutlined />} disabled={!data.withholdings.length}
+                onClick={() => exportExcel(`bukti-potong-${data.masa}.xlsx`, masaLabel(data.masa), [{
+                  name: "Bukti Potong",
+                  title: "Daftar PPh yang dipotong pelanggan",
+                  columns: [
+                    { header: "Penerimaan", key: "receipt", width: 14 }, { header: "Tanggal", key: "received_on", kind: "date" }, { header: "Invoice", key: "invoice", width: 16 },
+                    { header: "Pemotong", key: "customer", width: 30 }, { header: "Jenis", key: "kind", width: 22 }, { header: "Jumlah (Rp)", key: "amount_idr", kind: "money" },
+                    { header: "No. bukti potong", key: "bukti_potong_number", width: 22 }, { header: "Tgl bukti potong", key: "bukti_potong_date", kind: "date" },
+                  ],
+                  rows: data.withholdings.map((row) => ({ ...row, kind: WITHHOLDING[row.type] ?? row.type })),
+                  totals: { customer: "Jumlah", amount_idr: data.withholdings.reduce((sum, row) => sum + Number(row.amount_idr), 0) },
+                }])}>
+                Excel
               </Button>
             }
           >
@@ -143,16 +154,33 @@ export function TaxPage() {
             />
           </Card>
 
+          <PpnCard masa={data.masa} period={masaLabel(data.masa)} />
+
           <Flex gap={8} wrap>
-            <Button icon={<DownloadOutlined />}
-              onClick={() => downloadCsv(`penerimaan-${data.masa}.csv`, ["Nomor", "Tanggal", "Invoice", "Pelanggan", "Mata uang", "Diterima", "Melunasi", "Referensi"],
-                data.receipts.map((row) => [row.number, row.received_on, row.invoice, row.customer, row.currency, row.net_received, row.settled, row.reference]))}>
-              Payments received ({data.receipts.length})
-            </Button>
-            <Button icon={<DownloadOutlined />}
-              onClick={() => downloadCsv(`pengeluaran-${data.masa}.csv`, ["Nomor", "Tanggal", "Vendor", "NPWP", "Akun", "Mata uang", "Jumlah", "Dapat dibiayakan", "No. faktur"],
-                data.expenses_list.map((row) => [row.number, row.spent_on, row.vendor, row.vendor_npwp, row.account, row.currency, row.amount, row.deductible ? "ya" : "tidak", row.faktur_number]))}>
-              Expenses ({data.expenses_list.length})
+            <Button icon={<FileExcelOutlined />}
+              onClick={() => exportExcel(`penerimaan-pengeluaran-${data.masa}.xlsx`, masaLabel(data.masa), [
+                {
+                  name: "Penerimaan",
+                  title: "Daftar penerimaan",
+                  columns: [
+                    { header: "Nomor", key: "number", width: 14 }, { header: "Tanggal", key: "received_on", kind: "date" }, { header: "Invoice", key: "invoice", width: 16 },
+                    { header: "Pelanggan", key: "customer", width: 30 }, { header: "Mata uang", key: "currency", width: 9 }, { header: "Diterima di bank", key: "net_received", kind: "money" },
+                    { header: "Melunasi", key: "settled", kind: "money" }, { header: "Referensi", key: "reference", width: 22 },
+                  ],
+                  rows: data.receipts,
+                },
+                {
+                  name: "Pengeluaran",
+                  title: "Daftar pengeluaran",
+                  columns: [
+                    { header: "Nomor", key: "number", width: 14 }, { header: "Tanggal", key: "spent_on", kind: "date" }, { header: "Pemasok", key: "vendor", width: 28 },
+                    { header: "NPWP", key: "vendor_npwp", width: 20 }, { header: "Akun", key: "account", width: 30 }, { header: "Mata uang", key: "currency", width: 9 },
+                    { header: "Jumlah", key: "amount", kind: "money" }, { header: "Dapat dibiayakan", key: "deductible_text", width: 12 }, { header: "No. faktur", key: "faktur_number", width: 22 },
+                  ],
+                  rows: data.expenses_list.map((row) => ({ ...row, deductible_text: row.deductible ? "ya" : "tidak" })),
+                },
+              ])}>
+              Payments and expenses — Excel
             </Button>
           </Flex>
         </Flex>

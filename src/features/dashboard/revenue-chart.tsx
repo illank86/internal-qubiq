@@ -30,8 +30,8 @@ export function RevenueChart({ months, currency }: { months: Month[]; currency: 
       tooltip={{
         title: "month",
         items: [
-          { field: "received", name: "Received (excl. tax)", valueFormatter: (value: number) => formatExact(value, currency) },
-          { field: "count", name: "Invoices paid" },
+          { field: "received", name: "Received in the bank", valueFormatter: (value: number) => formatExact(value, currency) },
+          { field: "count", name: "Payments" },
           { field: "invoiced", name: "Invoiced", valueFormatter: (value: number) => formatExact(value, currency) },
         ],
       }}

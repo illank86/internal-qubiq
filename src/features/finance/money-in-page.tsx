@@ -2,13 +2,14 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Flex, Input, Modal, Select, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { DownloadOutlined, EyeOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { EyeOutlined, FileExcelOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
-import { WITHHOLDING, accountingFileBlob, downloadCsv, money, voidReceipt, type Receipt } from "./api";
+import { WITHHOLDING, accountingFileBlob, money, voidReceipt, type Receipt } from "./api";
+import { exportExcel } from "./exports";
 import { RecordPaymentModal, type PaymentInvoice } from "./record-payment-modal";
 
 type Row = Receipt & {
@@ -142,15 +143,20 @@ export function MoneyInPage() {
     },
   ];
 
-  const exportCsv = () =>
-    downloadCsv(
-      "penerimaan.csv",
-      ["Nomor", "Tanggal", "Faktur/Invoice", "Pelanggan", "Mata uang", "Diterima di bank", "PPh dipotong", "Jenis PPh", "No. bukti potong", "Tgl bukti potong", "Biaya bank", "Selisih lain", "Melunasi", "Referensi", "Batal"],
-      rows.map((row) => [
-        row.number, row.received_on, row.invoice?.number, row.invoice?.bill_to_company || row.invoice?.bill_to_name, row.currency, row.net_received, row.withholding_amount,
-        row.withholding_type, row.bukti_potong_number, row.bukti_potong_date, row.bank_charges, row.other_difference, row.settled, row.reference, row.voided_at ? "ya" : "",
-      ]),
-    );
+  const exportXlsx = () =>
+    exportExcel("penerimaan.xlsx", "Semua penerimaan", [{
+      name: "Penerimaan",
+      title: "Daftar penerimaan",
+      columns: [
+        { header: "Nomor", key: "number", width: 14 }, { header: "Tanggal", key: "received_on", kind: "date" }, { header: "Invoice", key: "invoice_number", width: 16 },
+        { header: "Pelanggan", key: "customer", width: 30 }, { header: "Mata uang", key: "currency", width: 9 }, { header: "Diterima di bank", key: "net_received", kind: "money" },
+        { header: "PPh dipotong", key: "withholding_amount", kind: "money" }, { header: "Jenis PPh", key: "withholding_type", width: 12 },
+        { header: "No. bukti potong", key: "bukti_potong_number", width: 22 }, { header: "Biaya bank", key: "bank_charges", kind: "money" },
+        { header: "Selisih lain", key: "other_difference", kind: "money" }, { header: "Melunasi", key: "settled", kind: "money" }, { header: "Referensi", key: "reference", width: 22 },
+        { header: "Batal", key: "voided", width: 8 },
+      ],
+      rows: rows.map((row) => ({ ...row, invoice_number: row.invoice?.number, customer: row.invoice ? row.invoice.bill_to_company || row.invoice.bill_to_name : "Pendapatan lain", voided: row.voided_at ? "ya" : "" })),
+    }]);
 
   return (
     <>
@@ -159,8 +165,8 @@ export function MoneyInPage() {
         description="Payments received: what reached the bank, tax the customer withheld (bukti potong), bank charges and differences."
         actions={
           <Flex gap={8}>
-            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
-              Export
+            <Button icon={<FileExcelOutlined />} onClick={exportXlsx}>
+              Excel
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setChoosing(true)}>
               Record payment

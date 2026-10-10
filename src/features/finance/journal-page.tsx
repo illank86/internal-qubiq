@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Flex, Input, InputNumber, Modal, Select, Table, Tag, Typography, theme } from "antd";
+import { Alert, Button, Dropdown, Flex, Input, InputNumber, Modal, Select, Table, Tag, Typography, theme } from "antd";
 import type { TableColumnsType } from "antd";
-import { DeleteOutlined, DownloadOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
+import { DeleteOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
-import { downloadCsv, idr, jakartaToday, postManualJournal, reverseManualJournal, useAccounts } from "./api";
+import { idr, jakartaToday, postManualJournal, reverseManualJournal, useAccounts } from "./api";
+import { exportExcel, exportPdf, ledgerSheets } from "./exports";
 
 type Line = { id: string; debit: number; credit: number; description: string | null; currency: string; amount_fc: number | null; account: { code: string; name: string; name_id: string | null } | null };
 type Entry = {
@@ -106,13 +107,19 @@ export function JournalPage() {
     },
   ];
 
-  const exportCsv = () =>
-    downloadCsv(
-      "jurnal-umum.csv",
-      ["Nomor", "Tanggal", "Sumber", "Keterangan", "Kode akun", "Nama akun", "Debit", "Kredit", "Uraian baris"],
-      rows.flatMap((entry) => entry.lines.map((line) => [entry.number, entry.entry_date, SOURCE[entry.source_type]?.label ?? entry.source_type, entry.memo,
-        line.account?.code, line.account?.name_id || line.account?.name, line.debit, line.credit, line.description])),
-    );
+  const [exporting, setExporting] = useState(false);
+  const year = jakartaToday().slice(0, 4);
+  const exportLedger = (kind: "xlsx" | "pdf") => async () => {
+    setExporting(true);
+    try {
+      const sheets = await ledgerSheets(`${year}-01-01`, jakartaToday());
+      const period = `1 Januari ${year} – ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`;
+      if (kind === "xlsx") await exportExcel(`jurnal-buku-besar-${year}.xlsx`, period, sheets);
+      else await exportPdf(`jurnal-buku-besar-${year}.pdf`, period, sheets);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -121,9 +128,19 @@ export function JournalPage() {
         description="Every booking in Rupiah, debit and credit. Entries are never edited: a mistake is reversed and booked again."
         actions={
           <Flex gap={8}>
-            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
-              Export
-            </Button>
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: [
+                  { key: "xlsx", icon: <FileExcelOutlined />, label: "Journal, ledger & trial balance — Excel", onClick: exportLedger("xlsx") },
+                  { key: "pdf", icon: <FilePdfOutlined />, label: "Journal, ledger & trial balance — PDF", onClick: exportLedger("pdf") },
+                ],
+              }}
+            >
+              <Button icon={<DownloadOutlined />} loading={exporting}>
+                Export {year}
+              </Button>
+            </Dropdown>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
               Manual entry
             </Button>

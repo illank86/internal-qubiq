@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Button, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Modal, Row, Segmented, Select, Table, Tag, Tooltip, Typography, Upload } from "antd";
 import type { TableColumnsType } from "antd";
-import { CheckCircleOutlined, DownloadOutlined, EyeOutlined, PaperClipOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, EyeOutlined, FileExcelOutlined, PaperClipOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -11,7 +11,6 @@ import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import {
   accountingFileBlob,
-  downloadCsv,
   jakartaToday,
   money,
   payExpense,
@@ -24,6 +23,7 @@ import {
   voidExpense,
   type Expense,
 } from "./api";
+import { exportExcel } from "./exports";
 
 type Row = Expense & { account: { code: string; name: string } | null };
 type Filter = "all" | "unpaid" | "paid";
@@ -140,13 +140,20 @@ export function MoneyOutPage() {
     },
   ];
 
-  const exportCsv = () =>
-    downloadCsv(
-      "pengeluaran.csv",
-      ["Nomor", "Tanggal", "Vendor", "NPWP vendor", "Akun", "Keterangan", "Mata uang", "Jumlah", "PPN Masukan", "No. faktur", "Dapat dibiayakan", "Status", "Tgl bayar", "Batal"],
-      rows.map((row) => [row.number, row.spent_on, row.vendor_name, row.vendor_npwp, row.account ? `${row.account.code} ${row.account.name}` : "", row.description, row.currency, row.amount,
-        row.ppn_in_amount, row.faktur_number, row.deductible ? "ya" : "tidak", row.status === "paid" ? "lunas" : "terutang", row.paid_on, row.voided_at ? "ya" : ""]),
-    );
+  const exportXlsx = () =>
+    exportExcel("pengeluaran.xlsx", "Semua pengeluaran", [{
+      name: "Pengeluaran",
+      title: "Daftar pengeluaran",
+      columns: [
+        { header: "Nomor", key: "number", width: 14 }, { header: "Tanggal", key: "spent_on", kind: "date" }, { header: "Pemasok", key: "vendor_name", width: 28 },
+        { header: "NPWP", key: "vendor_npwp", width: 20 }, { header: "Akun", key: "account_name", width: 30 }, { header: "Keterangan", key: "description", width: 30 },
+        { header: "Mata uang", key: "currency", width: 9 }, { header: "Jumlah", key: "amount", kind: "money" }, { header: "PPN Masukan", key: "ppn_in_amount", kind: "money" },
+        { header: "No. faktur", key: "faktur_number", width: 22 }, { header: "Dapat dibiayakan", key: "deductible_text", width: 12 }, { header: "Status", key: "status_text", width: 10 },
+        { header: "Tgl bayar", key: "paid_on", kind: "date" }, { header: "Batal", key: "voided", width: 8 },
+      ],
+      rows: rows.map((row) => ({ ...row, account_name: row.account ? `${row.account.code} ${row.account.name}` : "", deductible_text: row.deductible ? "ya" : "tidak",
+        status_text: row.status === "paid" ? "lunas" : "terutang", voided: row.voided_at ? "ya" : "" })),
+    }]);
 
   return (
     <>
@@ -155,8 +162,8 @@ export function MoneyOutPage() {
         description={`What the company spends: paid now, or owed and paid later. ${owed.length ? `${owed.length} still owed.` : ""}`}
         actions={
           <Flex gap={8}>
-            <Button icon={<DownloadOutlined />} onClick={exportCsv}>
-              Export
+            <Button icon={<FileExcelOutlined />} onClick={exportXlsx}>
+              Excel
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
               Add expense

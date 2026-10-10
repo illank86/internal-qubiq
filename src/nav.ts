@@ -77,6 +77,7 @@ export const NAV: NavGroup[] = [
       { path: "/finance/money-in", label: "Money in", icon: VerticalAlignBottomOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Payments received: what arrived, tax withheld (bukti potong), charges." },
       { path: "/finance/money-out", label: "Money out", icon: VerticalAlignTopOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Expenses, paid now or owed, with receipts." },
       { path: "/finance/tax", label: "Tax", icon: AccountBookOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Each tax month: what is due, what was paid, lists for Coretax." },
+      { path: "/finance/reports", label: "Reports", icon: BarChartOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Profit and loss, balance sheet, cash flow, ledger; closing months." },
       { path: "/finance/journal", label: "Journal", icon: ReadOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Every booking, debit and credit." },
       { path: "/finance/settings", label: "Finance settings", icon: SettingOutlined, permissions: ["accounting.manage"], legacy: "/admin", phase: 6, ready: true, summary: "Tax profile, PKP, chart of accounts, bank accounts, KMK rates." },
     ],

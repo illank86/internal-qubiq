@@ -26,6 +26,7 @@ const FinanceDashboardPage = lazy(() => import("@/features/finance/dashboard-pag
 const MoneyInPage = lazy(() => import("@/features/finance/money-in-page").then((module) => ({ default: module.MoneyInPage })));
 const MoneyOutPage = lazy(() => import("@/features/finance/money-out-page").then((module) => ({ default: module.MoneyOutPage })));
 const TaxPage = lazy(() => import("@/features/finance/tax-page").then((module) => ({ default: module.TaxPage })));
+const ReportsPage = lazy(() => import("@/features/finance/reports-page").then((module) => ({ default: module.ReportsPage })));
 const JournalPage = lazy(() => import("@/features/finance/journal-page").then((module) => ({ default: module.JournalPage })));
 const FinanceSettingsPage = lazy(() => import("@/features/finance/settings-page").then((module) => ({ default: module.FinanceSettingsPage })));
 const InvoicesPage = lazy(() => import("@/features/sales/invoices-page").then((module) => ({ default: module.InvoicesPage })));
@@ -55,6 +56,7 @@ const READY: Record<string, React.ReactNode> = {
   "/finance/money-in": <MoneyInPage />,
   "/finance/money-out": <MoneyOutPage />,
   "/finance/tax": <TaxPage />,
+  "/finance/reports": <ReportsPage />,
   "/finance/journal": <JournalPage />,
   "/finance/settings": <FinanceSettingsPage />,
   "/sales/delivery-orders": <DeliveryOrdersPage />,
