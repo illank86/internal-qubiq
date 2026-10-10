@@ -24,13 +24,14 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
+import { useStaff } from "@/auth/use-auth";
 import { formatInvoiceDate, formatMoney, isOverdue, type Invoice } from "@/lib/invoices";
 import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { approveDocument, invoicePdf, quotationPdf, rejectDocument, sendInvoice, setInvoiceMaterai, setInvoiceStatus, type Materai, type SignatureMode } from "./api";
-import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
+import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover, useSendsDirectly } from "./approvals";
 import { CcNote } from "./quotation-parts";
 import { DocumentHistory } from "./document-history";
 import { SigningActions, SigningTag, useSigningMenu } from "./signing";
@@ -68,6 +69,7 @@ export function InvoicesPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { run, busy } = useAction([["invoices"], ["quotations"], ["history"]]);
   const isApprover = useIsApprover();
+  const sendsDirectly = useSendsDirectly("invoice");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["invoices"],
@@ -195,7 +197,7 @@ export function InvoicesPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => <InvoiceRowActions row={row} isApprover={isApprover} run={run} busy={busy} onEdit={() => setOpenId(row.id)} />,
+      render: (_, row) => <InvoiceRowActions row={row} isApprover={isApprover} sendsDirectly={sendsDirectly} run={run} busy={busy} onEdit={() => setOpenId(row.id)} />,
     },
   ];
 
@@ -241,6 +243,7 @@ export function InvoicesPage() {
         invoice={(openId && data?.find((row) => row.id === openId)) || null}
         onClose={() => setOpenId(null)}
         isApprover={isApprover}
+        sendsDirectly={sendsDirectly}
         run={run}
         busy={busy}
       />
@@ -251,12 +254,15 @@ export function InvoicesPage() {
 function InvoiceRowActions({
   row,
   isApprover,
+  sendsDirectly,
   run,
   busy,
   onEdit,
 }: {
   row: Row;
   isApprover: boolean;
+  /** Their send approves it at once (see useSendsDirectly). */
+  sendsDirectly: boolean;
   run: ReturnType<typeof useAction>["run"];
   busy: string | null;
   onEdit: () => void;
@@ -278,14 +284,14 @@ function InvoiceRowActions({
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...invoicePdf(row.id, row.number),
-      note: isApprover
+      note: sendsDirectly
         ? toSign
           ? "Check it. Approving makes it ready to sign: download it, sign or stamp it, then upload the signed copy to send it."
           : "Check it before it goes to the customer."
         : "Check it; an approver sends it to the customer.",
-      recipients: row.bill_to_email && !(isApprover && toSign) ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
+      recipients: row.bill_to_email && !(sendsDirectly && toSign) ? { to: row.bill_to_email, cc: row.cc_emails } : undefined,
       action: {
-        label: isApprover ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
+        label: sendsDirectly ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
         onClick: async () => {
           let result = null as string | null;
           const ok = await run(
@@ -293,7 +299,7 @@ function InvoiceRowActions({
             async () => {
               result = await sendInvoice(row.id);
             },
-            isApprover ? (toSign ? "Approved. Download it, sign or stamp it, then upload the signed copy." : "Sent to the customer.") : "Sent for approval. The approvers have been emailed.",
+            sendsDirectly ? (toSign ? "Approved. Download it, sign or stamp it, then upload the signed copy." : "Sent to the customer.") : "Sent for approval. The approvers have been emailed.",
           );
           if (ok && result === "to_sign") downloadToSign();
         },
@@ -318,6 +324,7 @@ function InvoiceRowActions({
     });
 
   const signingMenu = useSigningMenu({ type: "invoice", row, isApprover, run });
+  const meId = useStaff().id;
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   const markPaid = () =>
     run(k("paid"), () => setInvoiceStatus(row.id, "paid"), `Marked paid. The customer${row.cc_emails?.length ? ` and ${row.cc_emails.length} in CC have` : " has"} been emailed a receipt.`);
@@ -329,15 +336,16 @@ function InvoiceRowActions({
   } else if (signing === "to_sign" || signing === "needs_check" || signing === "ready") {
     next.push(...signingMenu.items.filter((item) => item.key !== "view-signed"));
   } else if (waiting) {
-    if (isApprover) {
+    // Not your own request while the four-eyes rule applies.
+    if (isApprover && (sendsDirectly || row.approval_requested_by !== meId)) {
       next.push({ key: "review", icon: <CheckOutlined />, label: "Review & approve", onClick: reviewAndApprove });
       next.push({ key: "reject", icon: <CloseCircleOutlined />, label: "Reject…", onClick: () => setRejecting(true), danger: true });
     }
   } else if (unsent) {
     next.push({
       key: "send",
-      icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />,
-      label: isApprover ? (toSign ? "Download to sign" : "Send to customer") : "Request approval",
+      icon: sendsDirectly && toSign ? <DownloadOutlined /> : <SendOutlined />,
+      label: sendsDirectly ? (toSign ? "Download to sign" : "Send to customer") : "Request approval",
       onClick: () => reviewAndSend(false),
     });
   } else if (row.status === "unpaid") {
@@ -358,7 +366,7 @@ function InvoiceRowActions({
   const change: Item[] = [
     ...(row.status === "unpaid" ? [{ key: "edit", icon: <EditOutlined />, label: "Edit details", onClick: onEdit }] : []),
     ...(approved && row.status === "unpaid" && (signing === "none" || signing === "sent")
-      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
+      ? [{ key: "resend", icon: <SendOutlined />, label: sendsDirectly ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
     ...(row.quotation_id && !row.owner_id
       ? [{ key: "customer", icon: <UserOutlined />, label: "Link customer account", onClick: () => navigate(`/sales/quotations/${row.quotation_id}/customer`) }]
@@ -433,12 +441,14 @@ function InvoiceDetailsDrawer({
   invoice,
   onClose,
   isApprover,
+  sendsDirectly,
   run,
   busy,
 }: {
   invoice: Row | null;
   onClose: () => void;
   isApprover: boolean;
+  sendsDirectly: boolean;
   run: ReturnType<typeof useAction>["run"];
   busy: string | null;
 }) {
@@ -538,7 +548,7 @@ function InvoiceDetailsDrawer({
     setPending(false);
     if (saveError) return setError(errorText(saveError, "The invoice could not be saved. Please try again."));
     await queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    const throughApproval = !isApprover && (invoice.send_count > 0 || invoice.approval_status === "pending");
+    const throughApproval = !sendsDirectly && (invoice.send_count > 0 || invoice.approval_status === "pending");
     message.success(
       throughApproval
         ? "Saved and sent for approval. The customer sees the change once an approver approves it."
@@ -800,7 +810,7 @@ function InvoiceDetailsDrawer({
                 <Form.Item name="notify" valuePropName="checked">
                   <Checkbox>
                     Email the customer{ccCount ? ` (and ${ccCount} in CC)` : ""} that the invoice changed
-                    {isApprover ? "" : " — once approved"}
+                    {sendsDirectly ? "" : " — once approved"}
                   </Checkbox>
                 </Form.Item>
               </Form>

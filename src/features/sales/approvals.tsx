@@ -28,6 +28,24 @@ export function useIsApprover() {
   return data ?? false;
 }
 
+/**
+ * Whether the current user's send approves it at once. False when they are
+ * not an approver — and, with the four-eyes rule on (Sales settings), for an
+ * approver whose own documents need another approver.
+ */
+export function useSendsDirectly(type: "quotation" | "invoice") {
+  const staff = useStaff();
+  const { data } = useQuery({
+    queryKey: ["sends-directly", type, staff.id],
+    queryFn: async () => {
+      const { data: direct } = await supabase.rpc("sends_directly", { p_type: type });
+      return Boolean(direct);
+    },
+    staleTime: 60_000,
+  });
+  return data ?? false;
+}
+
 const when = (value: string | null | undefined) =>
   value ? new Date(value).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 

@@ -20,14 +20,14 @@ import {
   TransactionOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useCan } from "@/auth/use-auth";
+import { useCan, useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate, formatMoney } from "@/lib/invoices";
 import { isExpired, quotationState } from "@/lib/quotations";
 import { supabase } from "@/lib/supabase";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { approveDocument, needsSigning, quotationPdf, rejectDocument, sendQuotation, setQuotationStatus } from "./api";
-import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover } from "./approvals";
+import { ApprovalHistoryModal, ApprovalNote, RejectModal, useIsApprover, useSendsDirectly } from "./approvals";
 import { useAction } from "./use-action";
 import { CcNote, QuotationStatusTag } from "./quotation-parts";
 import { QuotationDrawer, type QuotationRow } from "./quotation-drawer";
@@ -49,6 +49,7 @@ export function QuotationsPage() {
   const { run, busy } = useAction([["quotations"], ["history"]]);
   const [openId, setOpenId] = useState<string | null>(null);
   const isApprover = useIsApprover();
+  const sendsDirectly = useSendsDirectly("quotation");
 
   const { data, isLoading } = useQuery({
     queryKey: ["quotations"],
@@ -173,7 +174,7 @@ export function QuotationsPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} isApprover={isApprover} run={run} busy={busy} onOpen={() => setOpenId(row.id)} />,
+      render: (_, row) => <RowActions row={row} canInvoice={canInvoice} isApprover={isApprover} sendsDirectly={sendsDirectly} run={run} busy={busy} onOpen={() => setOpenId(row.id)} />,
     },
   ];
 
@@ -228,6 +229,7 @@ function RowActions({
   row,
   canInvoice,
   isApprover,
+  sendsDirectly,
   run,
   busy,
   onOpen,
@@ -235,6 +237,8 @@ function RowActions({
   row: Row;
   canInvoice: boolean;
   isApprover: boolean;
+  /** Their send approves it at once (see useSendsDirectly). */
+  sendsDirectly: boolean;
   run: ReturnType<typeof useAction>["run"];
   busy: string | null;
   onOpen: () => void;
@@ -248,7 +252,7 @@ function RowActions({
   // An approver sends; anyone else asks an approver (the database decides).
   // Signed by hand: an approver's "send" approves it to be downloaded and signed.
   const toSign = needsSigning(row);
-  const sendLabel = isApprover ? (toSign ? "Download to sign" : "Send") : "Request approval";
+  const sendLabel = sendsDirectly ? (toSign ? "Download to sign" : "Send") : "Request approval";
   const open = row.status === "draft" || row.status === "sent";
   const expired = isExpired(row);
   const invoice = row.invoices.find((candidate) => candidate.status !== "void");
@@ -257,14 +261,14 @@ function RowActions({
   const reviewAndSend = (again: boolean) =>
     viewPdf({
       ...quotationPdf(row.id, row.number),
-      note: isApprover
+      note: sendsDirectly
         ? toSign
           ? "Check it. Approving makes it ready to sign: download it, sign it, then upload the signed copy to send it."
           : "Check it, and who it goes to, before sending."
         : "Check it; an approver sends it to the customer.",
-      recipients: row.contact_email && !(isApprover && toSign) ? { to: row.contact_email, cc: row.cc_emails } : undefined,
+      recipients: row.contact_email && !(sendsDirectly && toSign) ? { to: row.contact_email, cc: row.cc_emails } : undefined,
       action: {
-        label: isApprover ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
+        label: sendsDirectly ? (toSign ? "Approve & download to sign" : again ? "Send again" : "Send to customer") : "Request approval",
         onClick: async () => {
           let result = null as string | null;
           const ok = await run(
@@ -272,7 +276,7 @@ function RowActions({
             async () => {
               result = await sendQuotation(row.id);
             },
-            isApprover
+            sendsDirectly
               ? toSign
                 ? "Approved. Download it, sign it, then upload the signed copy."
                 : again
@@ -308,6 +312,7 @@ function RowActions({
     });
 
   const signingMenu = useSigningMenu({ type: "quotation", row, isApprover, run });
+  const meId = useStaff().id;
   type Item = { key: string; icon: React.ReactNode; label: string; onClick: () => unknown; danger?: boolean };
   const go = (path: string) => () => navigate(path);
 
@@ -316,18 +321,19 @@ function RowActions({
   if (signingMenu.state === "to_sign" || signingMenu.state === "needs_check" || signingMenu.state === "ready") {
     next.push(...signingMenu.items.filter((item) => item.key !== "view-signed"));
   } else if (waiting) {
-    if (isApprover) {
+    // Not your own request while the four-eyes rule applies.
+    if (isApprover && (sendsDirectly || row.approval_requested_by !== meId)) {
       next.push({ key: "review", icon: <CheckOutlined />, label: toSign ? "Review & approve" : "Review & send", onClick: reviewAndApprove });
       next.push({ key: "reject", icon: <CloseCircleOutlined />, label: "Reject…", onClick: () => setRejecting(true), danger: true });
     }
   } else if (row.status === "draft" && row.contact_email) {
-    next.push({ key: "send", icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />, label: sendLabel, onClick: () => reviewAndSend(false) });
+    next.push({ key: "send", icon: sendsDirectly && toSign ? <DownloadOutlined /> : <SendOutlined />, label: sendLabel, onClick: () => reviewAndSend(false) });
   } else if (row.status === "sent" && row.approval_status !== "approved" && row.contact_email && !expired) {
     // Edited or not approved since it was sent: the customer's link is paused.
     next.push({
       key: "send",
-      icon: isApprover && toSign ? <DownloadOutlined /> : <SendOutlined />,
-      label: isApprover ? (toSign ? "Download to sign" : "Send again") : "Request approval",
+      icon: sendsDirectly && toSign ? <DownloadOutlined /> : <SendOutlined />,
+      label: sendsDirectly ? (toSign ? "Download to sign" : "Send again") : "Request approval",
       onClick: () => reviewAndSend(true),
     });
   } else if (expired && open) {
@@ -350,7 +356,7 @@ function RowActions({
   const change: Item[] = [
     ...(open && !next.some((item) => item.key === "renew") ? [{ key: "edit", icon: <EditOutlined />, label: "Edit lines & prices", onClick: go(`/sales/quotations/${row.id}/edit`) }] : []),
     ...(row.status === "sent" && row.contact_email && !expired && !waiting && row.approval_status === "approved" && (signingMenu.state === "none" || signingMenu.state === "sent")
-      ? [{ key: "resend", icon: <SendOutlined />, label: isApprover ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
+      ? [{ key: "resend", icon: <SendOutlined />, label: sendsDirectly ? "Send again" : "Send again (approval)", onClick: () => reviewAndSend(true) }]
       : []),
     ...(row.status === "sent" && expired
       ? [{ key: "late", icon: <CheckOutlined />, label: "Accept anyway (expired)", onClick: () => run(k("accept"), () => setQuotationStatus(row.id, "accepted", true), "Accepted after expiry.") }]

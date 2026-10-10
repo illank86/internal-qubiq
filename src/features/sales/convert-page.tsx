@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { invoicePdf, removeStoredPurchaseOrder, storePurchaseOrder, type Materai, type SignatureMode } from "./api";
 import { PurchaseOrderField, type PurchaseOrderChange } from "./purchase-order-field";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
-import { useIsApprover } from "./approvals";
+import { useSendsDirectly } from "./approvals";
 import { needsMateraiHint } from "./invoices-page";
 import { AccountPicker } from "./account-picker";
 import { loadCustomerAccounts } from "./accounts";
@@ -37,7 +37,8 @@ export function ConvertPage() {
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("digital");
   const [poNumber, setPoNumber] = useState("");
   const [poChange, setPoChange] = useState<PurchaseOrderChange>({ kind: "keep" });
-  const isApprover = useIsApprover();
+  // Their send approves it at once (an approver, unless the four-eyes rule applies).
+  const isApprover = useSendsDirectly("invoice");
 
   const { data, isLoading } = useQuery({
     queryKey: ["convert", id],

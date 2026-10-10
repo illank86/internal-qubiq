@@ -13,7 +13,7 @@ import { ServerGroupsEditor } from "./server-groups-editor";
 import { renderQuotationPreview } from "./quotation-preview";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-list-input";
-import { useIsApprover } from "./approvals";
+import { useSendsDirectly } from "./approvals";
 import { quotationPdf } from "./api";
 
 const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
@@ -83,7 +83,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<Values>();
-  const isApprover = useIsApprover();
+  // Their send approves it at once (an approver, unless the four-eyes rule applies).
+  const isApprover = useSendsDirectly("quotation");
   const viewPdf = usePdfViewer();
   const [groups, setGroups] = useState<GroupDraft[]>(() =>
     draft.groups.length > 0 ? draft.groups.map((group, index) => newGroup(catalog.editions, index, group)) : [newGroup(catalog.editions, 0)],

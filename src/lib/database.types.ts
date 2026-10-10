@@ -957,6 +957,7 @@ export type Database = {
       }
       invoice_settings: {
         Row: {
+          require_second_approver: boolean
           company_address: string | null
           company_email: string | null
           company_name: string | null
@@ -980,6 +981,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          require_second_approver?: boolean
           company_address?: string | null
           company_email?: string | null
           company_name?: string | null
@@ -1003,6 +1005,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          require_second_approver?: boolean
           company_address?: string | null
           company_email?: string | null
           company_name?: string | null
@@ -3398,6 +3401,7 @@ export type Database = {
       }
     }
     Functions: {
+      sends_directly: { Args: { p_type: string }; Returns: boolean }
       approval_link_decide: { Args: { p_decision: string; p_pin: string; p_reason: string; p_token_hash: string }; Returns: Json }
       approval_link_view: { Args: { p_token_hash: string }; Returns: Json }
       create_approval_links: { Args: { p_id: string; p_links: Json; p_type: string }; Returns: undefined }

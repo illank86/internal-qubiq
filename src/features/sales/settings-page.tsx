@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RichTextField } from "@/features/content/rich-text-field";
 import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Col, Divider, Form, Input, InputNumber, Result, Row, Skeleton, Tabs } from "antd";
+import { Alert, App, Button, Card, Col, Divider, Flex, Form, Input, InputNumber, Result, Row, Skeleton, Switch, Tabs, Typography } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import type { Database } from "@/lib/database.types";
@@ -49,7 +49,7 @@ export function SalesSettingsPage() {
     const { error: saveError } = await supabase.from("invoice_settings").update(values).eq("id", true);
     setPending(false);
     if (saveError) return setError(errorText(saveError, "The settings could not be saved."));
-    await Promise.all(["sales-settings", "sales-catalog"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(["sales-settings", "sales-catalog", "sends-directly"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
     message.success("Saved. New invoices and quotations use these.");
   };
 
@@ -105,6 +105,24 @@ export function SalesSettingsPage() {
                       <Form.Item label="Phone" name="company_phone" rules={[{ max: 60 }]}>
                         <Input />
                       </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Divider titlePlacement="start">Approvals</Divider>
+                    </Col>
+                    <Col span={24}>
+                      <Flex justify="space-between" align="center" gap={16} style={{ marginBottom: 24 }}>
+                        <div>
+                          <Typography.Text strong>Require a second approver (four-eyes)</Typography.Text>
+                          <Typography.Paragraph type="secondary" style={{ margin: "2px 0 0", maxWidth: 720 }}>
+                            When on, an approver's own quotations and invoices go to the other approvers, and nobody can approve what they asked for. If
+                            someone is the only approver for that kind of document, they can still approve their own, so nothing gets stuck. Off: an
+                            approver's own send is approved at once.
+                          </Typography.Paragraph>
+                        </div>
+                        <Form.Item name="require_second_approver" valuePropName="checked" noStyle>
+                          <Switch />
+                        </Form.Item>
+                      </Flex>
                     </Col>
                     <Col span={24}>
                       <Divider titlePlacement="start">Tax and documents</Divider>
