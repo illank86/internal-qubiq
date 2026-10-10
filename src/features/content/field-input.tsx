@@ -2,6 +2,7 @@ import { Col, Form, Input, InputNumber, Select, Switch } from "antd";
 import type { Field } from "./resources";
 import { GeoField } from "./geo-field";
 import { ListInput } from "./list-input";
+import { LinesInput } from "./lines-input";
 import { ReleaseNotesInput } from "./release-notes-input";
 import { MediaInput } from "./media-picker";
 import { RichTextField } from "./rich-text-field";
@@ -45,6 +46,8 @@ export function FieldInput({ field, lookups }: { field: Field; lookups: Lookups 
         return <Select mode="tags" tokenSeparators={[","]} placeholder="Type and press Enter" suffixIcon={null} notFoundContent={null} />;
       case "release-notes":
         return <ReleaseNotesInput />;
+      case "lines":
+        return <LinesInput rows={field.rows} placeholder={field.placeholder} />;
       case "list":
         return <ListInput placeholder={field.placeholder} addLabel={`Add ${field.label.toLowerCase().replace(/s$/, "")}`} />;
       case "image":

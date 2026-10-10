@@ -27,6 +27,8 @@ export type FieldType =
   | "list"
   /** Release highlights: each a sentence with a kind (New / Improved / Fixed), stored "Kind: text". */
   | "release-notes"
+  /** A text array typed as a multi-line box, one entry per line (an address). */
+  | "lines"
   | "json"
   | "date"
   | "datetime"
@@ -258,7 +260,15 @@ export const RESOURCES: Resource[] = [
       { name: "sales_email", label: "Sales email", type: "text", group: "Contact", span: 1 },
       { name: "support_email", label: "Support email", type: "text", group: "Contact", span: 1 },
       { name: "phone", label: "Phone", type: "text", group: "Contact", span: 1 },
-      { name: "address_lines", label: "Address lines", type: "tags", group: "Contact" },
+      {
+        name: "address_lines",
+        label: "Address",
+        type: "lines",
+        group: "Contact",
+        rows: 4,
+        placeholder: "Street and number\nArea\nCity, province\nCountry",
+        hint: "One line per row. Shown in the website footer, on invoices and quotations, and at the bottom of every email.",
+      },
 
       {
         name: "social",
@@ -1226,7 +1236,7 @@ export const RESOURCES: Resource[] = [
     label: "Sales settings",
     singular: "Sales settings",
     description:
-      "Defaults for invoices and quotations. Tax and decimal places apply to both. Our company name, address, email and phone come from Site settings (Legal entity name, Address lines, Sales email, Phone), the same details the website shows.",
+      "Defaults for invoices and quotations. Tax and decimal places apply to both. Our company name, address, email and phone come from Site settings (Legal entity name, Address, Sales email, Phone), the same details the website shows.",
     // General holds what both documents print or compute the same way, so it
     // is set once; each document's own tab holds only what is its own.
     tabs: [
