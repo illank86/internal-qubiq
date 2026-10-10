@@ -317,7 +317,7 @@ export function OrdersPage() {
             aria-label="Filter by who the order came through"
             options={[
               { value: "all", label: "Direct and integrators" },
-              { value: "direct", label: `Direct customers (${(data ?? []).filter((order) => !order.integrator_id).length})` },
+              { value: "direct", label: `Direct · QUBIQ Professional Services (${(data ?? []).filter((order) => !order.integrator_id).length})` },
               ...(integrators ?? []).map((item) => ({
                 value: item.id,
                 label: `${item.company_name} (${(data ?? []).filter((order) => order.integrator_id === item.id).length})`,

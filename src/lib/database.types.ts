@@ -918,6 +918,7 @@ export type Database = {
           industries: string[]
           internal_notes: string | null
           is_featured: boolean
+          is_internal: boolean
           languages: string[]
           latitude: number | null
           logo_url: string | null
@@ -956,6 +957,7 @@ export type Database = {
           industries?: string[]
           internal_notes?: string | null
           is_featured?: boolean
+          is_internal?: boolean
           languages?: string[]
           latitude?: number | null
           logo_url?: string | null
@@ -994,6 +996,7 @@ export type Database = {
           industries?: string[]
           internal_notes?: string | null
           is_featured?: boolean
+          is_internal?: boolean
           languages?: string[]
           latitude?: number | null
           logo_url?: string | null

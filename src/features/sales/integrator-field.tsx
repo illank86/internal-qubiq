@@ -5,8 +5,8 @@ import { ToolOutlined, UserOutlined } from "@ant-design/icons";
 import { supabase } from "@/lib/supabase";
 
 /**
- * Who an order came through: the customer directly, or one of our approved
- * integrators (partners). Set on the quotation; its invoice, delivery orders
+ * Who an order came through: directly (our own team, QUBIQ Professional
+ * Services), or one of our approved integrators (partners). Set on the quotation; its invoice, delivery orders
  * and licences follow it.
  */
 
@@ -17,7 +17,13 @@ export function useIntegrators() {
     queryKey: ["integrators-approved"],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("integrators").select("id, company_name, country, tier").eq("status", "approved").order("company_name");
+      // Our own team is listed in the public directory, but an order through it is a direct order.
+      const { data, error } = await supabase
+        .from("integrators")
+        .select("id, company_name, country, tier")
+        .eq("status", "approved")
+        .eq("is_internal", false)
+        .order("company_name");
       if (error) throw error;
       return (data ?? []) as IntegratorOption[];
     },
@@ -40,7 +46,7 @@ export function IntegratorField({ value, onChange, disabled }: { value?: string 
           if (next === "direct") onChange?.(null);
         }}
         options={[
-          { value: "direct", label: "Direct customer", icon: <UserOutlined /> },
+          { value: "direct", label: "Direct (QUBIQ Professional Services)", icon: <UserOutlined /> },
           { value: "integrator", label: "Through an integrator", icon: <ToolOutlined /> },
         ]}
       />
