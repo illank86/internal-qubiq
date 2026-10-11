@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Card, Col, Descriptions, Flex, Form, Input, InputNumber, Popconfirm, Result, Row, Segmented, Select, Skeleton, Table, Tag, Typography, theme } from "antd";
+import { Alert, Button, Card, Col, Flex, Form, Input, InputNumber, Popconfirm, Result, Row, Segmented, Select, Skeleton, Table, Tag, Typography, theme } from "antd";
 import { CheckCircleOutlined, DeleteOutlined, FileExcelOutlined, FilePdfOutlined, PlusOutlined, RollbackOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
@@ -112,28 +112,27 @@ export function AnnualTaxPage() {
             </Col>
             <Col xs={24} lg={10}>
               <Card title="Tax">
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="Taxable income (PKP)">{idr(w.taxable)}</Descriptions.Item>
-                  <Descriptions.Item label="Gross revenue (for 31E)">{idr(w.gross_revenue)}</Descriptions.Item>
-                  <Descriptions.Item label="Rate">
-                    {w.regime === "pp55"
+                <AmountLine label="Taxable income (PKP)" value={idr(w.taxable)} />
+                <AmountLine label="Gross revenue (for 31E)" value={idr(w.gross_revenue)} />
+                <AmountLine
+                  label="Rate"
+                  value={
+                    w.regime === "pp55"
                       ? "PP 55 (final)"
                       : w.facility_share === 1
                         ? `${Number(w.corporate_rate)}% × 50% (Art. 31E, revenue ≤ Rp4.8bn)`
                         : w.facility_share && w.facility_share > 0
                           ? `${Number(w.corporate_rate)}%, with 50% on ${(w.facility_share * 100).toFixed(1)}% of PKP (Art. 31E)`
-                          : `${Number(w.corporate_rate)}%`}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="“PPh badan” for the year">
-                    <Typography.Text strong>{idr(w.tax)}</Typography.Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Less PPh 23 withheld by customers">− {idr(w.credits.pph23)}</Descriptions.Item>
-                  <Descriptions.Item label="Less PPh 25 paid">− {idr(w.credits.pph25)}</Descriptions.Item>
-                  <Descriptions.Item label="Less PPh 22 / 24">− {idr(w.credits.other)}</Descriptions.Item>
-                </Descriptions>
-                <Flex justify="space-between" style={{ padding: "10px 12px", marginTop: 8, borderRadius: token.borderRadius, background: token.colorPrimaryBg, fontWeight: 700 }}>
+                          : `${Number(w.corporate_rate)}%`
+                  }
+                />
+                <AmountLine label="“PPh badan” for the year" value={idr(w.tax)} strong />
+                <AmountLine label="Less PPh 23 withheld by customers" value={idr(w.credits.pph23)} less />
+                <AmountLine label="Less PPh 25 paid" value={idr(w.credits.pph25)} less />
+                <AmountLine label="Less PPh 22 / 24" value={idr(w.credits.other)} less last />
+                <Flex justify="space-between" gap={12} style={{ padding: "10px 12px", marginTop: 12, borderRadius: token.borderRadius, background: token.colorPrimaryBg, fontWeight: 700 }}>
                   <span>{w.pph29 >= 0 ? "PPh 29 to pay" : "Overpaid (“lebih bayar”)"}</span>
-                  <span>{idr(Math.abs(w.pph29))}</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{idr(Math.abs(w.pph29))}</span>
                 </Flex>
                 <Typography.Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 6 }}>
                   Pay PPh 29 before filing; file by {w.due}. Record the payment on the Tax page as PPh 29, tax year {w.year}.
@@ -194,10 +193,10 @@ export function AnnualTaxPage() {
                     Save
                   </Button>
                 </Form>
-                <Descriptions column={1} size="small" style={{ marginTop: 16 }}>
-                  <Descriptions.Item label="PPh 25 for next year">{idr(w.next_pph25)} a month</Descriptions.Item>
-                  <Descriptions.Item label="Set now">{idr(w.current_pph25)} a month</Descriptions.Item>
-                </Descriptions>
+                <div style={{ marginTop: 16, marginBottom: 12 }}>
+                  <AmountLine label="PPh 25 for next year (a month)" value={idr(w.next_pph25)} strong />
+                  <AmountLine label="Set now (a month)" value={idr(w.current_pph25)} last />
+                </div>
                 <Button size="small" disabled={Number(w.next_pph25) === Number(w.current_pph25)} loading={busy === "pph25"} onClick={() => run("pph25", () => call("apply_next_pph25", { p_year: year }), "Monthly PPh 25 updated.")}>
                   Use as the monthly PPh 25
                 </Button>
@@ -231,5 +230,26 @@ export function AnnualTaxPage() {
         </Flex>
       )}
     </>
+  );
+}
+
+/** A label and its amount on one line, the amount right-aligned so the column of figures lines up. */
+function AmountLine({ label, value, strong, less, last }: { label: string; value: string; strong?: boolean; less?: boolean; last?: boolean }) {
+  const { token } = theme.useToken();
+  return (
+    <Flex
+      justify="space-between"
+      align="baseline"
+      gap={16}
+      style={{ padding: "7px 0", borderBottom: last ? undefined : `1px solid ${token.colorBorderSecondary}`, fontWeight: strong ? 600 : undefined }}
+    >
+      <Typography.Text type={less ? "secondary" : undefined} style={{ fontWeight: "inherit" }}>
+        {label}
+      </Typography.Text>
+      <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: /^-?(IDR|Rp)/.test(value) || less ? "nowrap" : undefined }}>
+        {less ? <Typography.Text type="secondary">− </Typography.Text> : null}
+        {value}
+      </span>
+    </Flex>
   );
 }
