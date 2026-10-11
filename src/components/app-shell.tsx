@@ -198,7 +198,9 @@ function AppShell() {
             <Dropdown menu={{ items: account }} trigger={["click"]} placement="bottomRight">
               <Button type="text" style={{ height: 48, paddingInline: 8 }} aria-label="Account menu">
                 <Flex align="center" gap={10}>
-                  <Avatar style={{ backgroundColor: token.colorPrimary, flexShrink: 0 }}>{initials}</Avatar>
+                  <Avatar src={staff.profile?.avatar_url || undefined} alt="" style={{ backgroundColor: token.colorPrimary, flexShrink: 0 }}>
+                    {initials}
+                  </Avatar>
                   {screens.sm ? (
                     <Flex vertical align="flex-start" style={{ lineHeight: 1.25, textAlign: "left" }}>
                       <Typography.Text strong style={{ fontSize: 13 }}>
