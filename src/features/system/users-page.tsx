@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { DeleteOutlined, LogoutOutlined, UserAddOutlined } from "@ant-design/icons";
+import { DeleteOutlined, LogoutOutlined, StopOutlined, UndoOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -33,6 +33,7 @@ export function UsersPage() {
   const [filter, setFilter] = useState<"internal" | "external" | "all">("internal");
   const [search, setSearch] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [suspending, setSuspending] = useState<User | null>(null);
   const { run, busy } = useAction([["users"]]);
 
   const { data, isLoading } = useQuery({
@@ -110,6 +111,13 @@ export function UsersPage() {
             <Typography.Text strong>
               {user.full_name || "—"}
               {user.id === me.id ? <Tag style={{ marginLeft: 6 }}>you</Tag> : null}
+              {user.suspended_at ? (
+                <Tooltip title={`Since ${formatInvoiceDate(user.suspended_at)}${user.suspended_reason ? ` — ${user.suspended_reason}` : ""}`}>
+                  <Tag color="red" style={{ marginLeft: 6 }}>
+                    Suspended
+                  </Tag>
+                </Tooltip>
+              ) : null}
             </Typography.Text>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {user.email}
@@ -185,6 +193,19 @@ export function UsersPage() {
               </Popconfirm>
             )}
             {isAdmin ? (
+              user.suspended_at ? (
+                <Popconfirm title={`Let ${user.full_name || user.email} sign in again?`} description="Their account, roles and records are as they were." okText="Lift suspension" onConfirm={() => setSuspended(user, false)}>
+                  <Tooltip title="Lift the suspension">
+                    <Button size="small" icon={<UndoOutlined />} loading={busy === `suspend:${user.id}`} aria-label="Lift suspension" />
+                  </Tooltip>
+                </Popconfirm>
+              ) : (
+                <Tooltip title="Suspend: no sign-in until lifted">
+                  <Button size="small" icon={<StopOutlined />} loading={busy === `suspend:${user.id}`} aria-label="Suspend account" onClick={() => setSuspending(user)} />
+                </Tooltip>
+              )
+            ) : null}
+            {isAdmin ? (
               <Popconfirm
                 title={`Delete ${user.full_name || user.email}?`}
                 description="The account, profile and picture are deleted for good. Documents they worked on keep their history. An account that owns invoices, licences or delivery orders cannot be deleted."
@@ -202,25 +223,15 @@ export function UsersPage() {
     },
   ];
 
-  // The delete-user edge function holds the service key; only admins may call it.
+  // The delete-user and suspend-user edge functions hold the service key; only admins may call them.
   const deleteUser = (user: User) =>
+    run(`delete:${user.id}`, () => callAdminFunction("delete-user", { user_id: user.id }, "The account could not be deleted."), `${user.full_name || user.email} is deleted.`);
+
+  const setSuspended = (user: User, suspend: boolean, reason?: string) =>
     run(
-      `delete:${user.id}`,
-      async () => {
-        const { data, error } = await supabase.functions.invoke<{ id?: string; error?: string }>("delete-user", { body: { user_id: user.id } });
-        if (!error && data?.id) return;
-        let failure = data?.error;
-        if (!failure && error && "context" in error) {
-          try {
-            failure = ((await (error.context as Response).json()) as { error?: string }).error;
-          } catch {
-            failure = undefined;
-          }
-        }
-        // The code makes useAction show this message rather than a generic one.
-        throw { code: "22023", message: failure ?? "The account could not be deleted. Please try again." };
-      },
-      `${user.full_name || user.email} is deleted.`,
+      `suspend:${user.id}`,
+      () => callAdminFunction("suspend-user", { user_id: user.id, suspend, reason }, suspend ? "The account could not be suspended." : "The suspension could not be lifted."),
+      suspend ? `${user.full_name || user.email} is suspended and signed out.` : `${user.full_name || user.email} can sign in again.`,
     );
 
   const signOutEverywhere = (user: User) =>
@@ -290,7 +301,55 @@ export function UsersPage() {
       </Card>
       <SessionSettingsCard />
       <InviteModal open={inviting} onClose={() => setInviting(false)} />
+      {suspending ? (
+        <SuspendModal
+          user={suspending}
+          onClose={() => setSuspending(null)}
+          onConfirm={(reason) => setSuspended(suspending, true, reason).then((ok) => ok && setSuspending(null))}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** Calls an admin-only edge function; its refusal message is shown as is. */
+async function callAdminFunction(name: string, body: Record<string, unknown>, fallback: string) {
+  const { data, error } = await supabase.functions.invoke<{ id?: string; error?: string }>(name, { body });
+  if (!error && data?.id) return;
+  let failure = data?.error;
+  if (!failure && error && "context" in error) {
+    try {
+      failure = ((await (error.context as Response).json()) as { error?: string }).error;
+    } catch {
+      failure = undefined;
+    }
+  }
+  // The code makes useAction show this message rather than a generic one.
+  throw { code: "22023", message: failure ?? `${fallback} Please try again.` };
+}
+
+/** Suspend with an optional reason, kept on the profile and in the audit log. */
+function SuspendModal({ user, onClose, onConfirm }: { user: User; onClose: () => void; onConfirm: (reason: string) => Promise<unknown> }) {
+  const [reason, setReason] = useState("");
+  const [pending, setPending] = useState(false);
+  return (
+    <Modal
+      open
+      title={`Suspend ${user.full_name || user.email}?`}
+      okText="Suspend"
+      okButtonProps={{ danger: true, loading: pending }}
+      onCancel={onClose}
+      onOk={async () => {
+        setPending(true);
+        await onConfirm(reason.trim());
+        setPending(false);
+      }}
+    >
+      <Typography.Paragraph type="secondary">
+        They are signed out everywhere and cannot sign in until you lift it. {user.user_type === "internal" ? "As staff, they lose every permission at once. " : ""}Nothing is deleted.
+      </Typography.Paragraph>
+      <Input.TextArea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} showCount autoSize={{ minRows: 2, maxRows: 4 }} placeholder="Reason (optional, for the team)" />
+    </Modal>
   );
 }
 

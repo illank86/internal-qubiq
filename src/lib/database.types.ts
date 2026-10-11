@@ -4105,6 +4105,8 @@ export type Database = {
           notifications_seen_at: string
           phone: string | null
           social: Json
+          suspended_at: string | null
+          suspended_reason: string | null
           timezone: string | null
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
@@ -4121,6 +4123,8 @@ export type Database = {
           notifications_seen_at?: string
           phone?: string | null
           social?: Json
+          suspended_at?: string | null
+          suspended_reason?: string | null
           timezone?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
@@ -4137,6 +4141,8 @@ export type Database = {
           notifications_seen_at?: string
           phone?: string | null
           social?: Json
+          suspended_at?: string | null
+          suspended_reason?: string | null
           timezone?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
