@@ -49,11 +49,32 @@ export function VendorTaxFields() {
             </Col>
           </>
         ) : kind === "individual" ? (
-          <Col xs={24} sm={12}>
-            <Form.Item label="NIK" name="vendor_nik" rules={[{ pattern: /^\s*\d{16}\s*$/, message: "16 digits" }]} extra="Without it, PPh 21 is 20% higher.">
-              <Input inputMode="numeric" maxLength={16} />
-            </Form.Item>
-          </Col>
+          <>
+            <Col span={24}>
+              <Form.Item
+                label="Registered taxpayer?"
+                name="vendor_registered"
+                extra="A NIK alone does not mean they are registered. Ask for their NPWP card or registration letter (SKT), or check the NIK when you make the “bukti potong” in Coretax. Not registered: PPh 21 is 20% higher (PPh 23 doubles)."
+              >
+                <Segmented<string>
+                  options={[
+                    { value: "yes", label: "Yes, has an NPWP or activated NIK" },
+                    { value: "no", label: "No / not sure" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="NIK" name="vendor_nik" rules={[{ pattern: /^\s*\d{16}\s*$/, message: "16 digits" }]} extra="Indonesian citizens: the NIK is their NPWP.">
+                <Input inputMode="numeric" maxLength={16} placeholder="16 digits" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="Or NPWP" name="vendor_npwp" rules={[{ pattern: /^[0-9.\-\s]{15,22}$/, message: "16 digits" }]} extra="For those without a NIK, e.g. foreigners living in Indonesia (KITAS).">
+                <Input placeholder="Optional" />
+              </Form.Item>
+            </Col>
+          </>
         ) : (
           <Col xs={24} sm={12}>
             <Form.Item label="Vendor NPWP" name="vendor_npwp" rules={[{ pattern: /^[0-9.\-\s]{15,22}$/, message: "15–16 digits" }]} extra="Without it, PPh 23 doubles.">
@@ -85,7 +106,9 @@ export function WithholdingFields() {
   const nik = Form.useWatch("vendor_nik", form) as string | undefined;
   const chosen = (codes ?? []).find((item) => item.code === code);
   const base = baseInput ?? Math.max(amount - ppn, 0);
-  const hasId = kind === "foreign" || Boolean((kind === "individual" ? nik || npwp : npwp)?.replace(/\D/g, ""));
+  const registered = Form.useWatch("vendor_registered", form) as string | undefined;
+  // The same rule as the database: a person only with a confirmed registration.
+  const hasId = kind === "foreign" || (kind === "individual" ? registered === "yes" && Boolean((nik || npwp)?.replace(/\D/g, "")) : Boolean(npwp?.replace(/\D/g, "")));
 
   const { data: preview } = useQuery({
     queryKey: ["withholding-preview", code, base, hasId, treaty ?? null],
