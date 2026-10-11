@@ -249,7 +249,6 @@ type Values = {
   faktur_number: string;
   vendor_kind: VendorKind;
   vendor_nik: string;
-  vendor_registered?: "yes" | "no";
   vendor_country: string;
   vendor_tin: string;
   reference_number: string;
@@ -298,7 +297,6 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
             faktur_number: values.faktur_number,
             vendor_kind: values.vendor_kind,
             vendor_nik: values.vendor_kind === "individual" ? values.vendor_nik : null,
-            vendor_registered: values.vendor_kind === "individual" && values.vendor_registered ? values.vendor_registered === "yes" : null,
             vendor_country: values.vendor_kind === "foreign" ? values.vendor_country : null,
             vendor_tin: values.vendor_kind === "foreign" ? values.vendor_tin : null,
             reference_number: values.reference_number,

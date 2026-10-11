@@ -1360,7 +1360,6 @@ export type Database = {
           vendor_name: string
           vendor_nik: string | null
           vendor_npwp: string | null
-          vendor_registered: boolean | null
           vendor_tin: string | null
           void_reason: string | null
           voided_at: string | null
@@ -1400,7 +1399,6 @@ export type Database = {
           vendor_name: string
           vendor_nik?: string | null
           vendor_npwp?: string | null
-          vendor_registered?: boolean | null
           vendor_tin?: string | null
           void_reason?: string | null
           voided_at?: string | null
@@ -1440,7 +1438,6 @@ export type Database = {
           vendor_name?: string
           vendor_nik?: string | null
           vendor_npwp?: string | null
-          vendor_registered?: boolean | null
           vendor_tin?: string | null
           void_reason?: string | null
           voided_at?: string | null

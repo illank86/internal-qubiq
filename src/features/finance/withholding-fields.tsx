@@ -50,22 +50,8 @@ export function VendorTaxFields() {
           </>
         ) : kind === "individual" ? (
           <>
-            <Col span={24}>
-              <Form.Item
-                label="Registered taxpayer?"
-                name="vendor_registered"
-                extra="A NIK alone does not mean they are registered. Ask for their NPWP card or registration letter (SKT), or check the NIK when you make the “bukti potong” in Coretax. Not registered: PPh 21 is 20% higher (PPh 23 doubles)."
-              >
-                <Segmented<string>
-                  options={[
-                    { value: "yes", label: "Yes, has an NPWP or activated NIK" },
-                    { value: "no", label: "No / not sure" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
             <Col xs={24} sm={12}>
-              <Form.Item label="NIK" name="vendor_nik" rules={[{ pattern: /^\s*\d{16}\s*$/, message: "16 digits" }]} extra="Indonesian citizens: the NIK is their NPWP.">
+              <Form.Item label="NIK" name="vendor_nik" rules={[{ pattern: /^\s*\d{16}\s*$/, message: "16 digits" }]} extra="The NIK on their KTP is their NPWP. With a NIK or an NPWP, the normal rate; with neither, PPh 21 is 20% higher.">
                 <Input inputMode="numeric" maxLength={16} placeholder="16 digits" />
               </Form.Item>
             </Col>
@@ -106,9 +92,8 @@ export function WithholdingFields() {
   const nik = Form.useWatch("vendor_nik", form) as string | undefined;
   const chosen = (codes ?? []).find((item) => item.code === code);
   const base = baseInput ?? Math.max(amount - ppn, 0);
-  const registered = Form.useWatch("vendor_registered", form) as string | undefined;
-  // The same rule as the database: a person only with a confirmed registration.
-  const hasId = kind === "foreign" || (kind === "individual" ? registered === "yes" && Boolean((nik || npwp)?.replace(/\D/g, "")) : Boolean(npwp?.replace(/\D/g, "")));
+  // The same rule as the database: a person with a NIK (their NPWP) or an NPWP.
+  const hasId = kind === "foreign" || Boolean((kind === "individual" ? nik || npwp : npwp)?.replace(/\D/g, ""));
 
   const { data: preview } = useQuery({
     queryKey: ["withholding-preview", code, base, hasId, treaty ?? null],
