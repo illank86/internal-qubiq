@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
-import type { TableColumnsType } from "antd";
-import { DeleteOutlined, LogoutOutlined, StopOutlined, UndoOutlined, UserAddOutlined } from "@ant-design/icons";
+import { Alert, App, Avatar, Button, Card, Collapse, Dropdown, Flex, Form, Input, Modal, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
+import type { MenuProps, TableColumnsType } from "antd";
+import { DeleteOutlined, LogoutOutlined, MoreOutlined, StopOutlined, TeamOutlined, UndoOutlined, UserAddOutlined, UserDeleteOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -29,6 +29,7 @@ type User = Profile & { roles: AppRole[]; approver: boolean };
  */
 export function UsersPage() {
   const me = useStaff();
+  const { modal } = App.useApp();
   const isAdmin = me.roles.includes("admin");
   const [filter, setFilter] = useState<"internal" | "external" | "all">("internal");
   const [search, setSearch] = useState("");
@@ -165,61 +166,81 @@ export function UsersPage() {
       title: <span className="sr-only">Actions</span>,
       key: "actions",
       align: "right",
-      render: (_, user) =>
-        user.id === me.id ? null : (
-          <Flex gap={6} justify="flex-end" wrap>
-            <Popconfirm
-              title={`Sign ${user.full_name || user.email} out everywhere?`}
-              description="Every sign-in of this account ends — a forgotten computer, a lost laptop, someone leaving."
-              okText="Sign out everywhere"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => signOutEverywhere(user)}
-            >
-              <Tooltip title="End all their sign-ins">
-                <Button size="small" icon={<LogoutOutlined />} loading={busy === `signout:${user.id}`} aria-label="Sign out everywhere" />
-              </Tooltip>
-            </Popconfirm>
-            {user.user_type === "internal" ? (
-              <Popconfirm title={`Remove ${user.full_name || user.email} from the team?`} description="Their roles are removed; the account stays, as a customer." okText="Remove" okButtonProps={{ danger: true }} onConfirm={() => setStaff(user, false)}>
-                <Button size="small" danger loading={busy === `type:${user.id}`}>
-                  Remove from team
-                </Button>
-              </Popconfirm>
-            ) : (
-              <Popconfirm title={`Make ${user.full_name || user.email} a team member?`} description="They start as a viewer; give them roles after." okText="Make staff" onConfirm={() => setStaff(user, true)}>
-                <Button size="small" loading={busy === `type:${user.id}`}>
-                  Make staff
-                </Button>
-              </Popconfirm>
-            )}
-            {isAdmin ? (
-              user.suspended_at ? (
-                <Popconfirm title={`Let ${user.full_name || user.email} sign in again?`} description="Their account, roles and records are as they were." okText="Lift suspension" onConfirm={() => setSuspended(user, false)}>
-                  <Tooltip title="Lift the suspension">
-                    <Button size="small" icon={<UndoOutlined />} loading={busy === `suspend:${user.id}`} aria-label="Lift suspension" />
-                  </Tooltip>
-                </Popconfirm>
-              ) : (
-                <Tooltip title="Suspend: no sign-in until lifted">
-                  <Button size="small" icon={<StopOutlined />} loading={busy === `suspend:${user.id}`} aria-label="Suspend account" onClick={() => setSuspending(user)} />
-                </Tooltip>
-              )
-            ) : null}
-            {isAdmin ? (
-              <Popconfirm
-                title={`Delete ${user.full_name || user.email}?`}
-                description="The account, profile and picture are deleted for good. Documents they worked on keep their history. An account that owns invoices, licences or delivery orders cannot be deleted."
-                okText="Delete account"
-                okButtonProps={{ danger: true }}
-                onConfirm={() => deleteUser(user)}
-              >
-                <Tooltip title="Delete the account">
-                  <Button size="small" danger icon={<DeleteOutlined />} loading={busy === `delete:${user.id}`} aria-label="Delete account" />
-                </Tooltip>
-              </Popconfirm>
-            ) : null}
-          </Flex>
-        ),
+      width: 56,
+      render: (_, user) => {
+        if (user.id === me.id) return null;
+        const who = user.full_name || user.email;
+        const items: MenuProps["items"] = [
+          {
+            key: "signout",
+            icon: <LogoutOutlined />,
+            label: "Sign out everywhere",
+            onClick: () =>
+              modal.confirm({
+                title: `Sign ${who} out everywhere?`,
+                content: "Every sign-in of this account ends — a forgotten computer, a lost laptop, someone leaving.",
+                okText: "Sign out everywhere",
+                okButtonProps: { danger: true },
+                onOk: () => signOutEverywhere(user),
+              }),
+          },
+          user.user_type === "internal"
+            ? {
+                key: "type",
+                icon: <UserDeleteOutlined />,
+                label: "Remove from team",
+                onClick: () =>
+                  modal.confirm({
+                    title: `Remove ${who} from the team?`,
+                    content: "Their roles are removed; the account stays, as a customer.",
+                    okText: "Remove",
+                    okButtonProps: { danger: true },
+                    onOk: () => setStaff(user, false),
+                  }),
+              }
+            : {
+                key: "type",
+                icon: <TeamOutlined />,
+                label: "Make staff",
+                onClick: () =>
+                  modal.confirm({ title: `Make ${who} a team member?`, content: "They start as a viewer; give them roles after.", okText: "Make staff", onOk: () => setStaff(user, true) }),
+              },
+          ...(isAdmin
+            ? [
+                { type: "divider" as const },
+                user.suspended_at
+                  ? {
+                      key: "suspend",
+                      icon: <UndoOutlined />,
+                      label: "Lift suspension",
+                      onClick: () =>
+                        modal.confirm({ title: `Let ${who} sign in again?`, content: "Their account, roles and records are as they were.", okText: "Lift suspension", onOk: () => setSuspended(user, false) }),
+                    }
+                  : { key: "suspend", icon: <StopOutlined />, label: "Suspend…", onClick: () => setSuspending(user) },
+                {
+                  key: "delete",
+                  icon: <DeleteOutlined />,
+                  label: "Delete account",
+                  danger: true,
+                  onClick: () =>
+                    modal.confirm({
+                      title: `Delete ${who}?`,
+                      content: "The account, profile and picture are deleted for good. Documents they worked on keep their history. An account that owns invoices, licences or delivery orders cannot be deleted.",
+                      okText: "Delete account",
+                      okButtonProps: { danger: true },
+                      onOk: () => deleteUser(user),
+                    }),
+                },
+              ]
+            : []),
+        ];
+        const working = busy?.endsWith(`:${user.id}`) ?? false;
+        return (
+          <Dropdown menu={{ items }} trigger={["click"]} placement="bottomRight">
+            <Button type="text" size="small" icon={<MoreOutlined />} loading={working} aria-label={`Actions for ${who}`} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
