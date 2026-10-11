@@ -829,7 +829,7 @@ function InvoiceDetailsDrawer({
                     showIcon
                     style={{ marginBottom: 16 }}
                     title="Over Rp5.000.000"
-                    description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 “materai”."
+                    description="A plain invoice (a request to pay) generally needs no “materai”. A receipt, or an invoice that serves as proof of payment, above Rp5.000.000 carries a Rp10.000 “materai” (UU 10/2020)."
                   />
                 ) : null}
                 <Form.Item name="refresh_seller" valuePropName="checked" style={{ marginBottom: 8 }}>

@@ -111,7 +111,7 @@ export function MoneyOutPage() {
       render: (_, row) => (
         <Flex vertical align="flex-end">
           <Typography.Text strong>{money(row.amount, row.currency)}</Typography.Text>
-          {Number(row.withholding_amount) > 0 ? (
+          {row.withholding_code ? (
             <Tooltip title={`${row.withholding_code} · ${Number(row.withholding_rate)}%${row.bupot_number ? ` · “bukti potong” ${row.bupot_number}` : " · “bukti potong” not recorded yet"}`}>
               <Typography.Text type={row.bupot_number || row.voided_at ? "secondary" : "warning"} style={{ fontSize: 12 }}>
                 {WITHHELD[row.withholding_type ?? ""] ?? row.withholding_type} {money(row.withholding_amount, row.currency)}
@@ -149,7 +149,7 @@ export function MoneyOutPage() {
               <PaperClipOutlined style={{ color: "var(--ant-color-warning)", padding: "0 6px" }} />
             </Tooltip>
           )}
-          {!row.voided_at && Number(row.withholding_amount) > 0 ? (
+          {!row.voided_at && row.withholding_code ? (
             <Tooltip title={row.bupot_number ? `Bukti potong ${row.bupot_number}` : "Record the “bukti potong” made in Coretax"}>
               <Button size="small" type="text" icon={<AuditOutlined />} aria-label="Bukti potong" onClick={() => setBupot(row)} style={row.bupot_number ? undefined : { color: "var(--ant-color-warning)" }} />
             </Tooltip>

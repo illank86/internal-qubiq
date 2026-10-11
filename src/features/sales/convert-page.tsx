@@ -289,7 +289,7 @@ export function ConvertPage() {
               Physical: a box to stick a Rp10.000 “materai” on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site. Both can be changed later on the invoice.
             </Typography.Text>
             {needsMateraiHint({ currency: quotation.currency, total: quotation.total }, materai) ? (
-              <Alert type="info" showIcon title="Over Rp5.000.000" description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 “materai”." />
+              <Alert type="info" showIcon title="Over Rp5.000.000" description="A plain invoice (a request to pay) generally needs no “materai”. A receipt, or an invoice that serves as proof of payment, above Rp5.000.000 carries a Rp10.000 “materai” (UU 10/2020)." />
             ) : null}
           </Flex>
         </Card>

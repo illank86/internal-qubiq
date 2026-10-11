@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
 import { YearEnd } from "./payroll-year-end";
+import { DatedAmounts } from "./payroll-amounts";
 import { createPayrollRun, periodLabel, PTKP_LABEL, PTKP_STATUSES, totals, useEmployees, usePayrollRuns, usePayrollSettings, type Employee } from "./payroll-api";
 
 const TABS = ["runs", "employees", "a1", "bpjs"] as const;
@@ -324,7 +325,7 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
 
 // ------------------------------------------------------------------ BPJS settings
 
-type BpjsValues = { minimum_wage: number | null; jht_employer: number; jht_employee: number; jp_employer: number; jp_employee: number; jp_wage_cap: number; jkk_rate: number; jkm_rate: number; kes_employer: number; kes_employee: number; kes_wage_cap: number };
+type BpjsValues = { jht_employer: number; jht_employee: number; jp_employer: number; jp_employee: number; jkk_rate: number; jkm_rate: number; kes_employer: number; kes_employee: number; kes_wage_cap: number };
 
 function BpjsSettings() {
   const [form] = Form.useForm<BpjsValues>();
@@ -335,7 +336,9 @@ function BpjsSettings() {
   const percent = { min: 0, max: 20, step: 0.01, addonAfter: "%", style: { width: "100%" } };
   const save = (values: BpjsValues) =>
     run("save", async () => {
-      const { error } = await supabase.from("payroll_settings").update({ ...values, updated_at: new Date().toISOString() }).eq("id", true);
+      const { error } = await supabase.from("payroll_settings").update({
+        jht_employer: values.jht_employer, jht_employee: values.jht_employee, jp_employer: values.jp_employer, jp_employee: values.jp_employee,
+        jkk_rate: values.jkk_rate, jkm_rate: values.jkm_rate, kes_employer: values.kes_employer, kes_employee: values.kes_employee, kes_wage_cap: values.kes_wage_cap, updated_at: new Date().toISOString() }).eq("id", true);
       if (error) throw error;
     }, "BPJS rates saved. Drafts pick them up when refreshed; posted months keep theirs.");
   const pair = (title: string, employer: keyof BpjsValues, employee: keyof BpjsValues | null, cap: keyof BpjsValues | null, hint: string) => (
@@ -371,17 +374,28 @@ function BpjsSettings() {
   return (
     <Form<BpjsValues> form={form} layout="vertical" initialValues={data as unknown as BpjsValues} onFinish={save} style={{ maxWidth: 900 }}>
       <Typography.Paragraph type="secondary">
-        Percent of the wage (base salary + fixed allowance). The government revises the JP wage cap each year (Rp11,086,300 for 2026); BPJS Kesehatan counts the wage up to Rp12,000,000.
+        Percent of the wage (base salary + fixed allowance). BPJS Kesehatan counts the wage up to Rp12,000,000.
       </Typography.Paragraph>
-      <Card size="small" title="Minimum wage (UMK)" style={{ marginBottom: 16, maxWidth: 440 }}>
-        <Form.Item name="minimum_wage" extra="The UMK (or UMP) where your people work. BPJS is counted on at least this; a monthly salary below it is flagged." style={{ marginBottom: 0 }}>
-          <InputNumber {...rupiah} step={1000} placeholder="e.g. 5,400,000" />
-        </Form.Item>
-      </Card>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={12}>
+          <DatedAmounts
+            kind="minimum_wage"
+            title="Minimum wage (UMP / UMK)"
+            hint="Where your people work; changes every January. BPJS is counted on at least this, and a monthly salary below it is flagged. Each month uses the amount in force then."
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <DatedAmounts
+            kind="jp_wage_cap"
+            title="JP wage cap"
+            hint="Set by BPJS Ketenagakerjaan every March (from GDP growth). JP is counted on the wage up to the cap in force that month."
+          />
+        </Col>
+      </Row>
       <Row gutter={[16, 16]}>
         {pair("BPJS Kesehatan", "kes_employer", "kes_employee", "kes_wage_cap", "Health insurance: 4% company, 1% employee.")}
         {pair("JHT — Jaminan Hari Tua", "jht_employer", "jht_employee", null, "Old-age savings: 3.7% company, 2% employee; no cap.")}
-        {pair("JP — Jaminan Pensiun", "jp_employer", "jp_employee", "jp_wage_cap", "Pension: 2% company, 1% employee, up to the cap.")}
+        {pair("JP — Jaminan Pensiun", "jp_employer", "jp_employee", null, "Pension: 2% company, 1% employee, up to the JP wage cap above.")}
         {pair("JKK — Jaminan Kecelakaan Kerja", "jkk_rate", null, null, "Work accident, company only: 0.24% for very low risk (office work), up to 1.74%.")}
         {pair("JKM — Jaminan Kematian", "jkm_rate", null, null, "Death benefit, company only: 0.30%.")}
       </Row>

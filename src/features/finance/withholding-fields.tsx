@@ -7,7 +7,7 @@ import { money, useWithholdingCodes, withholdingPreview, WITHHELD } from "./api"
  * the expense form:
  *   company in Indonesia  → PPh 23 (services, rent of other assets) or PPh 4(2) (building rent, construction)
  *   individual in Indonesia → PPh 21 non-employee (freelancers, experts), or PPh 4(2) for rent
- *   abroad                → PPh 26 (20%, or the tax-treaty rate with a DGT form)
+ *   abroad                → PPh 26 (20%, or the tax-treaty rate with a DGT form, PMK 112/2025)
  * The amount is worked out by the database; this only shows it.
  */
 
@@ -120,7 +120,7 @@ export function WithholdingFields() {
             ? "Most services from an Indonesian business need PPh 23 (2%); office rent is PPh 4(2) 10%. Goods need none."
             : kind === "individual"
               ? "Freelancers and experts: PPh 21 on 50% of the fee at Article 17 rates."
-              : "Paying abroad: PPh 26 at 20%, or the tax-treaty rate if the vendor gives you a DGT form. Cloud services already charged PPN by the provider (AWS, Google…) usually need none."
+              : "Paying abroad: PPh 26 at 20%, or the tax-treaty rate with the vendor's DGT form (PMK 112/2025). This applies to foreign SaaS and cloud too: the PPN that AWS, Google and others charge is VAT and does not replace PPh 26. A subscription without rights to copy or modify is usually 0% under a treaty with a valid DGT form, but the “bukti potong” is still made, at 0%."
         }
       >
         <Select allowClear showSearch optionFilterProp="label" placeholder="None" options={options} popupMatchSelectWidth={false} />
@@ -134,7 +134,7 @@ export function WithholdingFields() {
           </Col>
           {chosen.tax_type === "pph26" ? (
             <Col xs={24} sm={12}>
-              <Form.Item label="Tax-treaty rate" name="treaty_rate" extra="Only with the vendor's DGT form (SKD) for this year.">
+              <Form.Item label="Tax-treaty rate" name="treaty_rate" extra="Only with a valid DGT form from the vendor (PMK 112/2025, submitted in Coretax), checked by you: beneficial owner, real business, not set up just for the treaty. A form is valid for up to 12 months. 0% is allowed; the “bukti potong” is still made.">
                 <InputNumber min={0} max={20} step={0.5} suffix="%" style={{ width: "100%" }} placeholder="20" />
               </Form.Item>
             </Col>

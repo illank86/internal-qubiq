@@ -3517,6 +3517,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_amounts: {
+        Row: {
+          amount: number
+          effective_from: string
+          kind: string
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          effective_from: string
+          kind: string
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          effective_from?: string
+          kind?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payroll_lines: {
         Row: {
           allowance: number

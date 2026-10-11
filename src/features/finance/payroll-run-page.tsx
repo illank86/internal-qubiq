@@ -84,7 +84,15 @@ export function PayrollRunPage() {
             nik: line.npwp || line.nik || "",
             name: line.employee_name,
             ptkp: line.ptkp_status,
-            code: line.employment_type === "permanent" ? "21-100-01" : "21-100-03",
+            // Coretax codes (PER-11/PJ/2025): permanent; non-permanent paid monthly; daily up to / above Rp2.5m a day.
+            code:
+              line.employment_type === "permanent"
+                ? "21-100-01"
+                : line.pay_basis === "daily"
+                  ? Number(line.daily_rate ?? 0) > 2500000
+                    ? "21-100-30"
+                    : "21-100-24"
+                  : "21-100-35",
             gross: Number(line.gross),
             method: line.pph21_method === "ter" ? `TER kategori ${line.ter_category}` : line.pph21_method === "daily" ? "TER harian" : "Pasal 17 (setahun)",
             rate: line.ter_rate === null ? null : Number(line.ter_rate),
