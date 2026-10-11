@@ -8,7 +8,7 @@ export type Worksheet = {
   expenses: number;
   gross_revenue: number;
   commercial_profit: number;
-  positive: { non_deductible_accounts: number; non_deductible_expenses: number; manual: number; total: number };
+  positive: { non_deductible_accounts: number; non_deductible_expenses: number; no_nominative_list?: number; manual: number; total: number };
   negative: { manual: number; total: number };
   adjustments: { id: string; kind: "positive" | "negative"; description: string; amount: number }[];
   non_deductible_detail: { account: string; amount: number }[];
@@ -36,6 +36,7 @@ export function worksheetRows(w: Worksheet) {
     { key: "commercial", section: "fiscal", label: "Laba komersial sebelum pajak", amount: w.commercial_profit, strong: true },
     { key: "pos-acc", section: "fiscal", label: "Koreksi positif: akun tidak dapat dibiayakan", amount: w.positive.non_deductible_accounts, indent: true },
     { key: "pos-exp", section: "fiscal", label: "Koreksi positif: pengeluaran tidak dapat dibiayakan", amount: w.positive.non_deductible_expenses, indent: true },
+    { key: "pos-nom", section: "fiscal", label: "Koreksi positif: promosi, jamuan dan natura tanpa daftar nominatif", amount: Number(w.positive.no_nominative_list ?? 0), indent: true },
     { key: "pos-man", section: "fiscal", label: "Koreksi positif lainnya", amount: w.positive.manual, indent: true },
     { key: "neg-man", section: "fiscal", label: "Koreksi negatif", amount: -w.negative.total, indent: true },
     { key: "net", section: "fiscal", label: "Penghasilan neto fiskal", amount: w.net_fiscal, strong: true },

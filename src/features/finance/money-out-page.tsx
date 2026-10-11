@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Button, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Modal, Row, Segmented, Select, Table, Tag, Tooltip, Typography, Upload } from "antd";
 import type { TableColumnsType } from "antd";
-import { AuditOutlined, CheckCircleOutlined, EyeOutlined, FileExcelOutlined, PaperClipOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import { AuditOutlined, CheckCircleOutlined, EyeOutlined, FileExcelOutlined, PaperClipOutlined, PlusOutlined, StopOutlined, TeamOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -25,10 +25,12 @@ import {
   WITHHELD,
   type Expense,
 } from "./api";
+import { NominativeModal } from "./nominative-modal";
+import { NOMINATIVE_LABEL, type NominativeKind } from "./nominative";
 import { VendorTaxFields, WithholdingFields, type VendorKind } from "./withholding-fields";
 import { exportExcel } from "./exports";
 
-type Row = Expense & { account: { code: string; name: string } | null };
+type Row = Expense & { account: { code: string; name: string; nominative_kind: string | null } | null; nominees: { count: number }[] };
 type Filter = "all" | "unpaid" | "paid";
 const CURRENCIES = ["IDR", "USD", "SGD", "EUR"];
 
@@ -43,11 +45,12 @@ export function MoneyOutPage() {
   const [voiding, setVoiding] = useState<Row | null>(null);
   const [reason, setReason] = useState("");
   const [bupot, setBupot] = useState<Row | null>(null);
+  const [listing, setListing] = useState<Row | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["expenses"],
     queryFn: async () => {
-      const { data: rows, error: loadError } = await supabase.from("expenses").select("*, account:accounts(code, name)").order("spent_on", { ascending: false }).order("created_at", { ascending: false }).limit(2000);
+      const { data: rows, error: loadError } = await supabase.from("expenses").select("*, account:accounts(code, name, nominative_kind), nominees:expense_nominees(count)").order("spent_on", { ascending: false }).order("created_at", { ascending: false }).limit(2000);
       if (loadError) throw loadError;
       return (rows ?? []) as unknown as Row[];
     },
@@ -154,6 +157,16 @@ export function MoneyOutPage() {
               <Button size="small" type="text" icon={<AuditOutlined />} aria-label="Bukti potong" onClick={() => setBupot(row)} style={row.bupot_number ? undefined : { color: "var(--ant-color-warning)" }} />
             </Tooltip>
           ) : null}
+          {!row.voided_at ? (() => {
+            const kind = row.nominative_kind ?? row.account?.nominative_kind ?? null;
+            const count = row.nominees?.[0]?.count ?? 0;
+            const missing = Boolean(kind) && count === 0;
+            return (
+              <Tooltip title={kind ? `${NOMINATIVE_LABEL[kind as NominativeKind]}: ${count ? `${count} recipient(s) listed` : "no nominative list yet — added back on the annual return"}` : "Nominative list (promotion, entertainment, benefit in kind)"}>
+                <Button size="small" type="text" icon={<TeamOutlined />} aria-label="Nominative list" onClick={() => setListing(row)} style={missing ? { color: "var(--ant-color-warning)" } : kind ? undefined : { color: "var(--ant-color-text-quaternary)" }} />
+              </Tooltip>
+            );
+          })() : null}
           {!row.voided_at && row.status === "unpaid" ? (
             <Button size="small" icon={<CheckCircleOutlined />} onClick={() => setPaying(row)}>
               Pay
@@ -208,6 +221,14 @@ export function MoneyOutPage() {
       <Table<Row> rowKey="id" loading={isLoading} columns={columns} dataSource={rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 880 }} locale={{ emptyText: "No expenses yet." }} />
       <ExpenseDrawer open={adding} onClose={() => setAdding(false)} />
       {bupot ? <BupotModal expense={bupot} onClose={() => setBupot(null)} run={run} /> : null}
+      {listing ? (
+        <NominativeModal
+          expense={listing}
+          defaultKind={(listing.account?.nominative_kind as NominativeKind | null) ?? null}
+          onClose={() => setListing(null)}
+          run={run}
+        />
+      ) : null}
       {paying ? <PayModal expense={paying} onClose={() => setPaying(null)} run={run} /> : null}
       <Modal
         open={Boolean(voiding)}

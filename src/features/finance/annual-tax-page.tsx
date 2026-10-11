@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
 import { exportExcel } from "./exports";
+import { loadNominativeLists } from "./nominative";
 import { worksheetRows, type Worksheet } from "./annual-tax";
 
 const call = async <T,>(name: string, args: Record<string, unknown>) => {
@@ -48,8 +49,10 @@ export function AnnualTaxPage() {
       if (deleteError) throw deleteError;
     }, "Correction removed.");
 
-  const excel = () =>
-    w &&
+  const excel = async () => {
+    if (!w) return;
+    const lists = await loadNominativeLists(w.year);
+    const nominee = (kind: "entertainment" | "other") => lists.nominees.filter((row) => (kind === "entertainment") === (row.kind === "entertainment"));
     exportExcel(`spt-badan_${w.year}.xlsx`, `Tahun pajak ${w.year}`, [
       {
         name: "Rekonsiliasi fiskal",
@@ -60,7 +63,41 @@ export function AnnualTaxPage() {
         ],
         rows: worksheetRows(w).map((row) => ({ label: row.label, amount: row.amount })),
       },
+      {
+        name: "Nominatif promosi & natura",
+        title: `Daftar nominatif biaya promosi dan natura/kenikmatan ${w.year} (Lampiran 11A-I)`,
+        columns: [
+          { header: "Tanggal", key: "given_on", kind: "date" }, { header: "Nama", key: "name", width: 28 }, { header: "NPWP / NIK", key: "tax_id", width: 20 },
+          { header: "Alamat", key: "address", width: 32 }, { header: "Bentuk dan jenis biaya", key: "description", width: 28 },
+          { header: "Jumlah (Rp)", key: "amount", kind: "money" }, { header: "PPh dipotong (Rp)", key: "tax_withheld", kind: "money" },
+          { header: "Jenis", key: "kind_text", width: 12 }, { header: "Pengeluaran", key: "expense", width: 14 }, { header: "Keterangan", key: "note", width: 24 },
+        ],
+        rows: nominee("other").map((row) => ({ ...row, kind_text: row.kind === "benefit" ? "Natura" : "Promosi" })),
+        totals: { amount: nominee("other").reduce((sum, row) => sum + row.amount, 0), tax_withheld: nominee("other").reduce((sum, row) => sum + row.tax_withheld, 0) },
+      },
+      {
+        name: "Nominatif jamuan",
+        title: `Daftar nominatif biaya entertainment / jamuan ${w.year} (Lampiran 11A-II)`,
+        columns: [
+          { header: "Tanggal", key: "given_on", kind: "date" }, { header: "Tempat", key: "place", width: 26 }, { header: "Jenis", key: "description", width: 22 },
+          { header: "Jumlah (Rp)", key: "amount", kind: "money" }, { header: "Nama relasi", key: "name", width: 26 }, { header: "Posisi", key: "job_title", width: 18 },
+          { header: "Nama perusahaan", key: "company", width: 26 }, { header: "Jenis usaha", key: "business_type", width: 18 }, { header: "Pengeluaran", key: "expense", width: 14 },
+        ],
+        rows: nominee("entertainment"),
+        totals: { amount: nominee("entertainment").reduce((sum, row) => sum + row.amount, 0) },
+      },
+      {
+        name: "Tanpa daftar nominatif",
+        title: `Biaya promosi, jamuan dan natura ${w.year} tanpa daftar nominatif (dikoreksi fiskal)`,
+        columns: [
+          { header: "Tanggal", key: "spent_on", kind: "date" }, { header: "Pengeluaran", key: "number", width: 14 }, { header: "Penerima / vendor", key: "vendor_name", width: 30 },
+          { header: "Keterangan", key: "description", width: 34 }, { header: "Jenis", key: "kind_text", width: 14 }, { header: "Jumlah (Rp)", key: "amount", kind: "money" },
+        ],
+        rows: lists.missing,
+        totals: { amount: lists.missing.reduce((sum, row) => sum + row.amount, 0) },
+      },
     ]);
+  };
   const pdf = () =>
     w &&
     viewPdf({

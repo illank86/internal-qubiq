@@ -183,6 +183,8 @@ const td = (align: "left" | "right" = "left", extra: React.CSSProperties = {}): 
 const th = (align: "left" | "right" = "left"): React.CSSProperties => ({ background: PAPER.brand, color: "#fff", fontWeight: 600, fontSize: 11, padding: "6px 8px", textAlign: align, whiteSpace: "nowrap" });
 
 function StatementTable({ statement, company }: { statement: Statement; company: Company }) {
+  const columns = statement.columns;
+  const span = columns ? 4 : 3;
   return (
     <>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -190,7 +192,8 @@ function StatementTable({ statement, company }: { statement: Statement; company:
           <tr>
             <th style={{ ...th(), width: 80 }}>Kode</th>
             <th style={th()}>Keterangan</th>
-            <th style={{ ...th("right"), width: 170 }}>Jumlah (Rp)</th>
+            <th style={{ ...th("right"), width: columns ? 150 : 170 }}>{columns ? columns.current : "Jumlah (Rp)"}</th>
+            {columns ? <th style={{ ...th("right"), width: 150, opacity: 0.85 }}>{columns.prior}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -198,7 +201,7 @@ function StatementTable({ statement, company }: { statement: Statement; company:
             if (row.kind === "section")
               return (
                 <tr key={index} style={{ borderBottom: `1px solid ${PAPER.brand}` }}>
-                  <td colSpan={3} style={td("left", { color: PAPER.brand, fontWeight: 700, fontSize: 11, letterSpacing: 0.8, paddingTop: 14 })}>
+                  <td colSpan={span} style={td("left", { color: PAPER.brand, fontWeight: 700, fontSize: 11, letterSpacing: 0.8, paddingTop: 14 })}>
                     {row.name.toUpperCase()}
                   </td>
                 </tr>
@@ -212,6 +215,7 @@ function StatementTable({ statement, company }: { statement: Statement; company:
                     {row.note ? <span style={{ color: PAPER.muted, fontSize: 11 }}> — {row.note}</span> : null}
                   </td>
                   <td style={td("right")}>{rp(row.amount)}</td>
+                  {columns ? <td style={td("right", { color: PAPER.muted })}>{rp(row.prior ?? 0)}</td> : null}
                 </tr>
               );
             const total = row.kind === "total";
@@ -230,6 +234,7 @@ function StatementTable({ statement, company }: { statement: Statement; company:
                   {total ? row.name.toUpperCase() : row.name}
                 </td>
                 <td style={td("right", { padding: total ? "8px" : "6px 8px" })}>{rp(row.amount, "0")}</td>
+                {columns ? <td style={td("right", { padding: total ? "8px" : "6px 8px", color: PAPER.muted })}>{rp(row.prior ?? 0, "0")}</td> : null}
               </tr>
             );
           })}
@@ -243,7 +248,7 @@ function StatementTable({ statement, company }: { statement: Statement; company:
 }
 
 const tabItems = (book: StatementBook) => [
-  ...book.statements.map((item) => ({ key: item.key, label: item.key === "laba-rugi" ? "Laba Rugi" : item.key === "neraca" ? "Neraca" : "Arus Kas" })),
+  ...book.statements.map((item) => ({ key: item.key, label: item.short })),
   { key: "calk", label: `CALK (${book.notes.length})` },
 ];
 

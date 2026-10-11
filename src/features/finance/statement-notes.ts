@@ -36,7 +36,7 @@ export async function loadNotesData(from: string, to: string) {
 
 const n = (value: number | string | null | undefined) => Number(value ?? 0);
 
-export function buildNotes(companyName: string, npwp: string | null, s: Statements, d: NotesData): Note[] {
+export function buildNotes(companyName: string, npwp: string | null, s: Statements, d: NotesData, comparative = false): Note[] {
   const asOf = longDateId(s.to);
   const framework = d.settings?.framework ?? "SAK EMKM";
   const notes: Note[] = [];
@@ -54,13 +54,14 @@ export function buildNotes(companyName: string, npwp: string | null, s: Statemen
 
   // 2. Kebijakan akuntansi
   add("Ikhtisar kebijakan akuntansi penting", [
-    `a. Dasar penyusunan. Laporan keuangan disusun berdasarkan ${framework === "SAK EMKM" ? "Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM)" : "Standar Akuntansi Keuangan Entitas Privat (SAK EP)"} dengan dasar akrual, kecuali laporan arus kas yang disusun dengan metode langsung. Mata uang penyajian adalah Rupiah.`,
-    "b. Transaksi dalam mata uang asing dicatat dengan kurs Menteri Keuangan (KMK) yang berlaku pada tanggal transaksi; selisih kurs yang timbul pada saat pelunasan diakui dalam laba rugi.",
-    "c. Piutang usaha disajikan sebesar jumlah tagihan yang belum dilunasi.",
-    "d. Aset tetap dicatat sebesar harga perolehan dikurangi akumulasi penyusutan. Penyusutan dihitung sejak bulan perolehan dengan metode garis lurus atau saldo menurun, berdasarkan kelompok harta dan masa manfaat sesuai PMK 72/2023, sehingga penyusutan komersial sama dengan fiskal.",
-    "e. Pendapatan diakui pada saat lisensi atau jasa diserahkan dan tagihan diterbitkan. Beban diakui pada saat terjadinya (dasar akrual).",
-    `f. Pajak penghasilan. Beban pajak kini dihitung dari penghasilan kena pajak tahun berjalan sesuai peraturan perpajakan.${framework === "SAK EMKM" ? " Sesuai SAK EMKM, Perusahaan tidak mengakui pajak tangguhan." : " Perbedaan temporer tidak material sehingga pajak tangguhan tidak diakui."}`,
-    "g. Imbalan kerja jangka pendek (gaji, tunjangan, iuran BPJS bagian perusahaan) diakui sebagai beban pada periode terutangnya.",
+    `a. Pernyataan kepatuhan. Laporan keuangan Perusahaan disusun sesuai dengan ${framework === "SAK EMKM" ? "Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM)" : "Standar Akuntansi Keuangan Entitas Privat (SAK EP)"}. Perusahaan menyatakan secara eksplisit dan tanpa syarat bahwa laporan keuangan ini mematuhi ${framework}.`,
+    `b. Dasar penyusunan. Laporan keuangan disusun dengan dasar akrual dan konsep biaya historis, dengan asumsi kelangsungan usaha. Laporan keuangan terdiri atas laporan posisi keuangan (neraca), laporan laba rugi, laporan perubahan ekuitas, laporan arus kas (metode langsung) dan catatan atas laporan keuangan${comparative ? ", masing-masing disajikan bersama informasi komparatif periode yang sama tahun sebelumnya" : "; informasi komparatif belum disajikan karena ini periode pertama Perusahaan"}. Mata uang penyajian adalah Rupiah.`,
+    "c. Transaksi dalam mata uang asing dicatat dengan kurs Menteri Keuangan (KMK) yang berlaku pada tanggal transaksi; selisih kurs yang timbul pada saat pelunasan diakui dalam laba rugi.",
+    "d. Piutang usaha disajikan sebesar jumlah tagihan yang belum dilunasi.",
+    "e. Aset tetap dicatat sebesar harga perolehan dikurangi akumulasi penyusutan. Penyusutan dihitung sejak bulan perolehan dengan metode garis lurus atau saldo menurun, berdasarkan kelompok harta dan masa manfaat sesuai PMK 72/2023, sehingga penyusutan komersial sama dengan fiskal.",
+    "f. Pendapatan diakui pada saat lisensi atau jasa diserahkan dan tagihan diterbitkan. Beban diakui pada saat terjadinya (dasar akrual).",
+    `g. Pajak penghasilan. Beban pajak kini dihitung dari penghasilan kena pajak tahun berjalan sesuai peraturan perpajakan.${framework === "SAK EMKM" ? " Sesuai SAK EMKM, Perusahaan tidak mengakui pajak tangguhan." : " Perbedaan temporer tidak material sehingga pajak tangguhan tidak diakui."}`,
+    "h. Imbalan kerja jangka pendek (gaji, tunjangan, iuran BPJS bagian perusahaan) diakui sebagai beban pada periode terutangnya.",
   ]);
 
   // 3. Kas dan bank

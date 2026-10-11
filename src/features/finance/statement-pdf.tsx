@@ -59,13 +59,14 @@ function StatementPage({ book, statement, first }: { book: StatementBook; statem
       <View style={s.head} fixed>
         <Text style={cell(C[0])}>Kode</Text>
         <Text style={cell(C[1])}>Keterangan</Text>
-        <Text style={cell(C[2], num)}>Jumlah (Rp)</Text>
+        <Text style={cell(C[2], num)}>{statement.columns ? statement.columns.current : "Jumlah (Rp)"}</Text>
+        {statement.columns ? <Text style={cell(C[2], num)}>{statement.columns.prior}</Text> : null}
       </View>
       {statement.rows.map((row, index) => {
         if (row.kind === "section")
           return (
             <View key={index} style={s.section} wrap={false} minPresenceAhead={40}>
-              <Text style={cell(C[0] + C[1] + C[2])}>{row.name.toUpperCase()}</Text>
+              <Text style={cell(C[0] + C[1] + C[2] * (statement.columns ? 2 : 1))}>{row.name.toUpperCase()}</Text>
             </View>
           );
         if (row.kind === "line")
@@ -77,12 +78,14 @@ function StatementPage({ book, statement, first }: { book: StatementBook; statem
                 {row.note ? <Text style={{ color: MUTED, fontSize: 7 }}> — {row.note}</Text> : null}
               </Text>
               <Text style={cell(C[2], num)}>{rp(row.amount)}</Text>
+              {statement.columns ? <Text style={cell(C[2], { ...num, color: MUTED })}>{rp(row.prior ?? 0)}</Text> : null}
             </View>
           );
         return (
           <View key={index} style={row.kind === "total" ? s.total : s.subtotal} wrap={false}>
             <Text style={cell(C[0] + C[1])}>{row.kind === "total" ? row.name.toUpperCase() : row.name}</Text>
             <Text style={cell(C[2], num)}>{rp(row.amount, "0")}</Text>
+            {statement.columns ? <Text style={cell(C[2], { ...num, color: MUTED })}>{rp(row.prior ?? 0, "0")}</Text> : null}
           </View>
         );
       })}

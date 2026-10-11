@@ -157,6 +157,7 @@ export type Database = {
           id: string
           name: string
           name_id: string | null
+          nominative_kind: string | null
           role: string | null
           type: string
         }
@@ -168,6 +169,7 @@ export type Database = {
           id?: string
           name: string
           name_id?: string | null
+          nominative_kind?: string | null
           role?: string | null
           type: string
         }
@@ -179,6 +181,7 @@ export type Database = {
           id?: string
           name?: string
           name_id?: string | null
+          nominative_kind?: string | null
           role?: string | null
           type?: string
         }
@@ -1329,6 +1332,68 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_nominees: {
+        Row: {
+          address: string | null
+          amount: number
+          business_type: string | null
+          company: string | null
+          description: string | null
+          expense_id: string
+          given_on: string | null
+          id: string
+          job_title: string | null
+          name: string
+          note: string | null
+          place: string | null
+          position: number
+          tax_id: string | null
+          tax_withheld: number
+        }
+        Insert: {
+          address?: string | null
+          amount: number
+          business_type?: string | null
+          company?: string | null
+          description?: string | null
+          expense_id: string
+          given_on?: string | null
+          id?: string
+          job_title?: string | null
+          name: string
+          note?: string | null
+          place?: string | null
+          position?: number
+          tax_id?: string | null
+          tax_withheld?: number
+        }
+        Update: {
+          address?: string | null
+          amount?: number
+          business_type?: string | null
+          company?: string | null
+          description?: string | null
+          expense_id?: string
+          given_on?: string | null
+          id?: string
+          job_title?: string | null
+          name?: string
+          note?: string | null
+          place?: string | null
+          position?: number
+          tax_id?: string | null
+          tax_withheld?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_nominees_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           account_id: string
@@ -1347,6 +1412,7 @@ export type Database = {
           id: string
           idr_paid: number | null
           journal_id: string | null
+          nominative_kind: string | null
           number: string
           paid_on: string | null
           payment_journal_id: string | null
@@ -1386,6 +1452,7 @@ export type Database = {
           id?: string
           idr_paid?: number | null
           journal_id?: string | null
+          nominative_kind?: string | null
           number: string
           paid_on?: string | null
           payment_journal_id?: string | null
@@ -1425,6 +1492,7 @@ export type Database = {
           id?: string
           idr_paid?: number | null
           journal_id?: string | null
+          nominative_kind?: string | null
           number?: string
           paid_on?: string | null
           payment_journal_id?: string | null
@@ -5785,6 +5853,10 @@ export type Database = {
       }
       set_expense_bupot: {
         Args: { p_date: string; p_id: string; p_number: string }
+        Returns: undefined
+      }
+      set_expense_nominees: {
+        Args: { p_expense: string; p_kind: string; p_nominees: Json }
         Returns: undefined
       }
       set_invoice_faktur: {
