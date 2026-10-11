@@ -182,7 +182,7 @@ export function AnnualTaxPage() {
             <Col xs={24} lg={14}>
               <Card title="Fiscal corrections entered by hand">
                 <Typography.Paragraph type="secondary" style={{ marginTop: -4 }}>
-                  Non-deductible accounts and expenses are added automatically. Add what else the tax rules require: positive (e.g. benefits in kind not taxed to employees, costs without a nominee list) or negative (income already taxed finally, e.g. bank interest).
+                  Non-deductible accounts and expenses are added automatically. Add what else the tax rules require: positive (e.g. benefits in kind not taxed to employees, costs without a nominee list) or negative (other income already taxed finally). Bank interest recorded in Money in is taken out automatically.
                 </Typography.Paragraph>
                 <Table
                   size="small"

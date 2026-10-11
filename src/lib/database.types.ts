@@ -340,6 +340,99 @@ export type Database = {
           },
         ]
       }
+      bank_transfers: {
+        Row: {
+          amount_in: number
+          amount_out: number
+          created_at: string
+          created_by: string | null
+          fee: number
+          from_bank_id: string
+          id: string
+          journal_id: string | null
+          note: string | null
+          number: string
+          reference: string | null
+          to_bank_id: string
+          transferred_on: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount_in: number
+          amount_out: number
+          created_at?: string
+          created_by?: string | null
+          fee?: number
+          from_bank_id: string
+          id?: string
+          journal_id?: string | null
+          note?: string | null
+          number: string
+          reference?: string | null
+          to_bank_id: string
+          transferred_on: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount_in?: number
+          amount_out?: number
+          created_at?: string
+          created_by?: string | null
+          fee?: number
+          from_bank_id?: string
+          id?: string
+          journal_id?: string | null
+          note?: string | null
+          number?: string
+          reference?: string | null
+          to_bank_id?: string
+          transferred_on?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transfers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transfers_from_bank_id_fkey"
+            columns: ["from_bank_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transfers_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transfers_to_bank_id_fkey"
+            columns: ["to_bank_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transfers_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_categories: {
         Row: {
           accent: string | null
@@ -4664,7 +4757,8 @@ export type Database = {
       }
       receipts: {
         Row: {
-          bank_account_id: string
+          advance_receipt_id: string | null
+          bank_account_id: string | null
           bank_charges: number
           bukti_potong_date: string | null
           bukti_potong_number: string | null
@@ -4678,10 +4772,12 @@ export type Database = {
           idr_credited: number | null
           invoice_id: string | null
           journal_id: string | null
+          kind: string
           net_received: number
           note: string | null
           number: string
           other_difference: number
+          payer_name: string | null
           received_on: string
           reference: string | null
           settled: number | null
@@ -4692,7 +4788,8 @@ export type Database = {
           withholding_type: string | null
         }
         Insert: {
-          bank_account_id: string
+          advance_receipt_id?: string | null
+          bank_account_id?: string | null
           bank_charges?: number
           bukti_potong_date?: string | null
           bukti_potong_number?: string | null
@@ -4706,10 +4803,12 @@ export type Database = {
           idr_credited?: number | null
           invoice_id?: string | null
           journal_id?: string | null
+          kind?: string
           net_received: number
           note?: string | null
           number: string
           other_difference?: number
+          payer_name?: string | null
           received_on: string
           reference?: string | null
           settled?: number | null
@@ -4720,7 +4819,8 @@ export type Database = {
           withholding_type?: string | null
         }
         Update: {
-          bank_account_id?: string
+          advance_receipt_id?: string | null
+          bank_account_id?: string | null
           bank_charges?: number
           bukti_potong_date?: string | null
           bukti_potong_number?: string | null
@@ -4734,10 +4834,12 @@ export type Database = {
           idr_credited?: number | null
           invoice_id?: string | null
           journal_id?: string | null
+          kind?: string
           net_received?: number
           note?: string | null
           number?: string
           other_difference?: number
+          payer_name?: string | null
           received_on?: string
           reference?: string | null
           settled?: number | null
@@ -4748,6 +4850,13 @@ export type Database = {
           withholding_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "receipts_advance_receipt_id_fkey"
+            columns: ["advance_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receipts_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -5731,6 +5840,7 @@ export type Database = {
       purge_download_ips: { Args: { p_days?: number }; Returns: number }
       quotation_by_token: { Args: { p_token: string }; Returns: Json }
       quotation_claim_preview: { Args: { p_token: string }; Returns: Json }
+      record_bank_transfer: { Args: { p: Json }; Returns: string }
       record_download: {
         Args: {
           p_artifact_id: string
@@ -5965,6 +6075,10 @@ export type Database = {
       }
       update_payroll_line: {
         Args: { p: Json; p_line: string }
+        Returns: undefined
+      }
+      void_bank_transfer: {
+        Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
       void_expense: {

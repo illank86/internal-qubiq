@@ -9,7 +9,7 @@ export type Worksheet = {
   gross_revenue: number;
   commercial_profit: number;
   positive: { non_deductible_accounts: number; non_deductible_expenses: number; no_nominative_list?: number; manual: number; total: number };
-  negative: { manual: number; total: number };
+  negative: { final_income?: number; manual: number; total: number };
   adjustments: { id: string; kind: "positive" | "negative"; description: string; amount: number }[];
   non_deductible_detail: { account: string; amount: number }[];
   net_fiscal: number;
@@ -38,7 +38,8 @@ export function worksheetRows(w: Worksheet) {
     { key: "pos-exp", section: "fiscal", label: "Koreksi positif: pengeluaran tidak dapat dibiayakan", amount: w.positive.non_deductible_expenses, indent: true },
     { key: "pos-nom", section: "fiscal", label: "Koreksi positif: promosi, jamuan dan natura tanpa daftar nominatif", amount: Number(w.positive.no_nominative_list ?? 0), indent: true },
     { key: "pos-man", section: "fiscal", label: "Koreksi positif lainnya", amount: w.positive.manual, indent: true },
-    { key: "neg-man", section: "fiscal", label: "Koreksi negatif", amount: -w.negative.total, indent: true },
+    { key: "neg-final", section: "fiscal", label: "Koreksi negatif: bunga bank dan jasa giro (PPh final)", amount: -Number(w.negative.final_income ?? 0), indent: true },
+    { key: "neg-man", section: "fiscal", label: "Koreksi negatif lainnya", amount: -w.negative.manual, indent: true },
     { key: "net", section: "fiscal", label: "Penghasilan neto fiskal", amount: w.net_fiscal, strong: true },
     { key: "loss", section: "fiscal", label: "Kompensasi kerugian", amount: -w.loss_carryforward, indent: true },
     { key: "pkp", section: "fiscal", label: "Penghasilan kena pajak (dibulatkan ke ribuan)", amount: w.taxable, strong: true },

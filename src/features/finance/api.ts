@@ -28,6 +28,20 @@ export const WITHHOLDING: Record<string, string> = {
   pph42: "PPh 4(2) — final",
   foreign: "Foreign withholding tax",
   other: "Other",
+  interest_final: "PPh 4(2) final on bank interest",
+};
+export type ReceiptKind = "invoice" | "advance_applied" | "capital" | "shareholder_loan" | "interest" | "advance" | "refund" | "tax_refund" | "other_income";
+/** What a receipt is. Only "invoice" and "advance_applied" settle an invoice. */
+export const RECEIPT_KIND: Record<ReceiptKind, string> = {
+  invoice: "Invoice payment",
+  advance_applied: "Advance applied",
+  capital: "Capital paid in",
+  shareholder_loan: "Shareholder loan",
+  interest: "Bank interest",
+  advance: "Customer advance",
+  refund: "Refund",
+  tax_refund: "Tax refund",
+  other_income: "Other income",
 };
 export const TAX_TYPES: Record<string, string> = {
   pph25: "PPh 25 (monthly instalment)",
@@ -52,6 +66,8 @@ const call = async <T>(name: string, args: Record<string, unknown>) => {
 
 export const recordReceipt = (p: Record<string, unknown>) => call<string>("record_receipt", { p: p as Json });
 export const voidReceipt = (id: string, reason: string) => call<void>("void_receipt", { p_id: id, p_reason: reason });
+export const recordBankTransfer = (p: Record<string, unknown>) => call<string>("record_bank_transfer", { p: p as Json });
+export const voidBankTransfer = (id: string, reason: string) => call<void>("void_bank_transfer", { p_id: id, p_reason: reason });
 export const recordExpense = (p: Record<string, unknown>) => call<string>("record_expense", { p: p as Json });
 export const payExpense = (id: string, paidOn: string, bank: string, idrPaid?: number | null) =>
   call<void>("pay_expense", { p_id: id, p_paid_on: paidOn, p_bank: bank, ...(idrPaid ? { p_idr_paid: idrPaid } : {}) });

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Checkbox, Col, Divider, Flex, Input, InputNumber, Modal, Row, Select, Skeleton, Typography, Upload, theme } from "antd";
+import { Alert, App, Button, Checkbox, Col, Divider, Flex, Input, InputNumber, Modal, Row, Segmented, Select, Skeleton, Typography, Upload, theme } from "antd";
 import { CheckCircleOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { errorText } from "@/lib/sales";
 import { documentFolder } from "@/features/sales/api";
+import { formatInvoiceDate } from "@/lib/invoices";
+import { supabase } from "@/lib/supabase";
 import { WITHHOLDING, invoiceOpenBalance, jakartaToday, money, recordReceipt, uploadAccountingFile, useBankAccounts } from "./api";
 
 export type PaymentInvoice = {
@@ -28,6 +30,23 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
   const queryClient = useQueryClient();
   const { data: banks, isLoading: banksLoading } = useBankAccounts();
   const { data: openBalance, isLoading } = useQuery({ queryKey: ["invoice-open", invoice.id], enabled: open, queryFn: () => invoiceOpenBalance(invoice.id) });
+  // Customer advances in the invoice's currency with something left to apply.
+  const { data: advances } = useQuery({
+    queryKey: ["receipts", "open-advances", invoice.currency],
+    enabled: open,
+    queryFn: async () => {
+      const [{ data }, { data: used }] = await Promise.all([
+        supabase.from("receipts").select("id, number, received_on, payer_name, settled").eq("kind", "advance").eq("currency", invoice.currency).is("voided_at", null).order("received_on"),
+        supabase.from("receipts").select("advance_receipt_id, settled").eq("kind", "advance_applied").is("voided_at", null),
+      ]);
+      const applied = new Map<string, number>();
+      for (const row of used ?? []) if (row.advance_receipt_id) applied.set(row.advance_receipt_id, (applied.get(row.advance_receipt_id) ?? 0) + Number(row.settled));
+      return (data ?? []).map((row) => ({ ...row, left: Number(row.settled) - (applied.get(row.id) ?? 0) })).filter((row) => row.left > 0.005);
+    },
+  });
+  const [source, setSource] = useState<"bank" | "advance">("bank");
+  const [advanceId, setAdvanceId] = useState<string | null>(null);
+  const [applyAmount, setApplyAmount] = useState<number | null>(null);
   const today = jakartaToday();
   const net = Number(invoice.subtotal) - Number(invoice.discount_amount ?? 0);
 
@@ -52,12 +71,31 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
   const bank = activeBanks.find((item) => item.id === (bankId ?? activeBanks[0]?.id));
   const openAmount = Number(openBalance ?? invoice.total);
   const cur = invoice.currency;
-  const settled = exact ? openAmount : (netReceived ?? 0) + (whtAmount ?? 0) + (charges ?? 0) + (other ?? 0);
+  const advance = (advances ?? []).find((item) => item.id === advanceId);
+  const fromAdvance = source === "advance";
+  const settled = fromAdvance
+    ? (applyAmount ?? Math.min(openAmount, advance?.left ?? 0))
+    : exact
+      ? openAmount
+      : (netReceived ?? 0) + (whtAmount ?? 0) + (charges ?? 0) + (other ?? 0);
   const remaining = Math.round((openAmount - settled) * 100) / 100;
   const earlierMonth = receivedOn.slice(0, 7) < today.slice(0, 7);
   const foreignIntoIdr = cur !== "IDR" && bank?.currency === "IDR";
-  const problem =
-    !bank
+  const problem = fromAdvance
+    ? !advance
+      ? "Choose the advance to apply."
+      : !receivedOn || receivedOn > today || receivedOn < invoice.issue_date || receivedOn < advance.received_on
+        ? "The date is on or after both the invoice and the advance, and not in the future."
+        : settled <= 0
+          ? "Enter the amount to apply."
+          : settled > advance.left + 0.005
+            ? `Only ${money(advance.left, cur)} is left of ${advance.number}.`
+            : remaining < -0.005
+              ? "That is more than is open on the invoice."
+              : earlierMonth && !reference.trim()
+                ? "In an earlier month: add a note in the reference."
+                : null
+    : !bank
       ? "Add a bank account first (Finance → Settings → Bank accounts)."
       : !receivedOn || receivedOn > today || receivedOn < invoice.issue_date
         ? "The date is between the invoice date and today."
@@ -74,10 +112,18 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
                   : null;
 
   const save = async () => {
-    if (problem || !bank) return;
+    if (problem || (!fromAdvance && !bank)) return;
     setPending(true);
     setError(null);
     try {
+      if (fromAdvance && advance) {
+        await recordReceipt({ kind: "advance_applied", invoice_id: invoice.id, advance_receipt_id: advance.id, received_on: receivedOn, net_received: settled, reference });
+        await Promise.all(["invoices", "receipts", "finance-dashboard", "invoice-open", "history", "order-overview", "sales-money"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+        message.success(remaining > 0.005 ? `Advance applied. ${money(remaining, cur)} is still open.` : `Advance applied; ${invoice.number ?? "the invoice"} is paid.`);
+        onClose();
+        return;
+      }
+      if (!bank) return;
       let bukti: { path: string; name: string } | null = null;
       if (!exact && bpFile) {
         const folder = await documentFolder("invoice", invoice.id).catch(() => `invoices/${invoice.id}`);
@@ -137,6 +183,58 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
             Open on this invoice: <Typography.Text strong>{money(openAmount, cur)}</Typography.Text>
             {Number(openAmount) !== Number(invoice.total) ? ` of ${money(invoice.total, cur)}` : ""}
           </Typography.Text>
+          {advances?.length ? (
+            <Segmented<"bank" | "advance">
+              block
+              value={source}
+              onChange={setSource}
+              options={[
+                { value: "bank", label: "Money arrived in the bank" },
+                { value: "advance", label: `From a customer advance (${advances.length})` },
+              ]}
+            />
+          ) : null}
+          {fromAdvance ? (
+            <Row gutter={[12, 12]}>
+              <Col span={24}>
+                <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Advance
+                </Typography.Text>
+                <Select
+                  style={{ width: "100%" }}
+                  value={advanceId}
+                  onChange={(id) => {
+                    setAdvanceId(id);
+                    setApplyAmount(null);
+                  }}
+                  placeholder="Choose the advance"
+                  options={(advances ?? []).map((item) => ({
+                    value: item.id,
+                    label: `${item.number} · ${item.payer_name ?? "—"} · ${formatInvoiceDate(item.received_on)} · ${money(item.left, cur)} left`,
+                  }))}
+                />
+              </Col>
+              <Col xs={24} sm={10}>
+                <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Applied on
+                </Typography.Text>
+                <Input type="date" value={receivedOn} min={invoice.issue_date} max={today} onChange={(event) => setReceivedOn(event.target.value)} />
+              </Col>
+              <Col xs={24} sm={14}>
+                <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+                  Amount to apply
+                </Typography.Text>
+                <InputNumber value={settled || null} onChange={(next) => setApplyAmount(next === null ? null : Number(next))} min={0} suffix={cur} style={{ width: "100%" }} />
+              </Col>
+              <Col span={24}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  No money moves: the advance (a liability) settles the invoice. Still open after this: {money(Math.max(remaining, 0), cur)}.
+                </Typography.Text>
+              </Col>
+            </Row>
+          ) : null}
+          {!fromAdvance ? (
+          <>
           <Row gutter={12}>
             <Col xs={24} sm={10}>
               <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
@@ -263,6 +361,8 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
             </div>
           ) : null}
 
+          </>
+          ) : null}
           <div>
             <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
               Bank reference {earlierMonth ? <Typography.Text type="danger">(required: earlier month)</Typography.Text> : <Typography.Text type="secondary">(optional)</Typography.Text>}
