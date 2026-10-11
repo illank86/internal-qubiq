@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Avatar, Button, Card, Collapse, Flex, Form, Input, Modal, Popconfirm, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { LogoutOutlined, UserAddOutlined } from "@ant-design/icons";
+import { DeleteOutlined, LogoutOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -29,6 +29,7 @@ type User = Profile & { roles: AppRole[]; approver: boolean };
  */
 export function UsersPage() {
   const me = useStaff();
+  const isAdmin = me.roles.includes("admin");
   const [filter, setFilter] = useState<"internal" | "external" | "all">("internal");
   const [search, setSearch] = useState("");
   const [inviting, setInviting] = useState(false);
@@ -183,10 +184,44 @@ export function UsersPage() {
                 </Button>
               </Popconfirm>
             )}
+            {isAdmin ? (
+              <Popconfirm
+                title={`Delete ${user.full_name || user.email}?`}
+                description="The account, profile and picture are deleted for good. Documents they worked on keep their history. An account that owns invoices, licences or delivery orders cannot be deleted."
+                okText="Delete account"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => deleteUser(user)}
+              >
+                <Tooltip title="Delete the account">
+                  <Button size="small" danger icon={<DeleteOutlined />} loading={busy === `delete:${user.id}`} aria-label="Delete account" />
+                </Tooltip>
+              </Popconfirm>
+            ) : null}
           </Flex>
         ),
     },
   ];
+
+  // The delete-user edge function holds the service key; only admins may call it.
+  const deleteUser = (user: User) =>
+    run(
+      `delete:${user.id}`,
+      async () => {
+        const { data, error } = await supabase.functions.invoke<{ id?: string; error?: string }>("delete-user", { body: { user_id: user.id } });
+        if (!error && data?.id) return;
+        let failure = data?.error;
+        if (!failure && error && "context" in error) {
+          try {
+            failure = ((await (error.context as Response).json()) as { error?: string }).error;
+          } catch {
+            failure = undefined;
+          }
+        }
+        // The code makes useAction show this message rather than a generic one.
+        throw { code: "22023", message: failure ?? "The account could not be deleted. Please try again." };
+      },
+      `${user.full_name || user.email} is deleted.`,
+    );
 
   const signOutEverywhere = (user: User) =>
     run(
