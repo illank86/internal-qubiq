@@ -34,7 +34,7 @@ export function FakturTag({ invoice }: { invoice: FakturInvoice }) {
     </Tag>
   ) : (
     <Tag icon={<WarningOutlined />} color="warning" style={{ marginInlineEnd: 0 }}>
-      Faktur pajak needed
+      “Faktur pajak” needed
     </Tag>
   );
 }
@@ -46,7 +46,7 @@ export function FakturPanel({ invoice, onUpload }: { invoice: FakturInvoice; onU
     // Issued before PKP: no PPN was charged, so there is no faktur pajak to attach.
     return (
       <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-        <FileProtectOutlined /> No faktur pajak — issued while not PKP (no PPN). Once Finance turns on PKP, invoices issued after that need one.
+        <FileProtectOutlined /> No “faktur pajak” — issued while not PKP (no PPN). Once Finance turns on PKP, invoices issued after that need one.
       </Typography.Text>
     );
   }
@@ -72,9 +72,9 @@ export function FakturPanel({ invoice, onUpload }: { invoice: FakturInvoice; onU
         </>
       ) : (
         <>
-          <Typography.Text type="warning">No faktur pajak yet — make it in Coretax and attach it.</Typography.Text>
+          <Typography.Text type="warning">No “faktur pajak” yet — make it in Coretax and attach it.</Typography.Text>
           <Button size="small" type="primary" icon={<PaperClipOutlined />} onClick={onUpload}>
-            Attach faktur pajak
+            Attach “faktur pajak”
           </Button>
         </>
       )}
@@ -117,7 +117,7 @@ function BuyerNpwp({ invoice }: { invoice: FakturInvoice }) {
   }
   return (
     <Typography.Text type={invoice.buyer_npwp ? "secondary" : "warning"} style={{ fontSize: 13 }}>
-      Customer NPWP: {invoice.buyer_npwp ?? "not added — needed on the faktur pajak"}{" "}
+      Customer NPWP: {invoice.buyer_npwp ?? "not added — needed on the “faktur pajak”"}{" "}
       <Typography.Link onClick={() => setEditing(true)}>{invoice.buyer_npwp ? "Change" : "Add"}</Typography.Link>
     </Typography.Text>
   );
@@ -140,16 +140,16 @@ export function FakturModal({ invoice, onClose }: { invoice: FakturInvoice; onCl
     setPending(true);
     setError(null);
     try {
-      if (file.type !== "application/pdf") throw { code: "22023", message: "The faktur pajak is a PDF from Coretax." };
+      if (file.type !== "application/pdf") throw { code: "22023", message: "The “faktur pajak” is a PDF from Coretax." };
       const folder = await documentFolder("invoice", invoice.id).catch(() => `invoices/${invoice.id}`);
       const stored = await uploadAccountingFile(folder, "faktur-pajak", file);
       const { error: saveError } = await supabase.rpc("set_invoice_faktur", { p_id: invoice.id, p_number: number.trim(), p_date: date, p_path: stored.path, p_file_name: stored.name });
       if (saveError) throw saveError;
       await Promise.all(["invoices", "finance-dashboard"].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
-      message.success("Faktur pajak attached.");
+      message.success("“Faktur pajak” attached.");
       onClose();
     } catch (cause) {
-      setError(errorText(cause as { code?: string; message?: string }, "The faktur pajak could not be attached."));
+      setError(errorText(cause as { code?: string; message?: string }, "The “faktur pajak” could not be attached."));
     } finally {
       setPending(false);
     }
@@ -159,11 +159,11 @@ export function FakturModal({ invoice, onClose }: { invoice: FakturInvoice; onCl
     <Modal open onCancel={onClose} title={`Faktur pajak · ${invoice.number ?? "invoice"}`} okText="Attach" okButtonProps={{ disabled: !ready, loading: pending }} onOk={save} destroyOnHidden>
       <Flex vertical gap={12}>
         <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-          Make the faktur pajak for this invoice in Coretax (code 04 for the usual PPN), then attach the PDF here with its number and date.
+          Make the “faktur pajak” for this invoice in Coretax (code 04 for the usual PPN), then attach the PDF here with its number and date.
         </Typography.Paragraph>
         <div>
           <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
-            Faktur pajak number (NSFP)
+            “Faktur pajak” number (NSFP)
           </Typography.Text>
           <Input value={number} onChange={(event) => setNumber(event.target.value)} placeholder="e.g. 04002500123456789" maxLength={40} status={number && (digits < 13 || digits > 20) ? "error" : undefined} />
         </div>

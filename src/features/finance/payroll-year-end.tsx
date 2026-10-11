@@ -43,7 +43,7 @@ export function YearEnd() {
     viewPdf({
       title: only ? `1721-A1 · ${only.employee.name} · ${year}` : `1721-A1 · ${year}`,
       fileName: only ? `1721-A1_${year}_${only.employee.name.replace(/\W+/g, "-").toLowerCase()}.pdf` : `1721-A1_${year}.pdf`,
-      note: "The working for the bukti potong made in Coretax — not the official form.",
+      note: "The working for the “bukti potong” made in Coretax — not the official form.",
       make: async () => (await import("./payroll-a1-file")).a1Pdf(only ? [only] : forms),
     });
   const excel = () =>
@@ -88,7 +88,7 @@ export function YearEnd() {
         <Alert type="info" showIcon title={`${incomplete.length} employee(s) without December posted yet — their 1721-A1 is not final until the year is complete.`} />
       ) : null}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Give each employee their 1721-A1 by the end of January. In Coretax, the year-end bukti potong (BPA1) is made from the December PPh 21; these figures are the working behind it.
+        Give each employee their 1721-A1 by the end of January. In Coretax, the year-end “bukti potong” (BPA1) is made from the December PPh 21; these figures are the working behind it.
       </Typography.Text>
       <Table<Form1721A1>
         rowKey="employee_id"

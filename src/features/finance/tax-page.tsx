@@ -79,7 +79,7 @@ export function TaxPage() {
     <>
       <PageTitle
         title="Tax"
-        description="Each tax month (masa pajak): what is due, what was paid, and the lists for Coretax and your accountant."
+        description="Each tax month (“masa pajak”): what is due, what was paid, and the lists for Coretax and your accountant."
         actions={
           <Flex gap={8}>
             <Select value={masa} onChange={setMasa} style={{ width: 180 }} options={months.map((value) => ({ value, label: masaLabel(value) }))} />
@@ -139,7 +139,7 @@ export function TaxPage() {
           </Row>
 
           <Card
-            title="Tax withheld by customers (bukti potong received)"
+            title="Tax withheld by customers (“bukti potong” received)"
             extra={
               <Button size="small" icon={<FileExcelOutlined />} disabled={!data.withholdings.length}
                 onClick={() => exportExcel(`bukti-potong-${data.masa}.xlsx`, masaLabel(data.masa), [{
@@ -346,7 +346,7 @@ function WithheldCard({ report, onPay }: { report: Report; onPay: (type: string,
           </Row>
           {report.withheld.length ? (
             <>
-              {missing ? <Alert type="warning" showIcon title={`${missing} bukti potong not recorded yet — make them in Coretax and note the numbers on Money out.`} /> : null}
+              {missing ? <Alert type="warning" showIcon title={`${missing} “bukti potong” not recorded yet — make them in Coretax and note the numbers on Money out.`} /> : null}
               <Table
                 size="small"
                 rowKey="id"

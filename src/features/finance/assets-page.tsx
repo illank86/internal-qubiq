@@ -312,7 +312,7 @@ function AssetDrawer({ onClose }: { onClose: () => void }) {
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
-            <Form.Item label="Cost (Rp)" name="cost" rules={[{ required: true, type: "number", min: 1 }]} extra="Price plus delivery and installation, without PPN masukan you can credit.">
+            <Form.Item label="Cost (Rp)" name="cost" rules={[{ required: true, type: "number", min: 1 }]} extra="Price plus delivery and installation, without “PPN masukan” you can credit.">
               <InputNumber<number> min={0} style={{ width: "100%" }} formatter={(value) => (value ? Number(value).toLocaleString("id-ID") : "")} parser={(value) => Number((value ?? "").replace(/[^\d]/g, ""))} />
             </Form.Item>
           </Col>
@@ -344,7 +344,7 @@ function AssetDrawer({ onClose }: { onClose: () => void }) {
             <Select options={(banks ?? []).filter((item) => item.active).map((item) => ({ value: item.id, label: `${item.name} (${item.currency})` }))} />
           </Form.Item>
         ) : null}
-        {funding === "payable" ? <Alert type="info" showIcon title="Booked as owed (Utang usaha). When you pay it, post a manual journal entry: debit Utang usaha, credit the bank." /> : null}
+        {funding === "payable" ? <Alert type="info" showIcon title="Booked as owed (“Utang usaha”). When you pay it, post a manual journal entry: debit “Utang usaha”, credit the bank." /> : null}
       </Form>
     </Drawer>
   );

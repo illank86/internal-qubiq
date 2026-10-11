@@ -64,7 +64,7 @@ export function AnnualTaxPage() {
   const pdf = () =>
     w &&
     viewPdf({
-      title: `SPT Tahunan PPh Badan ${w.year} — worksheet`,
+      title: `“SPT Tahunan PPh Badan ${w.year}” — worksheet`,
       fileName: `spt-badan_${w.year}.pdf`,
       note: "The working for the return filed in Coretax.",
       make: async () => (await import("./annual-tax-file")).annualTaxPdf(w),
@@ -74,7 +74,7 @@ export function AnnualTaxPage() {
     <>
       <PageTitle
         title="Annual tax return"
-        description="SPT Tahunan PPh Badan: from the year's books to the tax, PPh 29 to pay by 30 April, and next year's PPh 25. Filed in Coretax; this is the working."
+        description="“SPT Tahunan PPh Badan”: from the year's books to the tax, PPh 29 to pay by 30 April, and next year's PPh 25. Filed in Coretax; this is the working."
         actions={
           <Flex gap={8} wrap>
             <Select value={year} onChange={setYear} style={{ width: 110 }} options={[thisYear, thisYear - 1, thisYear - 2, thisYear - 3].map((value) => ({ value, label: String(value) }))} />
@@ -124,7 +124,7 @@ export function AnnualTaxPage() {
                           ? `${Number(w.corporate_rate)}%, with 50% on ${(w.facility_share * 100).toFixed(1)}% of PKP (Art. 31E)`
                           : `${Number(w.corporate_rate)}%`}
                   </Descriptions.Item>
-                  <Descriptions.Item label="PPh badan for the year">
+                  <Descriptions.Item label="“PPh badan” for the year">
                     <Typography.Text strong>{idr(w.tax)}</Typography.Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Less PPh 23 withheld by customers">− {idr(w.credits.pph23)}</Descriptions.Item>
@@ -132,7 +132,7 @@ export function AnnualTaxPage() {
                   <Descriptions.Item label="Less PPh 22 / 24">− {idr(w.credits.other)}</Descriptions.Item>
                 </Descriptions>
                 <Flex justify="space-between" style={{ padding: "10px 12px", marginTop: 8, borderRadius: token.borderRadius, background: token.colorPrimaryBg, fontWeight: 700 }}>
-                  <span>{w.pph29 >= 0 ? "PPh 29 to pay" : "Overpaid (lebih bayar)"}</span>
+                  <span>{w.pph29 >= 0 ? "PPh 29 to pay" : "Overpaid (“lebih bayar”)"}</span>
                   <span>{idr(Math.abs(w.pph29))}</span>
                 </Flex>
                 <Typography.Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 6 }}>
@@ -181,7 +181,7 @@ export function AnnualTaxPage() {
                   initialValues={{ loss: Number(w.loss_carryforward), other: Number(w.credits.other), note: w.note ?? "" }}
                   onFinish={(values) => run("settings", () => call("set_annual_return", { p_year: year, p_loss: values.loss ?? 0, p_other_credits: values.other ?? 0, p_note: values.note ?? "" }), "Saved.")}
                 >
-                  <Form.Item label="Losses brought forward (kompensasi kerugian)" name="loss" extra="Fiscal losses of the previous 5 years not yet used.">
+                  <Form.Item label="Losses brought forward (“kompensasi kerugian”)" name="loss" extra="Fiscal losses of the previous 5 years not yet used.">
                     <InputNumber<number> min={0} style={{ width: "100%" }} formatter={(value) => (value ? Number(value).toLocaleString("id-ID") : "")} parser={(value) => Number((value ?? "").replace(/[^\d]/g, ""))} />
                   </Form.Item>
                   <Form.Item label="PPh 22 / PPh 24 credits" name="other" extra="Tax paid on imports or abroad that counts against this year's tax.">
@@ -210,7 +210,7 @@ export function AnnualTaxPage() {
             <Flex justify="space-between" align="center" gap={8} wrap>
               <Typography.Text>
                 {w.posted
-                  ? `The year's tax is booked (31 December ${w.year}): PPh badan expense, credits used, and PPh 29 owed.`
+                  ? `The year's tax is booked (31 December ${w.year}): “PPh badan” expense, credits used, and PPh 29 owed.`
                   : "When the figures are final, book the year's tax on 31 December so the balance sheet shows PPh 29 owed (or overpaid)."}
               </Typography.Text>
               {w.posted ? (
@@ -220,7 +220,7 @@ export function AnnualTaxPage() {
                   </Button>
                 </Popconfirm>
               ) : (
-                <Popconfirm title={`Book PPh badan ${idr(w.tax)} on 31 December ${w.year}?`} disabled={!ended} onConfirm={() => run("post", () => call("post_annual_tax", { p_year: year }), "Year-end tax booked.")}>
+                <Popconfirm title={`Book “PPh badan” ${idr(w.tax)} on 31 December ${w.year}?`} disabled={!ended} onConfirm={() => run("post", () => call("post_annual_tax", { p_year: year }), "Year-end tax booked.")}>
                   <Button type="primary" icon={<CheckCircleOutlined />} disabled={!ended} loading={busy === "post"}>
                     Book the year's tax
                   </Button>

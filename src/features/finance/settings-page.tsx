@@ -138,7 +138,7 @@ function TaxSettings() {
     if (!checked) return form.setFieldsValue({ pkp: false, tax_rate: 0 });
     modal.confirm({
       title: "Turn on PKP?",
-      content: `From then on, new quotations and invoices charge PPN at ${effective}% (${Number(a.ppn_rate)}% × ${a.ppn_dpp_numerator}/${a.ppn_dpp_denominator}), and every invoice needs its faktur pajak from Coretax. Only do this once DJP has confirmed you as PKP.`,
+      content: `From then on, new quotations and invoices charge PPN at ${effective}% (${Number(a.ppn_rate)}% × ${a.ppn_dpp_numerator}/${a.ppn_dpp_denominator}), and every invoice needs its “faktur pajak” from Coretax. Only do this once DJP has confirmed you as PKP.`,
       okText: "Turn on PKP",
       onOk: () => form.setFieldsValue({ pkp: true, tax_rate: effective, tax_label: form.getFieldValue("tax_label") || "PPN" }),
     });
@@ -259,7 +259,7 @@ function TaxSettings() {
           <Typography.Text strong>{pkp ? "PKP — we charge PPN" : "Not PKP — no PPN"}</Typography.Text>
           <Typography.Text type="secondary" style={{ display: "block", fontSize: 12 }}>
             {pkp
-              ? "Invoices charge PPN and need their faktur pajak from Coretax."
+              ? "Invoices charge PPN and need their “faktur pajak” from Coretax."
               : "Quotations and invoices print “Not VAT-registered (belum PKP)”. Becoming PKP is required once revenue passes Rp4.8bn a year."}
           </Typography.Text>
         </div>
@@ -287,7 +287,7 @@ function TaxSettings() {
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
-            <Form.Item label="On the faktur pajak, we supply" name="faktur_supply_type" extra="A software licence is an intangible good (A); choose B if you invoice services.">
+            <Form.Item label="On the “faktur pajak”, we supply" name="faktur_supply_type" extra="A software licence is an intangible good (A); choose B if you invoice services.">
               <Segmented options={[{ value: "A", label: "Goods, incl. licences (A)" }, { value: "B", label: "Services (B)" }]} />
             </Form.Item>
           </Col>

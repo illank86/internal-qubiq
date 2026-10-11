@@ -395,7 +395,7 @@ export function UploadReceivedModal({ row, open, onClose, run }: { row: Delivery
         </Form.Item>
         <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginTop: -8 }}>
           {kind === "bast"
-            ? "The customer's Berita Acara Serah Terima (handover report) — kept with this delivery order."
+            ? "The customer's “Berita Acara Serah Terima” (handover report) — kept with this delivery order."
             : kind === "other"
               ? "Anything else to keep with it, e.g. a goods receipt or an email."
               : "This delivery order with “Received by” signed (and stamped) by the customer."}

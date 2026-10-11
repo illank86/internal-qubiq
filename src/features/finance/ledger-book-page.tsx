@@ -60,7 +60,7 @@ export function LedgerBookPage() {
     viewPdf({
       title: `Jurnal & Buku Besar · ${book.period}`,
       fileName: `${fileBase(book)}.pdf`,
-      note: "Jurnal Umum, Buku Besar and Neraca Saldo",
+      note: "“Jurnal Umum”, “Buku Besar” and “Neraca Saldo”",
       make: async () => (await import("./ledger-pdf-file")).ledgerPdf(book),
     });
   const excel = () => book && run("xlsx", async () => downloadBlob(await (await import("./ledger-excel")).ledgerExcel(book), `${fileBase(book)}.xlsx`));

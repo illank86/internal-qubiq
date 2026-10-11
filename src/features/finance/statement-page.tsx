@@ -63,7 +63,7 @@ export function StatementPage() {
     viewPdf({
       title: `Laporan Keuangan · ${book.period}`,
       fileName: `${statementFileBase(book)}.pdf`,
-      note: "Laba Rugi, Neraca and Arus Kas",
+      note: "“Laba Rugi”, “Neraca” and “Arus Kas”",
       make: async () => (await import("./statement-pdf-file")).statementPdf(book),
     });
   const excel = () => book && run("xlsx", async () => downloadBlob(await (await import("./statement-excel")).statementExcel(book), `${statementFileBase(book)}.xlsx`));

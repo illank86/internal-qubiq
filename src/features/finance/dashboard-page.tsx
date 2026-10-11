@@ -57,11 +57,11 @@ export function FinanceDashboardPage() {
 
   const warnings = data
     ? [
-        (data.warnings.missing_faktur ?? 0) > 0 && { text: `${data.warnings.missing_faktur} invoice(s) issued as PKP have no faktur pajak attached yet.`, to: "/sales/invoices" },
+        (data.warnings.missing_faktur ?? 0) > 0 && { text: `${data.warnings.missing_faktur} invoice(s) issued as PKP have no “faktur pajak” attached yet.`, to: "/sales/invoices" },
         data.warnings.no_bank_account && { text: "Add your bank accounts in Finance → Settings before recording payments.", to: "/finance/settings?tab=banks" },
         data.warnings.paid_without_receipt > 0 && { text: `${data.warnings.paid_without_receipt} invoice(s) marked paid before Finance existed: record what was actually received.`, to: "/finance/money-in" },
         data.warnings.ppn_before_pkp > 0 && { text: `${idr(data.warnings.ppn_before_pkp)} was charged as tax before PKP. Review it with your tax consultant (Finance → Settings → Tax lists the documents).`, to: "/finance/settings" },
-        data.warnings.missing_bukti_potong > 0 && { text: `${data.warnings.missing_bukti_potong} payment(s) with tax withheld but no bukti potong number — ask the customer for it; it is your tax credit.`, to: "/finance/money-in" },
+        data.warnings.missing_bukti_potong > 0 && { text: `${data.warnings.missing_bukti_potong} payment(s) with tax withheld but no “bukti potong” number — ask the customer for it; it is your tax credit.`, to: "/finance/money-in" },
         data.warnings.expenses_without_receipt > 0 && { text: `${data.warnings.expenses_without_receipt} expense(s) without a receipt attached.`, to: "/finance/money-out" },
         data.warnings.estimated_rates > 0 && { text: `${data.warnings.estimated_rates} entr(ies) used an estimated exchange rate — add the KMK rate for that week.`, to: "/finance/settings?tab=rates" },
       ].filter(Boolean) as { text: string; to: string }[]
@@ -194,7 +194,7 @@ export function FinanceDashboardPage() {
             </Col>
           </Row>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Estimates for planning; the annual return (SPT Tahunan Badan) is prepared with fiscal corrections and should be reviewed by a tax consultant.
+            Estimates for planning; the annual return (“SPT Tahunan Badan”) is prepared with fiscal corrections and should be reviewed by a tax consultant.
           </Typography.Text>
         </Flex>
       )}

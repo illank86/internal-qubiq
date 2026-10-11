@@ -245,11 +245,11 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
         <Typography.Title level={5}>Pay and tax</Typography.Title>
         <Row gutter={16}>
           <Col xs={24} sm={12}>
-            <Form.Item label="Employment" name="employment_type" extra={employment === "permanent" ? "PPh 21 by TER; December settles the year." : "Pegawai tidak tetap: TER each month, no year-end settlement."}>
+            <Form.Item label="Employment" name="employment_type" extra={employment === "permanent" ? "PPh 21 by TER; December settles the year." : "“Pegawai tidak tetap”: TER each month, no year-end settlement."}>
               <Select
                 options={[
-                  { value: "permanent", label: "Permanent (pegawai tetap)" },
-                  { value: "non_permanent", label: "Non-permanent (pegawai tidak tetap)" },
+                  { value: "permanent", label: "Permanent (“pegawai tetap”)" },
+                  { value: "non_permanent", label: "Non-permanent (“pegawai tidak tetap”)" },
                 ]}
                 onChange={(value) => value === "permanent" && form.setFieldValue("pay_basis", "monthly")}
               />
@@ -266,7 +266,7 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
-            <Form.Item label="Fixed allowance (monthly)" name="fixed_allowance" extra="Tunjangan tetap; counts toward the BPJS wage.">
+            <Form.Item label="Fixed allowance (monthly)" name="fixed_allowance" extra="“Tunjangan tetap”; counts toward the BPJS wage.">
               <InputNumber {...rupiah} />
             </Form.Item>
           </Col>

@@ -39,9 +39,9 @@ export function ReportsPage() {
 
   const exportItems = data
     ? [
-        { key: "statements", icon: <FileDoneOutlined />, label: "Laporan Keuangan — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/reports/statements?from=${from}&to=${to}`) },
+        { key: "statements", icon: <FileDoneOutlined />, label: "“Laporan Keuangan” — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/reports/statements?from=${from}&to=${to}`) },
         { type: "divider" as const },
-        { key: "ledger", icon: <BookOutlined />, label: "Jurnal & Buku Besar — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/journal/book?from=${from}&to=${to}`) },
+        { key: "ledger", icon: <BookOutlined />, label: "“Jurnal & Buku Besar” — preview, then PDF, Excel or CSV", onClick: () => navigate(`/finance/journal/book?from=${from}&to=${to}`) },
       ]
     : [];
 

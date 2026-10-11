@@ -51,7 +51,7 @@ export function AuthCard({ title, intro, children }: { title?: string; intro: Re
             Prepare and approve quotations, send invoices and get paid, issue licences, and keep goqubiq.com up to date.
           </p>
           <Flex vertical gap={10} style={{ marginTop: 28 }}>
-            {["Approvals with a second pair of eyes", "Signed copies, materai and e-Meterai", "Every change recorded"].map((line) => (
+            {["Approvals with a second pair of eyes", "Signed copies, “materai” and e-Meterai", "Every change recorded"].map((line) => (
               <Flex key={line} align="center" gap={10} style={{ fontSize: 14, color: "rgba(244,244,245,0.85)" }}>
                 <span style={{ width: 18, height: 18, borderRadius: 999, background: "rgba(240,138,75,0.22)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fdba74", fontSize: 11 }}>
                   ✓

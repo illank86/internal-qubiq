@@ -321,7 +321,7 @@ export function signingState(doc: SignableDoc): SigningState {
 
 /** One line on what the signed copy needs next. */
 export function signingHint(doc: SignableDoc) {
-  const how = doc.materai === "e_meterai" ? "stamped with an e-Meterai" : doc.materai === "physical" ? "signed over a physical materai" : "signed by hand";
+  const how = doc.materai === "e_meterai" ? "stamped with an e-Meterai" : doc.materai === "physical" ? "signed over a physical “materai”" : "signed by hand";
   switch (signingState(doc)) {
     case "none":
       return `It goes out ${how}. Once approved, download it, sign or stamp it, and upload the signed copy.`;

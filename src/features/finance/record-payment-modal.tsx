@@ -204,10 +204,10 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
                 {whtType ? (
                   <>
                     <Col xs={24} sm={8}>
-                      <Input value={bpNumber} onChange={(event) => setBpNumber(event.target.value)} placeholder="Bukti potong number" maxLength={60} />
+                      <Input value={bpNumber} onChange={(event) => setBpNumber(event.target.value)} placeholder="“Bukti potong” number" maxLength={60} />
                     </Col>
                     <Col xs={24} sm={7}>
-                      <Input type="date" value={bpDate} onChange={(event) => setBpDate(event.target.value)} aria-label="Bukti potong date" />
+                      <Input type="date" value={bpDate} onChange={(event) => setBpDate(event.target.value)} aria-label="“Bukti potong” date" />
                     </Col>
                     <Col xs={24} sm={9}>
                       <Upload
@@ -221,7 +221,7 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
                         fileList={bpFile ? [{ uid: "bp", name: bpFile.name, status: "done" }] : []}
                       >
                         <Button icon={<PaperClipOutlined />} block>
-                          Attach bukti potong
+                          Attach “bukti potong”
                         </Button>
                       </Upload>
                     </Col>

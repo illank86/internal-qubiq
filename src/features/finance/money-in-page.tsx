@@ -97,7 +97,7 @@ export function MoneyInPage() {
       responsive: ["md"],
       render: (_, row) =>
         Number(row.withholding_amount) > 0 ? (
-          <Tooltip title={`${WITHHOLDING[row.withholding_type ?? "other"]}${row.bukti_potong_number ? ` · bukti potong ${row.bukti_potong_number}` : " · no bukti potong yet"}`}>
+          <Tooltip title={`${WITHHOLDING[row.withholding_type ?? "other"]}${row.bukti_potong_number ? ` · “bukti potong” ${row.bukti_potong_number}` : " · no “bukti potong” yet"}`}>
             <Typography.Text type={row.bukti_potong_number ? undefined : "warning"}>{money(row.withholding_amount, row.currency)}</Typography.Text>
           </Tooltip>
         ) : (
@@ -131,7 +131,7 @@ export function MoneyInPage() {
               size="small"
               type="text"
               icon={<EyeOutlined />}
-              aria-label="View bukti potong"
+              aria-label="View “bukti potong”"
               onClick={() => viewPdf({ title: `Bukti potong · ${row.number}`, fileName: `${row.number}-bukti-potong.pdf`, make: () => accountingFileBlob(row.bukti_potong_path!) })}
             />
           ) : null}
@@ -162,7 +162,7 @@ export function MoneyInPage() {
     <>
       <PageTitle
         title="Money in"
-        description="Payments received: what reached the bank, tax the customer withheld (bukti potong), bank charges and differences."
+        description="Payments received: what reached the bank, tax the customer withheld (“bukti potong”), bank charges and differences."
         actions={
           <Flex gap={8}>
             <Button icon={<FileExcelOutlined />} onClick={exportXlsx}>

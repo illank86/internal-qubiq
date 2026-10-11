@@ -281,15 +281,15 @@ export function ConvertPage() {
               onChange={setMaterai}
               options={[
                 { value: "none", label: "None" },
-                { value: "physical", label: "Physical materai" },
+                { value: "physical", label: "Physical “materai”" },
                 { value: "e_meterai", label: "e-Meterai" },
               ]}
             />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site. Both can be changed later on the invoice.
+              Physical: a box to stick a Rp10.000 “materai” on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site. Both can be changed later on the invoice.
             </Typography.Text>
             {needsMateraiHint({ currency: quotation.currency, total: quotation.total }, materai) ? (
-              <Alert type="info" showIcon title="Over Rp5.000.000" description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai." />
+              <Alert type="info" showIcon title="Over Rp5.000.000" description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 “materai”." />
             ) : null}
           </Flex>
         </Card>

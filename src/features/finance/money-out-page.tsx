@@ -112,7 +112,7 @@ export function MoneyOutPage() {
         <Flex vertical align="flex-end">
           <Typography.Text strong>{money(row.amount, row.currency)}</Typography.Text>
           {Number(row.withholding_amount) > 0 ? (
-            <Tooltip title={`${row.withholding_code} · ${Number(row.withholding_rate)}%${row.bupot_number ? ` · bukti potong ${row.bupot_number}` : " · bukti potong not recorded yet"}`}>
+            <Tooltip title={`${row.withholding_code} · ${Number(row.withholding_rate)}%${row.bupot_number ? ` · “bukti potong” ${row.bupot_number}` : " · “bukti potong” not recorded yet"}`}>
               <Typography.Text type={row.bupot_number || row.voided_at ? "secondary" : "warning"} style={{ fontSize: 12 }}>
                 {WITHHELD[row.withholding_type ?? ""] ?? row.withholding_type} {money(row.withholding_amount, row.currency)}
               </Typography.Text>
@@ -150,7 +150,7 @@ export function MoneyOutPage() {
             </Tooltip>
           )}
           {!row.voided_at && Number(row.withholding_amount) > 0 ? (
-            <Tooltip title={row.bupot_number ? `Bukti potong ${row.bupot_number}` : "Record the bukti potong made in Coretax"}>
+            <Tooltip title={row.bupot_number ? `Bukti potong ${row.bupot_number}` : "Record the “bukti potong” made in Coretax"}>
               <Button size="small" type="text" icon={<AuditOutlined />} aria-label="Bukti potong" onClick={() => setBupot(row)} style={row.bupot_number ? undefined : { color: "var(--ant-color-warning)" }} />
             </Tooltip>
           ) : null}
@@ -391,12 +391,12 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         {settings?.pkp ? (
           <Row gutter={12}>
             <Col xs={24} sm={12}>
-              <Form.Item label="PPN Masukan in that amount" name="ppn_in_amount">
+              <Form.Item label="“PPN Masukan” in that amount" name="ppn_in_amount">
                 <InputNumber min={0} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item label="Faktur pajak number" name="faktur_number" rules={[{ max: 40 }]} extra="Input VAT only counts with the vendor's faktur.">
+              <Form.Item label="“Faktur pajak” number" name="faktur_number" rules={[{ max: 40 }]} extra="Input VAT only counts with the vendor's “faktur”.">
                 <Input />
               </Form.Item>
             </Col>
@@ -479,15 +479,15 @@ function BupotModal({ expense, onClose, run }: { expense: Row; onClose: () => vo
       title={`Bukti potong · ${expense.number}`}
       okText="Save"
       okButtonProps={{ disabled: !number.trim() || !date }}
-      onOk={() => run(`bupot:${expense.id}`, () => setExpenseBupot(expense.id, number.trim(), date), "Bukti potong recorded.").then((ok) => ok && onClose())}
+      onOk={() => run(`bupot:${expense.id}`, () => setExpenseBupot(expense.id, number.trim(), date), "“Bukti potong” recorded.").then((ok) => ok && onClose())}
       destroyOnHidden
     >
       <Typography.Paragraph type="secondary">
-        {WITHHELD[expense.withholding_type ?? ""]} {expense.withholding_code} on {expense.vendor_name}: {money(expense.withholding_amount, expense.currency)}. Make the bukti potong in Coretax
+        {WITHHELD[expense.withholding_type ?? ""]} {expense.withholding_code} on {expense.vendor_name}: {money(expense.withholding_amount, expense.currency)}. Make the “bukti potong” in Coretax
         ({expense.withholding_type === "pph21" ? "e-Bupot 21/26" : "e-Bupot Unifikasi"}), send it to the vendor, and note its number here.
       </Typography.Paragraph>
       <Flex vertical gap={10}>
-        <Input value={number} onChange={(event) => setNumber(event.target.value)} placeholder="Bukti potong number" maxLength={60} />
+        <Input value={number} onChange={(event) => setNumber(event.target.value)} placeholder="“Bukti potong” number" maxLength={60} />
         <Input type="date" value={date} max={jakartaToday()} onChange={(event) => setDate(event.target.value)} />
       </Flex>
     </Modal>

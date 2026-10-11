@@ -119,7 +119,7 @@ export function PpnCard({ masa, period }: { masa: string; period: string }) {
       link.download = `faktur-keluaran-${masa}.xml`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      message.success(`${chosen.length} invoice(s) in the file. Import it in Coretax → e-Faktur → Pajak Keluaran → Impor.`);
+      message.success(`${chosen.length} invoice(s) in the file. Import it in Coretax → e-Faktur → “Pajak Keluaran” → “Impor”.`);
     } catch (cause) {
       message.error(errorText(cause as { code?: string; message?: string }, "The Coretax file could not be made."));
     } finally {
@@ -190,7 +190,7 @@ export function PpnCard({ masa, period }: { masa: string; period: string }) {
           <Statistic title="PPN Masukan" value={idr(data.input_ppn)} />
         </Col>
         <Col xs={12} md={6}>
-          <Statistic title={data.net >= 0 ? "To pay (kurang bayar)" : "Carried over (lebih bayar)"} value={idr(Math.abs(data.net))} />
+          <Statistic title={data.net >= 0 ? "To pay (“kurang bayar”)" : "Carried over (“lebih bayar”)"} value={idr(Math.abs(data.net))} />
         </Col>
         <Col xs={12} md={6}>
           <Statistic title="Pay and report by" value={new Date(`${data.due_date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />
@@ -203,7 +203,7 @@ export function PpnCard({ masa, period }: { masa: string; period: string }) {
           showIcon
           style={{ marginBottom: 12 }}
           title={[data.missing_faktur ? `${data.missing_faktur} invoice(s) without a faktur number yet` : "", data.missing_buyer_npwp ? `${data.missing_buyer_npwp} without the customer's NPWP` : ""].filter(Boolean).join(" · ")}
-          description="Download the Coretax import, import it in Coretax, then attach each faktur pajak to its invoice. Add customers' NPWP on the invoice (Details)."
+          description="Download the Coretax import, import it in Coretax, then attach each “faktur pajak” to its invoice. Add customers' NPWP on the invoice (Details)."
         />
       ) : null}
       <Table<OutLine>

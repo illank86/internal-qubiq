@@ -76,7 +76,7 @@ export function ReportSettings() {
           <Input maxLength={80} placeholder={who === "prepared" ? "e.g. Siti Rahma" : "e.g. Budi Santoso"} />
         </Form.Item>
         <Form.Item label="Title" name={`${who}_by_title`} style={{ marginBottom: 0 }}>
-          <Input maxLength={80} placeholder={who === "prepared" ? "e.g. Staf Keuangan" : "e.g. Direktur"} />
+          <Input maxLength={80} placeholder={who === "prepared" ? "e.g. “Staf Keuangan”" : "e.g. “Direktur”"} />
         </Form.Item>
       </Card>
     </Col>
@@ -103,14 +103,14 @@ export function ReportSettings() {
       style={{ maxWidth: 820 }}
     >
       <Typography.Paragraph type="secondary">
-        The Neraca Saldo and the financial statements end with a sign-off: the place and date, then who prepared and who approved them. Names left empty print as a blank line to fill in by hand. The date is chosen in the report preview.
+        The “Neraca Saldo” and the financial statements end with a sign-off: the place and date, then who prepared and who approved them. Names left empty print as a blank line to fill in by hand. The date is chosen in the report preview.
       </Typography.Paragraph>
       <Form.Item label="Signed in (city)" name="report_city" extra='Printed before the date, e.g. "Jakarta, 10 Oktober 2026".' style={{ maxWidth: 360 }}>
         <Input maxLength={60} placeholder="e.g. Jakarta" />
       </Form.Item>
       <Row gutter={[16, 16]}>
-        {signer("prepared", "Disiapkan oleh (prepared by)", "Usually the person keeping the books.")}
-        {signer("approved", "Disetujui oleh (approved by)", "Usually a director.")}
+        {signer("prepared", "“Disiapkan oleh” (prepared by)", "Usually the person keeping the books.")}
+        {signer("approved", "“Disetujui oleh” (approved by)", "Usually a director.")}
       </Row>
       <Card size="small" title="Notes to the financial statements (CALK)" style={{ marginTop: 16 }}>
         <Typography.Paragraph type="secondary">
@@ -134,7 +134,7 @@ export function ReportSettings() {
         <Form.Item label="Business activity" name="business_activity" extra="As in the deed or KBLI, e.g. aktivitas pemrograman komputer (KBLI 62019) dan penyediaan lisensi perangkat lunak.">
           <Input.TextArea autoSize={{ minRows: 2 }} maxLength={600} />
         </Form.Item>
-        <Form.Item label="Management" name="management" extra="e.g. Direktur: Budi Santoso; Komisaris: Siti Rahma.">
+        <Form.Item label="Management" name="management" extra="e.g. “Direktur: Budi Santoso; Komisaris: Siti Rahma”.">
           <Input.TextArea autoSize={{ minRows: 1 }} maxLength={600} />
         </Form.Item>
         <Form.Item label="Other information" name="notes_extra" extra="Anything else the notes should say (commitments, events after the period, related parties). Blank lines start a new paragraph." style={{ marginBottom: 0 }}>

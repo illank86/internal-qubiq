@@ -331,7 +331,7 @@ function LineDetail({ line }: { line: PayrollLine }) {
         {annual ? (
           <Descriptions size="small" column={1} title={`PPh 21 for the year (${annual.months} months)`} bordered>
             <Descriptions.Item label="Gross for the year">{idr(annual.gross)}</Descriptions.Item>
-            <Descriptions.Item label="Biaya jabatan (5%, max Rp500,000/month)">− {idr(annual.job_expense)}</Descriptions.Item>
+            <Descriptions.Item label="“Biaya jabatan” (5%, max Rp500,000/month)">− {idr(annual.job_expense)}</Descriptions.Item>
             <Descriptions.Item label="JHT + JP paid by the employee">− {idr(annual.pension_fees)}</Descriptions.Item>
             <Descriptions.Item label={`PTKP (${line.ptkp_status})`}>− {idr(annual.ptkp)}</Descriptions.Item>
             <Descriptions.Item label="Taxable (rounded down)">{idr(annual.taxable)}</Descriptions.Item>

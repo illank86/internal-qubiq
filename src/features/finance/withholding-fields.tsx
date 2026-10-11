@@ -62,7 +62,7 @@ export function VendorTaxFields() {
           </Col>
         )}
         <Col xs={24} sm={12}>
-          <Form.Item label="Vendor's invoice number" name="reference_number" rules={[{ max: 80 }]} extra="The document the bukti potong refers to.">
+          <Form.Item label="Vendor's invoice number" name="reference_number" rules={[{ max: 80 }]} extra="The document the “bukti potong” refers to.">
             <Input placeholder="Optional" />
           </Form.Item>
         </Col>
@@ -140,7 +140,7 @@ export function WithholdingFields() {
                 title={
                   <span>
                     Withhold <Typography.Text strong>{money(preview.amount, currency)}</Typography.Text> ({Number(preview.rate)}%
-                    {chosen.tax_type === "pph21" ? " effective" : ""}) — the vendor is paid {money(Math.max(amount - preview.amount, 0), currency)}. Pay the tax by the 15th of next month and make the bukti potong in Coretax.
+                    {chosen.tax_type === "pph21" ? " effective" : ""}) — the vendor is paid {money(Math.max(amount - preview.amount, 0), currency)}. Pay the tax by the 15th of next month and make the “bukti potong” in Coretax.
                   </span>
                 }
               />

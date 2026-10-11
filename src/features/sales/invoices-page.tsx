@@ -368,7 +368,7 @@ function InvoiceRowActions({
   }
 
   // Issued as PKP: its faktur pajak (from Coretax) comes first.
-  if (needsFaktur(row) && !row.faktur_path) next.unshift({ key: "faktur", icon: <FileProtectOutlined />, label: "Attach faktur pajak", onClick: () => setFaktur(true) });
+  if (needsFaktur(row) && !row.faktur_path) next.unshift({ key: "faktur", icon: <FileProtectOutlined />, label: "Attach “faktur pajak”", onClick: () => setFaktur(true) });
 
   const view: Item[] = [
     { key: "details", icon: <ProfileOutlined />, label: "Details & history", onClick: onEdit },
@@ -540,7 +540,7 @@ function InvoiceDetailsDrawer({
         await setInvoiceMaterai(invoice.id, values.materai);
       } catch (cause) {
         setPending(false);
-        return setError(errorText(cause as { code?: string; message?: string }, "The materai setting could not be saved."));
+        return setError(errorText(cause as { code?: string; message?: string }, "The “materai” setting could not be saved."));
       }
     }
     // Before the details: an "invoice changed" email then already knows about it.
@@ -812,11 +812,11 @@ function InvoiceDetailsDrawer({
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12}>
-                    <Form.Item label="Materai" name="materai" extra="Physical: a box to stick a Rp10.000 materai on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site.">
+                    <Form.Item label="Materai" name="materai" extra="Physical: a box to stick a Rp10.000 “materai” on and sign across. e-Meterai: an empty space where the stamp goes — stamp the PDF on your e-Meterai provider's site.">
                       <Select
                         options={[
                           { value: "none", label: "None" },
-                          { value: "physical", label: "Physical materai" },
+                          { value: "physical", label: "Physical “materai”" },
                           { value: "e_meterai", label: "e-Meterai (space for the stamp)" },
                         ]}
                       />
@@ -829,7 +829,7 @@ function InvoiceDetailsDrawer({
                     showIcon
                     style={{ marginBottom: 16 }}
                     title="Over Rp5.000.000"
-                    description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 materai."
+                    description="Documents in IDR above Rp5.000.000 usually carry a Rp10.000 “materai”."
                   />
                 ) : null}
                 <Form.Item name="refresh_seller" valuePropName="checked" style={{ marginBottom: 8 }}>
@@ -877,7 +877,7 @@ function InvoiceDetailsDrawer({
                       ),
                   },
                   { label: "Signature", value: invoice.signature_mode === "wet" ? "Signed by hand" : "Digital" },
-                  { label: "Materai", value: invoice.materai === "physical" ? "Physical materai" : invoice.materai === "e_meterai" ? "e-Meterai" : "None" },
+                  { label: "Materai", value: invoice.materai === "physical" ? "Physical “materai”" : invoice.materai === "e_meterai" ? "e-Meterai" : "None" },
                   { label: "Notes", wide: true, value: <span style={{ whiteSpace: "pre-line" }}>{invoice.notes || "—"}</span> },
                 ]}
               />
