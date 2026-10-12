@@ -16,6 +16,9 @@ type Values = { password: string; confirm: string };
  * Where the invitation and reset-password emails land:
  * /set-password?token_hash=…&type=invite|recovery
  *
+ * An invitation is a welcome, not a password change: type=invite, or
+ * welcome=1 when an invitation was sent again as a set-password link.
+ *
  * The link is verified once (it signs the person in), then they choose a
  * password. A staff member's first visit is through an invitation — there is
  * no sign-up in this app.
@@ -26,7 +29,8 @@ export function SetPasswordPage() {
   const [params] = useSearchParams();
   const tokenHash = params.get("token_hash");
   const type = params.get("type") as EmailOtpType | null;
-  const invite = type === "invite";
+  // Read once: the address bar loses the query after the link is verified.
+  const [invite] = useState(() => type === "invite" || params.get("welcome") === "1");
 
   const validLink = Boolean(tokenHash && type && LINK_TYPES.includes(type));
   const [verifying, setVerifying] = useState(validLink);
@@ -40,13 +44,13 @@ export function SetPasswordPage() {
     if (!validLink || !tokenHash || !type || verified.current === tokenHash) return;
     verified.current = tokenHash;
     supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error: verifyError }) => {
-      if (verifyError) setLinkError("This link has expired or was already used. Ask for a new one.");
+      if (verifyError) setLinkError(invite ? "This invitation has expired or was already used. Ask an admin to send it again." : "This link has expired or was already used. Ask for a new one.");
       else markSignedIn();
       // Drop the one-time token from the address bar and history.
       window.history.replaceState(null, "", "/set-password");
       setVerifying(false);
     });
-  }, [validLink, tokenHash, type]);
+  }, [validLink, tokenHash, type, invite]);
 
   const submit = async ({ password }: Values) => {
     setPending(true);
@@ -60,7 +64,7 @@ export function SetPasswordPage() {
   return (
     <AuthCard
       title={invite ? "Welcome to QUBIQ" : "Choose a new password"}
-      intro={invite ? "Set a password to finish setting up your team account." : "Pick something you do not use anywhere else."}
+      intro={invite ? "Choose a password to finish setting up your team account. You will use it with your email to sign in." : "Pick something you do not use anywhere else."}
     >
       {verifying || state.status === "loading" ? (
         <div style={{ textAlign: "center", padding: 16 }}>
@@ -76,9 +80,11 @@ export function SetPasswordPage() {
             showIcon
             title={linkError ?? (state.status === "signed-out" && state.notice ? state.notice : "Open the link from your email to set a password.")}
           />
-          <div style={{ marginTop: 16, textAlign: "center" }}>
-            <Link to="/forgot-password">Send a new reset link</Link>
-          </div>
+          {invite ? null : (
+            <div style={{ marginTop: 16, textAlign: "center" }}>
+              <Link to="/forgot-password">Send a new reset link</Link>
+            </div>
+          )}
         </>
       ) : (
         <Form<Values> layout="vertical" requiredMark={false} onFinish={submit} disabled={pending}>
@@ -87,7 +93,7 @@ export function SetPasswordPage() {
           </Typography.Paragraph>
           {error ? <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} /> : null}
           <Form.Item
-            label="New password"
+            label={invite ? "Password" : "New password"}
             name="password"
             extra={PASSWORD_HINT}
             rules={NEW_PASSWORD_RULES}

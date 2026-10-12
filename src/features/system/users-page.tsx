@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, App, Avatar, Button, Card, Collapse, Dropdown, Flex, Form, Input, Modal, Radio, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { MenuProps, TableColumnsType } from "antd";
-import { DeleteOutlined, LogoutOutlined, MoreOutlined, StopOutlined, TeamOutlined, UndoOutlined, UserAddOutlined, UserDeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, LogoutOutlined, MailOutlined, MoreOutlined, StopOutlined, TeamOutlined, UndoOutlined, UserAddOutlined, UserDeleteOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -20,7 +20,13 @@ const ROLE_HINT: Record<AppRole, string> = {
   finance: "Invoices and payments, money in and out, journal, tax, company details and ways to pay",
   viewer: "Can sign in and look around",
 };
-type User = Profile & { roles: AppRole[]; approver: boolean };
+/** invited: invited and no password chosen yet — not active until they do. */
+type User = Profile & { roles: AppRole[]; approver: boolean; invited_at: string | null; invited: boolean };
+
+/** How long an invitation link works (Auth's email link lifetime). */
+const INVITE_LINK_HOURS = 1;
+/** Access is fixed until the invitation is accepted (the database refuses changes too). */
+const LOCKED_UNTIL_ACTIVE = "Not active yet: roles and access can be changed once they accept the invitation and choose a password.";
 
 /**
  * Everyone with an account: the team (staff, with roles) and customers.
@@ -40,18 +46,29 @@ export function UsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const [profiles, roles, permissions, approvers] = await Promise.all([
+      const [profiles, roles, permissions, approvers, states] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: true }),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("role_permissions").select("role, permission").order("role"),
         supabase.from("document_approvers").select("user_id"),
+        supabase.rpc("user_account_status"),
       ]);
+      const stateOf = new Map((states.data ?? []).map((row) => [row.user_id, row]));
       const approving = new Set((approvers.data ?? []).map((row) => row.user_id));
       if (profiles.error) throw profiles.error;
       const byUser = new Map<string, AppRole[]>();
       for (const row of roles.data ?? []) byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row.role as AppRole]);
       return {
-        users: (profiles.data ?? []).map((profile) => ({ ...profile, roles: byUser.get(profile.id) ?? [], approver: approving.has(profile.id) })) as User[],
+        users: (profiles.data ?? []).map((profile) => {
+          const state = stateOf.get(profile.id);
+          return {
+            ...profile,
+            roles: byUser.get(profile.id) ?? [],
+            approver: approving.has(profile.id),
+            invited_at: state?.invited_at ?? null,
+            invited: Boolean(state?.invited_at && !state.activated),
+          };
+        }) as User[],
         permissions: permissions.data ?? [],
       };
     },
@@ -112,13 +129,6 @@ export function UsersPage() {
             <Typography.Text strong>
               {user.full_name || "—"}
               {user.id === me.id ? <Tag style={{ marginLeft: 6 }}>you</Tag> : null}
-              {user.suspended_at ? (
-                <Tooltip title={`Since ${formatInvoiceDate(user.suspended_at)}${user.suspended_reason ? ` — ${user.suspended_reason}` : ""}`}>
-                  <Tag color="red" style={{ marginLeft: 6 }}>
-                    Suspended
-                  </Tag>
-                </Tooltip>
-              ) : null}
             </Typography.Text>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {user.email}
@@ -129,22 +139,25 @@ export function UsersPage() {
       ),
     },
     { title: "Type", dataIndex: "user_type", render: (value: string) => (value === "internal" ? <Tag color="orange">Team</Tag> : <Tag>Customer</Tag>) },
+    { title: "Status", key: "status", render: (_, user) => <AccountStatus user={user} /> },
     {
       title: "Roles",
       key: "roles",
       render: (_, user) =>
         user.user_type === "internal" ? (
-          <Select<AppRole[]>
-            mode="multiple"
-            size="small"
-            value={user.roles}
-            disabled={user.id === me.id}
-            loading={busy === `roles:${user.id}`}
-            onChange={(roles) => setRoles(user, roles)}
-            options={ROLES.map((role) => ({ value: role, label: <Tooltip title={ROLE_HINT[role]}>{role}</Tooltip> }))}
-            style={{ minWidth: 220 }}
-            placeholder="No role"
-          />
+          <Tooltip title={user.invited ? LOCKED_UNTIL_ACTIVE : undefined}>
+            <Select<AppRole[]>
+              mode="multiple"
+              size="small"
+              value={user.roles}
+              disabled={user.id === me.id || user.invited}
+              loading={busy === `roles:${user.id}`}
+              onChange={(roles) => setRoles(user, roles)}
+              options={ROLES.map((role) => ({ value: role, label: <Tooltip title={ROLE_HINT[role]}>{role}</Tooltip> }))}
+              style={{ minWidth: 220 }}
+              placeholder="No role"
+            />
+          </Tooltip>
         ) : (
           <Typography.Text type="secondary">—</Typography.Text>
         ),
@@ -158,7 +171,16 @@ export function UsersPage() {
       key: "approver",
       render: (_, user) =>
         user.user_type === "internal" ? (
-          <Switch size="small" checked={user.approver} loading={busy === `approver:${user.id}`} onChange={(checked) => setApprover(user, checked)} aria-label={`${user.full_name || user.email} can approve`} />
+          <Tooltip title={user.invited ? LOCKED_UNTIL_ACTIVE : undefined}>
+            <Switch
+              size="small"
+              checked={user.approver}
+              disabled={user.invited}
+              loading={busy === `approver:${user.id}`}
+              onChange={(checked) => setApprover(user, checked)}
+              aria-label={`${user.full_name || user.email} can approve`}
+            />
+          </Tooltip>
         ) : null,
     },
     { title: "Joined", dataIndex: "created_at", render: (value: string) => formatInvoiceDate(value), responsive: ["md"] },
@@ -171,6 +193,23 @@ export function UsersPage() {
         if (user.id === me.id) return null;
         const who = user.full_name || user.email;
         const items: MenuProps["items"] = [
+          ...(isAdmin && user.invited
+            ? [
+                {
+                  key: "resend",
+                  icon: <MailOutlined />,
+                  label: "Resend invitation",
+                  onClick: () =>
+                    modal.confirm({
+                      title: `Send ${who} a new invitation?`,
+                      content: "They get a fresh link to choose a password; the old link stops working.",
+                      okText: "Send again",
+                      onOk: () => resendInvite(user),
+                    }),
+                },
+                { type: "divider" as const },
+              ]
+            : []),
           {
             key: "signout",
             icon: <LogoutOutlined />,
@@ -189,6 +228,7 @@ export function UsersPage() {
                 key: "type",
                 icon: <UserDeleteOutlined />,
                 label: "Remove from team",
+                disabled: user.invited,
                 onClick: () =>
                   modal.confirm({
                     title: `Remove ${who} from the team?`,
@@ -202,6 +242,7 @@ export function UsersPage() {
                 key: "type",
                 icon: <TeamOutlined />,
                 label: "Make staff",
+                disabled: user.invited,
                 onClick: () =>
                   modal.confirm({ title: `Make ${who} a team member?`, content: "They start as a viewer; give them roles after.", okText: "Make staff", onOk: () => setStaff(user, true) }),
               },
@@ -244,7 +285,19 @@ export function UsersPage() {
     },
   ];
 
-  // The delete-user and suspend-user edge functions hold the service key; only admins may call them.
+  // The invite-user, delete-user and suspend-user edge functions hold the service key; only admins may call them.
+  const resendInvite = (user: User) =>
+    run(
+      `resend:${user.id}`,
+      () =>
+        callAdminFunction(
+          "invite-user",
+          { email: user.email, full_name: user.full_name || undefined, user_type: user.user_type, role: user.user_type === "internal" ? user.roles[0] : undefined },
+          "The invitation could not be sent again.",
+        ),
+      `A new invitation is on its way to ${user.email}.`,
+    );
+
   const deleteUser = (user: User) =>
     run(`delete:${user.id}`, () => callAdminFunction("delete-user", { user_id: user.id }, "The account could not be deleted."), `${user.full_name || user.email} is deleted.`);
 
@@ -277,9 +330,12 @@ export function UsersPage() {
         title="Users & roles"
         description="The team and the customers. Staff join by invitation; customers sign up on the website."
         actions={
-          <Button type="primary" icon={<UserAddOutlined />} onClick={() => setInviting(true)}>
-            Invite someone
-          </Button>
+          // Inviting is admin-only; invite-user and the database refuse anyone else too.
+          isAdmin ? (
+            <Button type="primary" icon={<UserAddOutlined />} onClick={() => setInviting(true)}>
+              Invite someone
+            </Button>
+          ) : null
         }
       />
       <Card>
@@ -321,7 +377,7 @@ export function UsersPage() {
         />
       </Card>
       <SessionSettingsCard />
-      <InviteModal open={inviting} onClose={() => setInviting(false)} />
+      {isAdmin ? <InviteModal open={inviting} onClose={() => setInviting(false)} /> : null}
       {suspending ? (
         <SuspendModal
           user={suspending}
@@ -331,6 +387,28 @@ export function UsersPage() {
       ) : null}
     </>
   );
+}
+
+/** Active, invited (not active until they choose a password) or suspended. */
+function AccountStatus({ user }: { user: User }) {
+  if (user.suspended_at) {
+    return (
+      <Tooltip title={`Since ${formatInvoiceDate(user.suspended_at)}${user.suspended_reason ? ` — ${user.suspended_reason}` : ""}`}>
+        <Tag color="red">Suspended</Tag>
+      </Tooltip>
+    );
+  }
+  if (user.invited) {
+    const expired = Boolean(user.invited_at && Date.now() - Date.parse(user.invited_at) > INVITE_LINK_HOURS * 3_600_000);
+    return (
+      <Tooltip
+        title={`Invited ${user.invited_at ? formatInvoiceDate(user.invited_at) : ""}. Not active until they open the email and choose a password.${expired ? " The link has expired — resend it from the ⋯ menu." : ""}`}
+      >
+        <Tag color={expired ? "default" : "gold"}>{expired ? "Invitation expired" : "Invited"}</Tag>
+      </Tooltip>
+    );
+  }
+  return <Tag color="green">Active</Tag>;
 }
 
 /** Calls an admin-only edge function; its refusal message is shown as is. */
@@ -376,7 +454,7 @@ function SuspendModal({ user, onClose, onConfirm }: { user: User; onClose: () =>
 
 type InviteValues = { email: string; full_name: string; user_type: "internal" | "external"; role: AppRole | "" };
 
-/** Sends a Supabase invitation (the invite-user edge function holds the service key). */
+/** Sends a Supabase invitation (the invite-user edge function holds the service key; admins only). */
 function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { message } = App.useApp();
   const [form] = Form.useForm<InviteValues>();
@@ -388,7 +466,7 @@ function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   const invite = async (values: InviteValues) => {
     setPending(true);
     setError(null);
-    const { data, error: invokeError } = await supabase.functions.invoke<{ id?: string; error?: string }>("invite-user", {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ id?: string; status?: "invited" | "resent" | "added"; error?: string }>("invite-user", {
       body: {
         email: values.email.trim().toLowerCase(),
         full_name: values.full_name?.trim() || undefined,
@@ -406,7 +484,13 @@ function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     }
     setPending(false);
     if (invokeError || !data?.id) return setError(failure ?? "The invitation could not be sent. Please try again.");
-    message.success(`Invitation sent to ${values.email}.`);
+    message.success(
+      data.status === "added"
+        ? `${values.email} already had an account: it is now on the team, and they sign in with their usual password.`
+        : data.status === "resent"
+          ? `${values.email} was already invited: a new invitation is on its way.`
+          : `Invitation sent to ${values.email}. They show as invited until they choose a password.`,
+    );
     form.resetFields();
     await run("refresh", async () => undefined);
     onClose();

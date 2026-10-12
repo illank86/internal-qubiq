@@ -5733,6 +5733,19 @@ export type Database = {
         Args: { p_details: Json; p_invoice_id: string; p_lines: Json }
         Returns: string
       }
+      add_existing_user_to_team: {
+        Args: { p_role?: Database["public"]["Enums"]["app_role"]; p_user_id: string }
+        Returns: undefined
+      }
+      can_invite_users: { Args: never; Returns: boolean }
+      setup_invited_user: {
+        Args: { p_internal: boolean; p_role?: Database["public"]["Enums"]["app_role"]; p_user_id: string }
+        Returns: undefined
+      }
+      user_account_status: {
+        Args: never
+        Returns: { activated: boolean; invited_at: string; last_sign_in_at: string; user_id: string }[]
+      }
       create_fixed_asset: { Args: { p: Json }; Returns: string }
       create_payroll_run: { Args: { p_period: string }; Returns: string }
       current_user_permissions: {
