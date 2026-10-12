@@ -139,7 +139,13 @@ export function UsersPage() {
       ),
     },
     { title: "Type", dataIndex: "user_type", render: (value: string) => (value === "internal" ? <Tag color="orange">Team</Tag> : <Tag>Customer</Tag>) },
-    { title: "Status", key: "status", render: (_, user) => <AccountStatus user={user} /> },
+    {
+      title: "Status",
+      key: "status",
+      render: (_, user) => (
+        <AccountStatus user={user} resending={busy === `resend:${user.id}`} onResend={isAdmin && user.invited ? () => confirmResend(user) : undefined} />
+      ),
+    },
     {
       title: "Roles",
       key: "roles",
@@ -199,13 +205,7 @@ export function UsersPage() {
                   key: "resend",
                   icon: <MailOutlined />,
                   label: "Resend invitation",
-                  onClick: () =>
-                    modal.confirm({
-                      title: `Send ${who} a new invitation?`,
-                      content: "They get a fresh link to choose a password; the old link stops working.",
-                      okText: "Send again",
-                      onOk: () => resendInvite(user),
-                    }),
+                  onClick: () => confirmResend(user),
                 },
                 { type: "divider" as const },
               ]
@@ -286,6 +286,14 @@ export function UsersPage() {
   ];
 
   // The invite-user, delete-user and suspend-user edge functions hold the service key; only admins may call them.
+  const confirmResend = (user: User) =>
+    modal.confirm({
+      title: `Send ${user.full_name || user.email} a new invitation?`,
+      content: "They get a fresh link to choose a password; the old link stops working.",
+      okText: "Send again",
+      onOk: () => resendInvite(user),
+    });
+
   const resendInvite = (user: User) =>
     run(
       `resend:${user.id}`,
@@ -390,7 +398,7 @@ export function UsersPage() {
 }
 
 /** Active, invited (not active until they choose a password) or suspended. */
-function AccountStatus({ user }: { user: User }) {
+function AccountStatus({ user, onResend, resending }: { user: User; onResend?: () => void; resending?: boolean }) {
   if (user.suspended_at) {
     return (
       <Tooltip title={`Since ${formatInvoiceDate(user.suspended_at)}${user.suspended_reason ? ` — ${user.suspended_reason}` : ""}`}>
@@ -401,11 +409,18 @@ function AccountStatus({ user }: { user: User }) {
   if (user.invited) {
     const expired = Boolean(user.invited_at && Date.now() - Date.parse(user.invited_at) > INVITE_LINK_HOURS * 3_600_000);
     return (
-      <Tooltip
-        title={`Invited ${user.invited_at ? formatInvoiceDate(user.invited_at) : ""}. Not active until they open the email and choose a password.${expired ? " The link has expired — resend it from the ⋯ menu." : ""}`}
-      >
-        <Tag color={expired ? "default" : "gold"}>{expired ? "Invitation expired" : "Invited"}</Tag>
-      </Tooltip>
+      <Flex gap={4} align="center" wrap>
+        <Tooltip
+          title={`Invited ${user.invited_at ? formatInvoiceDate(user.invited_at) : ""}. Not active until they open the email and choose a password.${expired ? " The link has expired — send a new one." : ""}`}
+        >
+          <Tag color={expired ? "default" : "gold"}>{expired ? "Invitation expired" : "Invited"}</Tag>
+        </Tooltip>
+        {onResend ? (
+          <Button type="link" size="small" icon={<MailOutlined />} loading={resending} onClick={onResend} style={{ paddingInline: 0 }}>
+            Resend
+          </Button>
+        ) : null}
+      </Flex>
     );
   }
   return <Tag color="green">Active</Tag>;
