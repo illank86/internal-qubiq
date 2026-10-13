@@ -26,6 +26,7 @@ export function RequireStaff() {
 }
 
 const SIDER_WIDTH = 248;
+const HEADER_HEIGHT = 64;
 
 function SideMenu({ onNavigate }: { onNavigate?: () => void }) {
   const can = useCan();
@@ -133,66 +134,40 @@ function AppShell() {
 
   return (
     <Layout style={{ minHeight: "100dvh" }}>
-      {desktop ? (
-        <Layout.Sider
-          width={SIDER_WIDTH}
-          style={{
-            position: "sticky",
-            top: 0,
-            height: "100dvh",
-            overflowY: "auto",
-            borderInlineEnd: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
-          {/* Stays at the top while the menu scrolls under it. */}
+      {/* One bar across the top: the logo (over the menu, same width), then the bell and account. */}
+      <Layout.Header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          height: HEADER_HEIGHT,
+          paddingInline: desktop ? "0 24px" : "0 16px",
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }}
+      >
+        {desktop ? (
           <div
             style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 2,
-              height: 64,
+              width: SIDER_WIDTH,
+              alignSelf: "stretch",
               display: "flex",
               alignItems: "center",
               padding: "0 20px",
-              borderBottom: `1px solid ${token.colorBorderSecondary}`,
-              background: dark ? "#1f1f1f" : "#ffffff",
+              flexShrink: 0,
+              borderInlineEnd: `1px solid ${token.colorBorderSecondary}`,
             }}
           >
             <Brand />
           </div>
-          <SideMenu />
-        </Layout.Sider>
-      ) : (
-        <Drawer
-          open={drawer}
-          onClose={() => setDrawer(false)}
-          placement="left"
-          size={SIDER_WIDTH + 32}
-          title={<Brand />}
-          styles={{ body: { padding: 0 } }}
-        >
-          <SideMenu onNavigate={() => setDrawer(false)} />
-        </Drawer>
-      )}
-
-      <Layout>
-        <Layout.Header
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
-          {!desktop ? (
-            <>
-              <Button type="text" icon={<MenuOutlined />} aria-label="Open menu" onClick={() => setDrawer(true)} />
-              <Brand compact />
-            </>
-          ) : null}
+        ) : (
+          <>
+            <Button type="text" icon={<MenuOutlined />} aria-label="Open menu" onClick={() => setDrawer(true)} style={{ marginLeft: 8 }} />
+            <Brand compact />
+          </>
+        )}
           <Flex align="center" gap={12} style={{ marginLeft: "auto" }}>
             <NotificationBell />
             <Dropdown menu={{ items: account }} trigger={["click"]} placement="bottomRight">
@@ -218,8 +193,35 @@ function AppShell() {
               </Button>
             </Dropdown>
           </Flex>
-        </Layout.Header>
-        <Layout.Content style={{ padding: desktop ? "28px 32px" : "20px 16px" }}>
+      </Layout.Header>
+
+      <Layout>
+        {desktop ? (
+          <Layout.Sider
+            width={SIDER_WIDTH}
+            style={{
+              position: "sticky",
+              top: HEADER_HEIGHT,
+              height: `calc(100dvh - ${HEADER_HEIGHT}px)`,
+              overflowY: "auto",
+              borderInlineEnd: `1px solid ${token.colorBorderSecondary}`,
+            }}
+          >
+            <SideMenu />
+          </Layout.Sider>
+        ) : (
+          <Drawer
+            open={drawer}
+            onClose={() => setDrawer(false)}
+            placement="left"
+            size={SIDER_WIDTH + 32}
+            title={<Brand />}
+            styles={{ body: { padding: 0 } }}
+          >
+            <SideMenu onNavigate={() => setDrawer(false)} />
+          </Drawer>
+        )}
+        <Layout.Content style={{ padding: desktop ? "28px 32px" : "20px 16px", minWidth: 0 }}>
           <Suspense fallback={<Skeleton active paragraph={{ rows: 8 }} />}>
             <Outlet />
           </Suspense>
