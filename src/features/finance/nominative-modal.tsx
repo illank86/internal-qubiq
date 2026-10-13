@@ -6,6 +6,7 @@ import type { Json } from "@/lib/database.types";
 import type { useAction } from "@/features/sales/use-action";
 import { idr } from "./api";
 import { NOMINATIVE_LABEL, type NominativeKind } from "./nominative";
+import { DateInput } from "@/components/date-input";
 
 type Nominee = {
   given_on: string;
@@ -135,7 +136,7 @@ export function NominativeModal({
                           </Col>
                           <Col xs={12} sm={4}>
                             <Form.Item label="Date" name={[field.name, "given_on"]}>
-                              <Input type="date" />
+                              <DateInput />
                             </Form.Item>
                           </Col>
                           <Col xs={12} sm={4} style={{ textAlign: "right" }}>

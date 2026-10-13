@@ -13,6 +13,7 @@ import { idr, jakartaToday } from "./api";
 import { YearEnd } from "./payroll-year-end";
 import { DatedAmounts } from "./payroll-amounts";
 import { createPayrollRun, periodLabel, PTKP_LABEL, PTKP_STATUSES, totals, useEmployees, usePayrollRuns, usePayrollSettings, type Employee } from "./payroll-api";
+import { DateInput } from "@/components/date-input";
 
 const TABS = ["runs", "employees", "a1", "bpjs"] as const;
 
@@ -81,7 +82,7 @@ function Runs() {
   return (
     <Flex vertical gap={16}>
       <Flex gap={8} align="center" wrap>
-        <Input type="month" value={month} onChange={(event) => setMonth(event.target.value)} style={{ width: 170 }} aria-label="Month" />
+        <DateInput picker="month" value={month} onChange={(value) => setMonth(value)} style={{ width: 170 }} aria-label="Month" />
         <Button type="primary" icon={<PlusOutlined />} loading={busy === "create"} disabled={!month || taken.has(month) || !(employees ?? []).length} onClick={create}>
           New payroll
         </Button>
@@ -234,12 +235,12 @@ function EmployeeDrawer({ employee, onClose }: { employee: Employee | null; onCl
           </Col>
           <Col xs={24} sm={12}>
             <Form.Item label="Joined on" name="joined_on" rules={[{ required: true }]}>
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
             <Form.Item label="Left on" name="left_on" extra="That month's payroll settles the year's PPh 21.">
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Col>
         </Row>

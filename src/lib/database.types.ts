@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -2149,6 +2149,7 @@ export type Database = {
         Row: {
           edition_id: string | null
           id: string
+          kind: string
           invoice_id: string
           label: string
           position: number
@@ -2159,6 +2160,7 @@ export type Database = {
         Insert: {
           edition_id?: string | null
           id?: string
+          kind?: string
           invoice_id: string
           label: string
           position?: number
@@ -2169,6 +2171,7 @@ export type Database = {
         Update: {
           edition_id?: string | null
           id?: string
+          kind?: string
           invoice_id?: string
           label?: string
           position?: number
@@ -2203,44 +2206,78 @@ export type Database = {
       invoice_items: {
         Row: {
           amount: number
+          category_id: string | null
+          category_name: string | null
           description: string
           detail: string | null
           edition_id: string | null
+          entered_currency: string | null
+          entered_price: number | null
+          entered_quantity: number | null
           group_id: string | null
           id: string
           invoice_id: string
           module_id: string | null
+          parent_id: string | null
+          per_server: boolean
           position: number
+          pricing: string | null
           quantity: number
+          unit: string | null
           unit_price: number
         }
         Insert: {
           amount?: number
+          category_id?: string | null
+          category_name?: string | null
           description: string
           detail?: string | null
           edition_id?: string | null
+          entered_currency?: string | null
+          entered_price?: number | null
+          entered_quantity?: number | null
           group_id?: string | null
           id?: string
           invoice_id: string
           module_id?: string | null
+          parent_id?: string | null
+          per_server?: boolean
           position?: number
+          pricing?: string | null
           quantity?: number
+          unit?: string | null
           unit_price?: number
         }
         Update: {
           amount?: number
+          category_id?: string | null
+          category_name?: string | null
           description?: string
           detail?: string | null
           edition_id?: string | null
+          entered_currency?: string | null
+          entered_price?: number | null
+          entered_quantity?: number | null
           group_id?: string | null
           id?: string
           invoice_id?: string
           module_id?: string | null
+          parent_id?: string | null
+          per_server?: boolean
           position?: number
+          pricing?: string | null
           quantity?: number
+          unit?: string | null
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_item_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_items_edition_id_fkey"
             columns: ["edition_id"]
@@ -2267,6 +2304,13 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "license_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
             referencedColumns: ["id"]
           },
         ]
@@ -2376,6 +2420,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          currency_rates: Json
           customer_revision: number
           decimal_places: number
           discount_amount: number
@@ -2453,6 +2498,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_rates?: Json
           customer_revision?: number
           decimal_places?: number
           discount_amount?: number
@@ -2530,6 +2576,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_rates?: Json
           customer_revision?: number
           decimal_places?: number
           discount_amount?: number
@@ -4246,6 +4293,7 @@ export type Database = {
         Row: {
           edition_id: string | null
           id: string
+          kind: string
           label: string
           position: number
           quantity: number
@@ -4255,6 +4303,7 @@ export type Database = {
         Insert: {
           edition_id?: string | null
           id?: string
+          kind?: string
           label: string
           position?: number
           quantity?: number
@@ -4264,6 +4313,7 @@ export type Database = {
         Update: {
           edition_id?: string | null
           id?: string
+          kind?: string
           label?: string
           position?: number
           quantity?: number
@@ -4287,47 +4337,117 @@ export type Database = {
           },
         ]
       }
+      quotation_item_categories: {
+        Row: {
+          created_at: string
+          default_unit: string
+          id: string
+          in_licence_base: boolean
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_unit?: string
+          id?: string
+          in_licence_base?: boolean
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_unit?: string
+          id?: string
+          in_licence_base?: boolean
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quotation_items: {
         Row: {
           amount: number
+          category_id: string | null
+          category_name: string | null
           description: string
           detail: string | null
           edition_id: string | null
+          entered_currency: string | null
+          entered_price: number | null
+          entered_quantity: number | null
           group_id: string | null
           id: string
           module_id: string | null
+          parent_id: string | null
+          per_server: boolean
           position: number
+          pricing: string | null
           quantity: number
           quotation_id: string
+          unit: string | null
           unit_price: number
         }
         Insert: {
           amount?: number
+          category_id?: string | null
+          category_name?: string | null
           description: string
           detail?: string | null
           edition_id?: string | null
+          entered_currency?: string | null
+          entered_price?: number | null
+          entered_quantity?: number | null
           group_id?: string | null
           id?: string
           module_id?: string | null
+          parent_id?: string | null
+          per_server?: boolean
           position?: number
+          pricing?: string | null
           quantity?: number
           quotation_id: string
+          unit?: string | null
           unit_price?: number
         }
         Update: {
           amount?: number
+          category_id?: string | null
+          category_name?: string | null
           description?: string
           detail?: string | null
           edition_id?: string | null
+          entered_currency?: string | null
+          entered_price?: number | null
+          entered_quantity?: number | null
           group_id?: string | null
           id?: string
           module_id?: string | null
+          parent_id?: string | null
+          per_server?: boolean
           position?: number
+          pricing?: string | null
           quantity?: number
           quotation_id?: string
+          unit?: string | null
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "quotation_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_item_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotation_items_edition_id_fkey"
             columns: ["edition_id"]
@@ -4347,6 +4467,13 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "license_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_items"
             referencedColumns: ["id"]
           },
           {
@@ -4383,6 +4510,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          currency_rates: Json
           customer_id: string | null
           decimal_places: number
           declined_at: string | null
@@ -4458,6 +4586,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_rates?: Json
           customer_id?: string | null
           decimal_places?: number
           declined_at?: string | null
@@ -4533,6 +4662,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          currency_rates?: Json
           customer_id?: string | null
           decimal_places?: number
           declined_at?: string | null
@@ -5661,6 +5791,13 @@ export type Database = {
     }
     Functions: {
       accounting_dashboard: { Args: { p_year?: number }; Returns: Json }
+      add_existing_user_to_team: {
+        Args: {
+          p_role?: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       annual_tax_worksheet: { Args: { p_year: number }; Returns: Json }
       apply_next_pph25: { Args: { p_year: number }; Returns: number }
       approval_link_decide: {
@@ -5693,6 +5830,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      can_invite_users: { Args: never; Returns: boolean }
       cancel_delivery_order: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
@@ -5732,19 +5870,6 @@ export type Database = {
       create_delivery_order: {
         Args: { p_details: Json; p_invoice_id: string; p_lines: Json }
         Returns: string
-      }
-      add_existing_user_to_team: {
-        Args: { p_role?: Database["public"]["Enums"]["app_role"]; p_user_id: string }
-        Returns: undefined
-      }
-      can_invite_users: { Args: never; Returns: boolean }
-      setup_invited_user: {
-        Args: { p_internal: boolean; p_role?: Database["public"]["Enums"]["app_role"]; p_user_id: string }
-        Returns: undefined
-      }
-      user_account_status: {
-        Args: never
-        Returns: { activated: boolean; invited_at: string; last_sign_in_at: string; user_id: string }[]
       }
       create_fixed_asset: { Args: { p: Json }; Returns: string }
       create_payroll_run: { Args: { p_period: string }; Returns: string }
@@ -5927,6 +6052,7 @@ export type Database = {
           p_contact_name: string
           p_country?: string
           p_currency?: string
+          p_currency_rates?: Json
           p_decimals?: number
           p_exchange_rate?: number
           p_groups: Json
@@ -6021,6 +6147,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      setup_invited_user: {
+        Args: {
+          p_internal: boolean
+          p_role?: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       sign_out_everywhere: { Args: { p_user: string }; Returns: number }
       staff_delivery_signoff: { Args: { p_id: string }; Returns: Json }
       staff_document_signoff: {
@@ -6089,6 +6223,15 @@ export type Database = {
       update_payroll_line: {
         Args: { p: Json; p_line: string }
         Returns: undefined
+      }
+      user_account_status: {
+        Args: never
+        Returns: {
+          activated: boolean
+          invited_at: string
+          last_sign_in_at: string
+          user_id: string
+        }[]
       }
       void_bank_transfer: {
         Args: { p_id: string; p_reason: string }

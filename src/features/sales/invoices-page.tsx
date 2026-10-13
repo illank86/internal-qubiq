@@ -46,6 +46,7 @@ import { FakturModal, FakturPanel, FakturTag, needsFaktur } from "@/features/fin
 import { discountLines } from "@/lib/pdf-theme";
 import { InvoiceDeliveries } from "./delivery-orders-page";
 import { TaxReadout, useDocumentTax } from "./document-tax";
+import { DateInput } from "@/components/date-input";
 
 type Row = Invoice & {
   license: { label: string } | null;
@@ -503,8 +504,8 @@ function InvoiceDetailsDrawer({
     enabled: Boolean(invoice),
     queryFn: async () => {
       const [{ data: groups }, { data: items }] = await Promise.all([
-        supabase.from("invoice_groups").select("id, label, quantity, subtotal").eq("invoice_id", invoice!.id).order("position"),
-        supabase.from("invoice_items").select("id, group_id, description, detail, amount, edition_id").eq("invoice_id", invoice!.id).order("position"),
+        supabase.from("invoice_groups").select("id, kind, label, quantity, subtotal").eq("invoice_id", invoice!.id).order("position"),
+        supabase.from("invoice_items").select("id, group_id, description, detail, amount, edition_id, category_name, parent_id, pricing").eq("invoice_id", invoice!.id).order("position"),
       ]);
       return { groups: groups ?? [], items: items ?? [] };
     },
@@ -790,7 +791,7 @@ function InvoiceDetailsDrawer({
                 <Row gutter={16}>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Due date" name="due_date" rules={[{ required: true, message: "Choose a due date" }]}>
-                      <Input type="date" min={invoice.issue_date} />
+                      <DateInput min={invoice.issue_date} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={12}>

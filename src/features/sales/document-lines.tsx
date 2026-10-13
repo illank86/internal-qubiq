@@ -2,12 +2,24 @@ import { Fragment } from "react";
 import { Empty, Flex, Tag, Typography, theme } from "antd";
 import { CheckOutlined } from "@ant-design/icons";
 
-export type LineGroup = { id: string; label: string; quantity: number; subtotal: number | string };
-export type LineItem = { id: string; group_id: string | null; description: string; detail: string | null; amount: number | string; edition_id: string | null };
+export type LineGroup = { id: string; label: string; quantity: number; subtotal: number | string; kind?: string | null };
+export type LineItem = {
+  id: string;
+  group_id: string | null;
+  description: string;
+  detail: string | null;
+  amount: number | string;
+  edition_id: string | null;
+  /** Custom items: their category; sub-lines of a breakdown or lump sum point at it. */
+  category_name?: string | null;
+  parent_id?: string | null;
+  pricing?: string | null;
+};
 
 /**
  * What a quotation or invoice sells, as the builder shows it: per server
- * group, a table of module and price | included. Read-only — lines and prices
+ * group, a table of module and price | included; additional items (hardware,
+ * services) with their category, sub-lines indented. Read-only — lines and prices
  * are changed in the quotation builder.
  */
 export function DocumentLines({ groups, items, money }: { groups: LineGroup[]; items: LineItem[]; money: (amount: number) => string }) {
@@ -29,6 +41,13 @@ export function DocumentLines({ groups, items, money }: { groups: LineGroup[]; i
     <Flex vertical gap={12}>
       {groups.map((group) => {
         const lines = items.filter((item) => item.group_id === group.id);
+        const parents = new Map(lines.map((item) => [item.id, item]));
+        // A breakdown's price is its lines' total; a lump sum's lines carry no price.
+        const priceText = (item: LineItem) => {
+          if (item.pricing === "breakdown") return money(lines.filter((line) => line.parent_id === item.id).reduce((sum, line) => sum + Number(line.amount), 0));
+          if (item.parent_id && parents.get(item.parent_id)?.pricing === "lump_sum") return "In the lump sum";
+          return Number(item.amount) === 0 ? "No charge" : money(Number(item.amount));
+        };
         return (
           <div key={group.id} style={grid}>
             <Flex align="center" justify="space-between" gap={8} style={head}>
@@ -38,7 +57,7 @@ export function DocumentLines({ groups, items, money }: { groups: LineGroup[]; i
                 </Typography.Text>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {" "}
-                  · {group.quantity} server{group.quantity === 1 ? "" : "s"}
+                  {group.kind === "shared" ? "" : ` · ${group.quantity} server${group.quantity === 1 ? "" : "s"}`}
                 </Typography.Text>
               </span>
               <Typography.Text strong style={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
@@ -52,9 +71,14 @@ export function DocumentLines({ groups, items, money }: { groups: LineGroup[]; i
             </Flex>
             {lines.map((item) => (
               <Fragment key={item.id}>
-                <div style={{ ...cell, padding: "9px 12px", minWidth: 0 }}>
+                <div style={{ ...cell, padding: item.parent_id ? "7px 12px 7px 28px" : "9px 12px", minWidth: 0 }}>
                   <Flex align="center" gap={6} wrap>
-                    <Typography.Text>{item.description}</Typography.Text>
+                    <Typography.Text strong={item.pricing === "breakdown"}>{item.description}</Typography.Text>
+                    {item.category_name && !item.parent_id ? (
+                      <Tag bordered={false} color="geekblue" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: "16px", paddingInline: 5 }}>
+                        {item.category_name}
+                      </Tag>
+                    ) : null}
                     {item.edition_id ? (
                       <Tag bordered={false} color="orange" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: "16px", paddingInline: 5 }}>
                         In edition
@@ -62,7 +86,7 @@ export function DocumentLines({ groups, items, money }: { groups: LineGroup[]; i
                     ) : null}
                   </Flex>
                   <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
-                    {Number(item.amount) === 0 ? "No charge" : money(Number(item.amount))}
+                    {priceText(item)}
                     {item.detail ? ` · ${item.detail}` : ""}
                   </Typography.Text>
                 </div>

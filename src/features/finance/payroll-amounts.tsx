@@ -6,6 +6,7 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
+import { DateInput } from "@/components/date-input";
 
 type Kind = "jp_wage_cap" | "minimum_wage";
 type Amount = { kind: Kind; effective_from: string; amount: number; note: string | null };
@@ -76,7 +77,7 @@ export function DatedAmounts({ kind, title, hint }: { kind: Kind; title: string;
         ]}
       />
       <Flex gap={8} wrap style={{ marginTop: 12 }}>
-        <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="From" style={{ width: 150 }} />
+        <DateInput value={from} onChange={(value) => setFrom(value)} aria-label="From" style={{ width: 150 }} />
         <InputNumber<number> value={amount} onChange={setAmount} min={1} step={1000} placeholder="Amount (Rp)" style={{ width: 170 }} formatter={(value) => (value ? Number(value).toLocaleString("en-US") : "")} parser={(value) => Number((value ?? "").replace(/[^\d]/g, ""))} />
         <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Note (optional)" maxLength={200} style={{ flex: 1, minWidth: 140 }} />
         <Button icon={<PlusOutlined />} disabled={!from || !amount} loading={busy === `add-${kind}`} onClick={add}>

@@ -6,6 +6,7 @@ import { LinesInput } from "./lines-input";
 import { ReleaseNotesInput } from "./release-notes-input";
 import { MediaInput } from "./media-picker";
 import { RichTextField } from "./rich-text-field";
+import { DateInput } from "@/components/date-input";
 
 export type Lookups = Record<string, { value: string; label: string }[]>;
 
@@ -59,9 +60,9 @@ export function FieldInput({ field, lookups }: { field: Field; lookups: Lookups 
       case "duration":
         return <Input placeholder="m:ss, e.g. 3:42" style={{ maxWidth: 160 }} />;
       case "date":
-        return <Input type="date" style={{ maxWidth: 220 }} />;
+        return <DateInput style={{ maxWidth: 220 }} />;
       case "datetime":
-        return <Input type="datetime-local" style={{ maxWidth: 260 }} />;
+        return <DateInput picker="datetime" style={{ maxWidth: 260 }} />;
       case "url":
         return <Input placeholder={field.placeholder ?? "https://…"} />;
       default:

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Col, Form, Input, Result, Row, Select, Skeleton, Typography } from "antd";
 import { supabase } from "@/lib/supabase";
 import { errorText } from "@/lib/sales";
+import { DateInput } from "@/components/date-input";
 
 type Values = {
   reporting_framework: "SAK EMKM" | "SAK EP";
@@ -124,7 +125,7 @@ export function ReportSettings() {
           </Col>
           <Col xs={24} md={12}>
             <Form.Item label="Established on" name="established_on">
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Col>
         </Row>

@@ -9,6 +9,7 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday, useBankAccounts } from "./api";
+import { DateInput } from "@/components/date-input";
 
 /**
  * Fixed assets (aset tetap): what the company owns that lasts more than a
@@ -308,7 +309,7 @@ function AssetDrawer({ onClose }: { onClose: () => void }) {
         <Row gutter={12}>
           <Col xs={24} sm={12}>
             <Form.Item label="Bought on" name="acquired_on" rules={[{ required: true }]} extra="Depreciation starts this month.">
-              <Input type="date" max={jakartaToday()} />
+              <DateInput max={jakartaToday()} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
@@ -373,7 +374,7 @@ function DisposeModal({ asset, onClose, run, busy }: { asset: Asset; onClose: ()
         Depreciation must be posted up to the month before. Book value now {idr(asset.book_value)}; leave the price empty to write it off.
       </Typography.Paragraph>
       <Flex vertical gap={10}>
-        <Input type="date" value={date} min={asset.acquired_on} max={jakartaToday()} onChange={(event) => setDate(event.target.value)} />
+        <DateInput value={date} min={asset.acquired_on} max={jakartaToday()} onChange={(value) => setDate(value)} />
         <InputNumber value={proceeds} onChange={(value) => setProceeds(value === null ? null : Number(value))} min={0} style={{ width: "100%" }} placeholder="Sold for (Rp)" />
         {Number(proceeds ?? 0) > 0 ? <Select value={bank} onChange={setBankId} options={active.map((item) => ({ value: item.id, label: `${item.name} (${item.currency})` }))} placeholder="Paid into" /> : null}
         <Typography.Text type={result >= 0 ? "success" : "warning"}>

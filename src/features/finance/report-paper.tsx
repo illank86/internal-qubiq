@@ -1,8 +1,9 @@
-import { Flex, Input, Segmented, Typography } from "antd";
+import { Flex, Segmented, Typography } from "antd";
 import { INVOICE_LOGO_DATA_URI } from "@/lib/invoice-logo";
 import { npwpLine, signoffOf } from "./ledger-book";
 import type { Company } from "./exports";
 import { PAPER, PRESET_OPTIONS, type Preset } from "./report-period";
+import { DateInput } from "@/components/date-input";
 
 /** Pieces shared by the report previews: the period picker and the "paper" a report is drawn on. */
 
@@ -26,9 +27,9 @@ export function PeriodPicker({ preset, custom, from, to, onPreset, onCustom }: {
       />
       {preset === "custom" ? (
         <Flex gap={6} align="center">
-          <Input type="date" value={custom[0]} max={custom[1]} onChange={(event) => onCustom([event.target.value, custom[1]])} style={{ width: 150 }} aria-label="From" />
+          <DateInput value={custom[0]} max={custom[1]} onChange={(value) => onCustom([value, custom[1]])} style={{ width: 150 }} aria-label="From" />
           <Typography.Text type="secondary">to</Typography.Text>
-          <Input type="date" value={custom[1]} min={custom[0]} onChange={(event) => onCustom([custom[0], event.target.value])} style={{ width: 150 }} aria-label="To" />
+          <DateInput value={custom[1]} min={custom[0]} onChange={(value) => onCustom([custom[0], value])} style={{ width: 150 }} aria-label="To" />
         </Flex>
       ) : null}
     </Flex>

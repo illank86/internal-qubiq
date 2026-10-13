@@ -170,7 +170,7 @@ export function quotationPdf(id: string, number: string | null, { original = fal
       const [{ data: quotation, error }, { data: items }, { data: groups }] = await Promise.all([
         supabase.from("quotations").select("*").eq("id", id).maybeSingle(),
         supabase.from("quotation_items").select("*").eq("quotation_id", id).order("position"),
-        supabase.from("quotation_groups").select("id, label, quantity, subtotal").eq("quotation_id", id).order("position"),
+        supabase.from("quotation_groups").select("id, kind, label, quantity, subtotal").eq("quotation_id", id).order("position"),
       ]);
       fail(error);
       if (!quotation) throw new Error("Quotation not found");
@@ -190,7 +190,7 @@ export function invoicePdf(id: string, number: string | null, { original = false
       const [{ data: invoice, error }, { data: items }, { data: groups }] = await Promise.all([
         supabase.from("invoices").select("*").eq("id", id).maybeSingle(),
         supabase.from("invoice_items").select("*").eq("invoice_id", id).order("position"),
-        supabase.from("invoice_groups").select("id, label, quantity, subtotal").eq("invoice_id", id).order("position"),
+        supabase.from("invoice_groups").select("id, kind, label, quantity, subtotal").eq("invoice_id", id).order("position"),
       ]);
       fail(error);
       if (!invoice) throw new Error("Invoice not found");

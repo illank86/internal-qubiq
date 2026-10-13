@@ -29,6 +29,7 @@ import { NominativeModal } from "./nominative-modal";
 import { NOMINATIVE_LABEL, type NominativeKind } from "./nominative";
 import { VendorTaxFields, WithholdingFields, type VendorKind } from "./withholding-fields";
 import { exportExcel } from "./exports";
+import { DateInput } from "@/components/date-input";
 
 type Row = Expense & { account: { code: string; name: string; nominative_kind: string | null } | null; nominees: { count: number }[] };
 type Filter = "all" | "unpaid" | "paid";
@@ -372,7 +373,7 @@ function ExpenseDrawer({ open, onClose }: { open: boolean; onClose: () => void }
         <Row gutter={12}>
           <Col xs={24} sm={10}>
             <Form.Item label="Date" name="spent_on" rules={[{ required: true }]}>
-              <Input type="date" max={jakartaToday()} />
+              <DateInput max={jakartaToday()} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={14}>
@@ -479,7 +480,7 @@ function PayModal({ expense, onClose, run }: { expense: Row; onClose: () => void
             <Typography.Text type="secondary"> ({money(expense.amount, expense.currency)} less {WITHHELD[expense.withholding_type ?? ""]} {money(expense.withholding_amount, expense.currency)} withheld)</Typography.Text>
           ) : null}
         </Typography.Text>
-        <Input type="date" value={paidOn} max={jakartaToday()} onChange={(event) => setPaidOn(event.target.value)} />
+        <DateInput value={paidOn} max={jakartaToday()} onChange={(value) => setPaidOn(value)} />
         <Select value={bank?.id} onChange={setBankId} options={active.map((item) => ({ value: item.id, label: `${item.name} (${item.currency})` }))} placeholder="Bank account" />
         {expense.currency !== "IDR" && bank?.currency === "IDR" ? (
           <InputNumber value={idrPaid} onChange={(value) => setIdrPaid(value === null ? null : Number(value))} min={0} suffix="IDR" style={{ width: "100%" }} placeholder="Rupiah actually paid" />
@@ -509,7 +510,7 @@ function BupotModal({ expense, onClose, run }: { expense: Row; onClose: () => vo
       </Typography.Paragraph>
       <Flex vertical gap={10}>
         <Input value={number} onChange={(event) => setNumber(event.target.value)} placeholder="“Bukti potong” number" maxLength={60} />
-        <Input type="date" value={date} max={jakartaToday()} onChange={(event) => setDate(event.target.value)} />
+        <DateInput value={date} max={jakartaToday()} onChange={(value) => setDate(value)} />
       </Flex>
     </Modal>
   );

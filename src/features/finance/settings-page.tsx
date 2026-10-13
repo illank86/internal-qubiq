@@ -10,6 +10,7 @@ import { useAction } from "@/features/sales/use-action";
 import { CompanySettings, InvoicePaymentSettings } from "./document-settings";
 import { ReportSettings } from "./report-settings";
 import { money, useAccounts, useBankAccounts, type Account, type BankAccount } from "./api";
+import { DateInput } from "@/components/date-input";
 
 const TABS = ["company", "invoices", "tax", "reports", "accounts", "banks", "rates"] as const;
 
@@ -198,7 +199,7 @@ function TaxSettings() {
         </Col>
         <Col xs={24} md={6}>
           <Form.Item label="Registered for tax on" name="tax_registered_on">
-            <Input type="date" />
+            <DateInput />
           </Form.Item>
         </Col>
         <Col xs={24} md={6}>
@@ -226,7 +227,7 @@ function TaxSettings() {
         {regime === "pp55" ? (
           <Col xs={24} md={8}>
             <Form.Item label="0.5% allowed until" name="pp55_until">
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Col>
         ) : (
@@ -268,7 +269,7 @@ function TaxSettings() {
         <Row gutter={16}>
           <Col xs={24} md={6}>
             <Form.Item label="PKP since" name="pkp_since" rules={[{ required: true, message: "The PKP date" }]}>
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Col>
           <Col xs={12} md={6}>
@@ -599,12 +600,12 @@ function RatesTab() {
             </Col>
             <Col span={12}>
               <Form.Item label="Valid from" name="valid_from" rules={[{ required: true }]}>
-                <Input type="date" />
+                <DateInput />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="Valid to" name="valid_to" rules={[{ required: true }]}>
-                <Input type="date" />
+                <DateInput />
               </Form.Item>
             </Col>
           </Row>

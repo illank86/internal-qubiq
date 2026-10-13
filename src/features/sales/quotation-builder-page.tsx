@@ -6,7 +6,7 @@ import { Affix, Alert, App, AutoComplete, Button, Card, Checkbox, Col, Collapse,
 import { DownloadOutlined, EyeOutlined, SafetyCertificateOutlined, SaveOutlined, SendOutlined } from "@ant-design/icons";
 import { useStaff } from "@/auth/use-auth";
 import { PageTitle } from "@/components/app-shell";
-import { loadSalesCatalog, newGroup, priceGroups, errorText, type GroupDraft, type SalesCatalog } from "@/lib/sales";
+import { CURRENCIES, customUnit, errorText, groupPayload, loadSalesCatalog, newGroup, priceGroups, ratesNeeded, type GroupDraft, type Money, type SalesCatalog } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { newQuotationDraft, savedQuotationDraft, type QuotationDraft } from "./quotation-draft";
 import { ServerGroupsEditor } from "./server-groups-editor";
@@ -17,8 +17,8 @@ import { EmailListInput, ccRules, normaliseEmails } from "@/components/email-lis
 import { useSendsDirectly } from "./approvals";
 import { quotationPdf } from "./api";
 import { TaxReadout } from "./document-tax";
+import { DateInput } from "@/components/date-input";
 
-const CURRENCIES = ["USD", "IDR", "EUR", "SGD", "MYR", "AUD", "GBP", "JPY", "CNY", "THB", "PHP", "VND", "INR"];
 const SOURCES = [
   { value: "phone", label: "Phone call" },
   { value: "email", label: "Email" },
@@ -96,6 +96,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   const [groups, setGroups] = useState<GroupDraft[]>(() =>
     draft.groups.length > 0 ? draft.groups.map((group, index) => newGroup(catalog.editions, index, group)) : [newGroup(catalog.editions, 0)],
   );
+  // Rates for custom items priced in a third currency, as typed (else today's ECB rate).
+  const [typedRates, setTypedRates] = useState<Record<string, number>>(draft.currencyRates);
   const [saving, setSaving] = useState<"save" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,8 +133,39 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
   });
   const partnerPercent = integratorId && partnerOn && partner ? partner.percent : 0;
   const discountInput = { partnerPercent, type: discountType, value: discountType === "none" ? 0 : discountValue };
-  const totals = priceGroups(groups, catalog.editions, catalog.modules, { rate, decimals: Number(decimals) || 0, currency, taxRate: Number(taxRate) || 0, discount: discountInput });
-  const servers = groups.reduce((sum, group) => sum + group.quantity, 0);
+
+  // Custom items in a currency that is neither the price list's nor the quotation's need a rate (1 USD = …).
+  const needed = ratesNeeded(groups, baseCurrency, currency);
+  const { data: ecb } = useQuery({
+    queryKey: ["fx-latest", needed.join(","), baseCurrency],
+    enabled: needed.length > 0,
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const codes = [...new Set([...needed, baseCurrency])].filter((code) => code !== "USD");
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+      const { data } = await supabase.from("fx_rates").select("currency, per_usd, rate_date").in("currency", codes).gte("rate_date", since).order("rate_date", { ascending: false });
+      const latest = new Map<string, { perUsd: number; date: string }>([["USD", { perUsd: 1, date: "" }]]);
+      for (const row of data ?? []) if (!latest.has(row.currency)) latest.set(row.currency, { perUsd: Number(row.per_usd), date: row.rate_date });
+      return latest;
+    },
+  });
+  /** One base-currency unit in `code`, from the ECB's latest (fx_rates are per USD). */
+  const ecbRate = (code: string) => {
+    const to = ecb?.get(code)?.perUsd;
+    const from = ecb?.get(baseCurrency)?.perUsd;
+    return to && from ? Math.round((to / from) * 1e6) / 1e6 : undefined;
+  };
+  const rates: Record<string, number> = Object.fromEntries(
+    needed.flatMap((code) => {
+      const value = typedRates[code] ?? ecbRate(code);
+      return value && value > 0 ? [[code, value]] : [];
+    }),
+  );
+  const money: Money = { rate, decimals: Number(decimals) || 0, currency, taxRate: Number(taxRate) || 0, discount: discountInput, baseCurrency, rates };
+  const totals = priceGroups(groups, catalog.editions, catalog.modules, money, catalog.categories);
+  const convert = (price: number, from: string) => customUnit(price, from, money);
+  const servers = groups.filter((group) => group.kind !== "shared").reduce((sum, group) => sum + group.quantity, 0);
+  const serverGroupCount = groups.filter((group) => group.kind !== "shared").length;
 
   const pickSales = (profileId: string) => {
     const person = catalog.team.find((member) => member.id === profileId);
@@ -151,6 +184,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     currency,
     baseCurrency,
     rate,
+    rates,
     decimals: Number(values.decimals) || 0,
     taxRate: catalog.taxRate,
     taxLabel: catalog.taxLabel,
@@ -200,8 +234,30 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
       setError("Please check the highlighted fields.");
       return;
     }
-    if (groups.some((group) => !group.editionId && group.moduleIds.length === 0)) {
-      setError("Each server group needs an edition or at least one module.");
+    if (groups.some((group) => group.kind === "shared" && group.items.length === 0)) {
+      setError("Add items to Project items, or remove the block.");
+      return;
+    }
+    if (groups.some((group) => group.kind !== "shared" && !group.editionId && group.moduleIds.length === 0 && group.items.length === 0)) {
+      setError("Each server group needs an edition, a module or an additional item.");
+      return;
+    }
+    const items = groups.flatMap((group) => group.items);
+    if (items.some((item) => !item.description.trim())) {
+      setError("Describe each additional item.");
+      return;
+    }
+    if (items.some((item) => item.pricing !== "item" && item.parts.some((part) => !part.description.trim()))) {
+      setError("Describe each line of a breakdown or lump sum, or remove it.");
+      return;
+    }
+    if (items.some((item) => item.pricing === "breakdown" && item.parts.length === 0)) {
+      setError("A breakdown needs at least one priced line.");
+      return;
+    }
+    const missing = needed.filter((code) => !rates[code]);
+    if (missing.length > 0) {
+      setError(`Enter how many ${missing.join(", ")} one ${baseCurrency} is worth, under Currency.`);
       return;
     }
     if (converting && !(Number(values.exchange_rate) > 0)) {
@@ -224,7 +280,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
     const { data: quotationId, error: saveError } = await supabase.rpc("save_quotation", {
       p_quotation_id: draft.quotationId as string,
       p_quote_request_id: draft.quoteRequestId as string,
-      p_groups: groups.map((group) => ({ label: group.label, edition_id: group.editionId || null, module_ids: group.moduleIds, quantity: group.quantity })),
+      p_groups: groups.map(groupPayload),
+      p_currency_rates: rates,
       p_source: draft.quoteRequestId ? "website" : values.source,
       p_internal_note: values.internal_note ?? "",
       p_license_id: draft.licenseId ?? undefined,
@@ -476,6 +533,9 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                   modules={catalog.modules}
                   subtotals={totals.priced.map((item) => item.subtotal)}
                   money={totals.money}
+                  itemCategories={catalog.categories}
+                  currency={currency}
+                  convert={convert}
                 />
               </Card>
 
@@ -568,10 +628,45 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                   </Col>
                   <Col xs={24} md={8}>
                     <Form.Item label="Valid until" name="valid_until" rules={[{ required: true, message: "Enter a date" }]}>
-                      <Input type="date" />
+                      <DateInput />
                     </Form.Item>
                   </Col>
                 </Row>
+                {needed.length > 0 ? (
+                  <>
+                    <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
+                      Rates for additional items
+                    </Typography.Text>
+                    <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+                      Items priced in {currency} print exactly as entered. These are converted to {currency} through {baseCurrency}; the rates are kept with
+                      the quotation and go to the invoice.
+                    </Typography.Paragraph>
+                    <Row gutter={16}>
+                      {needed.map((code) => {
+                        const official = ecbRate(code);
+                        const date = ecb?.get(code)?.date;
+                        return (
+                          <Col xs={24} md={8} key={code}>
+                            <Form.Item
+                              label={`1 ${baseCurrency} =`}
+                              extra={official ? `ECB ${date}: ${official.toLocaleString("en-US")}` : "No ECB rate on file — enter it."}
+                              validateStatus={rates[code] ? undefined : "warning"}
+                            >
+                              <InputNumber
+                                min={0}
+                                value={typedRates[code] ?? official ?? null}
+                                onChange={(value) => setTypedRates((current) => ({ ...current, [code]: Number(value) || 0 }))}
+                                suffix={code}
+                                style={{ width: "100%" }}
+                                aria-label={`How many ${code} one ${baseCurrency} is worth`}
+                              />
+                            </Form.Item>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </>
+                ) : null}
               </Card>
 
               <Card title="Your contact — the salesperson">
@@ -655,7 +750,7 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                   {totals.priced.map(({ group, subtotal }) => (
                     <Flex key={group.key} justify="space-between" gap={12}>
                       <Typography.Text type="secondary" ellipsis>
-                        {group.label || "Server group"} × {group.quantity}
+                        {group.kind === "shared" ? group.label || "Project items" : `${group.label || "Server group"} × ${group.quantity}`}
                       </Typography.Text>
                       <span>{totals.money(subtotal)}</span>
                     </Flex>
@@ -696,7 +791,8 @@ function Builder({ catalog, draft }: { catalog: SalesCatalog; draft: QuotationDr
                     </Typography.Text>
                   </Flex>
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {servers} server licence{servers === 1 ? "" : "s"} in {groups.length} group{groups.length === 1 ? "" : "s"}.
+                    {servers} server licence{servers === 1 ? "" : "s"} in {serverGroupCount} group{serverGroupCount === 1 ? "" : "s"}
+                    {serverGroupCount < groups.length ? ", plus project items" : ""}.
                     {converting && rate > 0 ? ` Converted at 1 ${baseCurrency} = ${rate.toLocaleString("en-US")} ${currency}.` : ""}
                   </Typography.Text>
                 </Flex>

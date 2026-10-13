@@ -85,6 +85,7 @@ export const styles = StyleSheet.create({
   cNo: { width: 20, color: MUTED },
   cDesc: { flex: 1, paddingRight: 10 },
   cQty: { width: 34, textAlign: "right" },
+  cUnit: { width: 44, paddingLeft: 6, color: MUTED },
   cPrice: { width: 100, textAlign: "right" },
   cAmount: { width: 106, textAlign: "right", color: INK },
   itemName: { fontFamily: "Helvetica-Bold", color: INK },
@@ -369,6 +370,27 @@ export type DocumentLine = {
   group_id?: string | null;
   edition_id?: string | null;
   module_id?: string | null;
+  /** Custom items (hardware, services, other software): their category, and sub-lines' parent. */
+  category_id?: string | null;
+  category_name?: string | null;
+  parent_id?: string | null;
+  pricing?: "item" | "breakdown" | "lump_sum" | string | null;
+  unit?: string | null;
+};
+
+/**
+ * A line as printed. Headings (an edition, a category) have no number. An
+ * itemised item is numbered but shows no price; its lines follow as a., b., c.
+ */
+type ShownLine = DocumentLine & {
+  heading?: "edition" | "category";
+  /** Has lines under it (itemised or lump sum); `itemised`: its price is on them. */
+  parent?: boolean;
+  itemised?: boolean;
+  /** A line under its item: "a", "b", …; `noPrice`: it is part of a lump sum. */
+  childLabel?: string;
+  noPrice?: boolean;
+  lastChild?: boolean;
 };
 
 /**
@@ -376,9 +398,77 @@ export type DocumentLine = {
  * an edition's modules — the edition, no module, no price. (Before editions
  * lost their own price, an edition line had an amount and printed as a row.)
  */
-const isEditionHeading = (item: DocumentLine) => Boolean(item.edition_id) && !item.module_id && Number(item.amount) === 0;
+const isEditionHeading = (item: DocumentLine) => Boolean(item.edition_id) && !item.module_id && !item.category_id && Number(item.amount) === 0;
+const isHeading = (item: ShownLine) => Boolean(item.heading) || isEditionHeading(item);
 
-function EditionHeading({ item }: { item: DocumentLine }) {
+/** Modules (licences) are counted each: "ea". */
+export const MODULE_UNIT = "ea";
+
+/** A line's unit: its own, "ea" for a module, else nothing. */
+const lineUnit = (item: DocumentLine) => item.unit || (item.module_id ? MODULE_UNIT : "");
+
+/**
+ * The lines as printed. Custom items come under their category ("Hardware");
+ * an itemised item is numbered, without a price, its priced lines under it as a., b., c.; a
+ * lump sum is one priced line listing what it covers. When a group has custom
+ * items, its QUBIQ lines get a heading too. Amounts are never changed.
+ */
+function shownLines(items: DocumentLine[]): ShownLine[] {
+  const children = new Map<string, DocumentLine[]>();
+  for (const item of items) if (item.parent_id) children.set(item.parent_id, [...(children.get(item.parent_id) ?? []), item]);
+  const withCustom = new Set(items.filter((item) => item.category_id).map((item) => item.group_id ?? ""));
+  const out: ShownLine[] = [];
+  let run: string | null = null;
+  const seenLicence = new Set<string>();
+  for (const item of items) {
+    if (item.parent_id) continue; // printed with its parent
+    const group = item.group_id ?? "";
+    if (item.category_id) {
+      // A section: the category, under the name it has on this document.
+      const key = `${group}:${item.category_id}:${item.category_name ?? ""}`;
+      if (key !== run) {
+        out.push({ ...item, id: `${item.id}-category`, description: item.category_name || "Other", detail: null, heading: "category", parent_id: null, pricing: null });
+      }
+      run = key;
+    } else {
+      // QUBIQ lines next to custom items: "QUBIQ licence" first, the percentage (maintenance) lines after the items.
+      const key = `${group}:qubiq`;
+      if (withCustom.has(group) && key !== run && !isEditionHeading(item)) {
+        out.push({
+          ...item,
+          id: `${item.id}-qubiq`,
+          description: seenLicence.has(group) ? "QUBIQ maintenance" : "QUBIQ licence",
+          detail: null,
+          heading: "category",
+          edition_id: null,
+          module_id: null,
+        });
+      }
+      if (isEditionHeading(item) || key !== run) seenLicence.add(group);
+      run = key;
+    }
+    const kids = children.get(item.id) ?? [];
+    if ((item.pricing === "breakdown" || item.pricing === "lump_sum") && kids.length > 0) {
+      // Its lines follow, lettered: priced (itemised) or what the lump sum covers.
+      const lumpSum = item.pricing === "lump_sum";
+      out.push({ ...item, parent: true, itemised: !lumpSum });
+      out.push(...kids.map((kid, at) => ({ ...kid, childLabel: letters(at), noPrice: lumpSum, lastChild: at === kids.length - 1 })));
+    } else {
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+/** a, b, … z, aa, ab, … */
+function letters(index: number): string {
+  return index < 26 ? String.fromCharCode(97 + index) : letters(Math.floor(index / 26) - 1) + letters(index % 26);
+}
+
+/** Lines that take a number: not headings, not an itemised item's lines. */
+const numbered = (item: ShownLine) => !isHeading(item) && !item.childLabel;
+
+function EditionHeading({ item }: { item: ShownLine; money?: (amount: number | string) => string }) {
   return (
     <View style={styles.editionRow} minPresenceAhead={30} wrap={false}>
       <Text style={styles.editionName}>{item.description}</Text>
@@ -387,29 +477,55 @@ function EditionHeading({ item }: { item: DocumentLine }) {
   );
 }
 
-/** Lines in order: an edition heading as a heading (no server groups), the rest numbered from `start`. */
-function ItemLines({ items, start, money }: { items: DocumentLine[]; start: number; money: (amount: number | string) => string }) {
+/** Lines in order: headings as headings, the rest numbered from `start`. */
+function ItemLines({ items, start, money }: { items: ShownLine[]; start: number; money: (amount: number | string) => string }) {
   // Each priced line's number: `start` plus the priced lines before it.
-  const numbers = items.map((_, index) => start + items.slice(0, index).filter((item) => !isEditionHeading(item)).length);
+  const numbers = items.map((_, index) => start + items.slice(0, index).filter(numbered).length);
   return (
     <>
       {items.map((item, index) => {
-        if (isEditionHeading(item)) {
+        if (isHeading(item)) {
+          // Already drawn with the heading before it.
+          if (index > 0 && isHeading(items[index - 1]) && heldWith(items, index - 1)) return null;
+          // A heading never ends a page on its own: it moves with what follows it (a heading and its first line).
           const next = items[index + 1];
-          // A heading never ends a page on its own: it moves with its first line.
+          const after = items[index + 2];
           return (
             <View key={item.id} wrap={false}>
-              <EditionHeading item={item} />
-              {next && !isEditionHeading(next) ? <LineRow item={next} index={numbers[index + 1]} money={money} /> : null}
+              <EditionHeading item={item} money={money} />
+              {next && isHeading(next) ? (
+                <>
+                  <EditionHeading item={next} money={money} />
+                  {after && !isHeading(after) ? <LineRow item={after} index={numbers[index + 2]} money={money} /> : null}
+                </>
+              ) : next ? (
+                <LineRow item={next} index={numbers[index + 1]} money={money} />
+              ) : null}
             </View>
           );
         }
-        // Already drawn with the heading before it.
-        if (index > 0 && isEditionHeading(items[index - 1])) return null;
+        // Already drawn with the heading (or two) before it.
+        if (index > 0 && isHeading(items[index - 1])) return null;
+        // An itemised item's first line, already drawn with it (unless a heading drew the item).
+        if (item.childLabel && index > 0 && items[index - 1].parent && !(index > 1 && isHeading(items[index - 2]))) return null;
+        // An item with lines moves with its first line.
+        if (item.parent && items[index + 1]?.childLabel) {
+          return (
+            <View key={item.id} wrap={false}>
+              <LineRow item={item} index={numbers[index]} money={money} />
+              <LineRow item={items[index + 1]} index={numbers[index + 1]} money={money} />
+            </View>
+          );
+        }
         return <LineRow key={item.id} item={item} index={numbers[index]} money={money} />;
       })}
     </>
   );
+}
+
+/** Whether the heading at `index` draws the line after it (true unless it is itself drawn by the heading before it). */
+function heldWith(items: ShownLine[], index: number): boolean {
+  return !(index > 0 && isHeading(items[index - 1]) && heldWith(items, index - 1));
 }
 
 /** A server group: identical servers sharing an edition and modules. */
@@ -418,17 +534,60 @@ export type DocumentGroup = {
   label: string;
   quantity: number;
   subtotal: number | string;
+  /** shared: items for all server groups — no server count. */
+  kind?: string | null;
 };
 
-function LineRow({ item, index, money }: { item: DocumentLine; index: number; money: (amount: number | string) => string }) {
+function LineRow({ item, index, money }: { item: ShownLine; index: number; money: (amount: number | string) => string }) {
+  // An itemised item: its name and details; the prices are on its lines.
+  if (item.itemised) {
+    return (
+      <View style={[styles.row, { borderBottomWidth: 0, paddingBottom: 3 }]} wrap={false}>
+        <Text style={styles.cNo}>{index + 1}</Text>
+        <View style={styles.cDesc}>
+          <Text style={styles.itemName}>{item.description}</Text>
+          {item.detail ? <Text style={styles.muted}>{item.detail}</Text> : null}
+        </View>
+      </View>
+    );
+  }
+  // One of its lines: lettered and indented under it. A lump sum's lines have no price.
+  const child = Boolean(item.childLabel);
+  const rowStyle = child
+    ? [styles.row, { paddingVertical: 4 }, item.lastChild ? { paddingBottom: 8 } : { borderBottomWidth: 0 }]
+    : item.parent
+      ? [styles.row, { borderBottomWidth: 0, paddingBottom: 3 }]
+      : styles.row;
+  if (item.noPrice) {
+    return (
+      <View style={rowStyle} wrap={false}>
+        <Text style={styles.cNo} />
+        <View style={[styles.cDesc, { flexDirection: "row", paddingLeft: 12 }]}>
+          <Text style={[styles.muted, { width: 14 }]}>{`${item.childLabel}.`}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: INK }}>{item.description}</Text>
+            {item.detail ? <Text style={styles.muted}>{item.detail}</Text> : null}
+          </View>
+        </View>
+        <Text style={styles.cQty}>{Number(item.quantity)}</Text>
+        <Text style={[styles.cUnit, { fontSize: fit(lineUnit(item), 9, 38) }]}>{lineUnit(item)}</Text>
+        <Text style={[styles.cPrice, styles.muted]}>Included</Text>
+        <Text style={styles.cAmount} />
+      </View>
+    );
+  }
   return (
-    <View style={styles.row} wrap={false}>
-      <Text style={styles.cNo}>{index + 1}</Text>
-      <View style={styles.cDesc}>
-        <Text style={styles.itemName}>{item.description}</Text>
-        {item.detail ? <Text style={styles.muted}>{item.detail}</Text> : null}
+    <View style={rowStyle} wrap={false}>
+      <Text style={styles.cNo}>{child ? "" : index + 1}</Text>
+      <View style={[styles.cDesc, child ? { flexDirection: "row", paddingLeft: 12 } : {}]}>
+        {child ? <Text style={[styles.muted, { width: 14 }]}>{`${item.childLabel}.`}</Text> : null}
+        <View style={child ? { flex: 1 } : {}}>
+          <Text style={child ? { color: INK } : styles.itemName}>{item.description}</Text>
+          {item.detail ? <Text style={styles.muted}>{item.detail}</Text> : null}
+        </View>
       </View>
       <Text style={styles.cQty}>{Number(item.quantity)}</Text>
+      <Text style={[styles.cUnit, { fontSize: fit(lineUnit(item), 9, 38) }]}>{lineUnit(item)}</Text>
       <Text style={[styles.cPrice, { fontSize: fit(money(item.unit_price), 9, 98) }]}>{money(item.unit_price)}</Text>
       <Text style={[styles.cAmount, { fontSize: fit(money(item.amount), 9, 104) }]}>{money(item.amount)}</Text>
     </View>
@@ -452,24 +611,27 @@ export function ItemsTable({
   money: (amount: number | string) => string;
 }) {
   const grouped = groups.length > 1 || groups.some((group) => group.quantity > 1);
+  const shown = shownLines(items);
   if (grouped) {
     const known = new Set(groups.map((group) => group.id));
-    const loose = items.filter((item) => !item.group_id || !known.has(item.group_id));
+    const loose = shown.filter((item) => !item.group_id || !known.has(item.group_id));
     // Each group's edition goes into its heading ("Server group 1 — Plant
     // edition"), not a row of its own; numbering runs on across groups.
     const sections = groups.map((group) => {
-      const lines = items.filter((item) => item.group_id === group.id);
+      const lines = shown.filter((item) => item.group_id === group.id);
       const edition = lines.find(isEditionHeading);
       return { group, edition, lines: lines.filter((item) => !isEditionHeading(item)) };
     });
-    const starts = sections.map((_, index) => sections.slice(0, index).reduce((sum, section) => sum + section.lines.length, 0));
-    const looseStart = sections.reduce((sum, section) => sum + section.lines.length, 0);
+    const priced = (lines: ShownLine[]) => lines.filter(numbered).length;
+    const starts = sections.map((_, index) => sections.slice(0, index).reduce((sum, section) => sum + priced(section.lines), 0));
+    const looseStart = sections.reduce((sum, section) => sum + priced(section.lines), 0);
     return (
       <View style={styles.table}>
         <View style={styles.headRow} minPresenceAhead={110} fixed>
           <Text style={[styles.cNo, styles.headCell]}>#</Text>
           <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
           <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
+          <Text style={[styles.cUnit, styles.headCell]}>Unit</Text>
           <Text style={[styles.cPrice, styles.headCell]}>Unit price</Text>
           <Text style={[styles.cAmount, styles.headCell]}>Amount</Text>
         </View>
@@ -482,7 +644,7 @@ export function ItemsTable({
                 {edition ? <Text style={styles.editionName}>{`  —  ${edition.description}`}</Text> : null}
               </Text>
               <Text style={styles.muted}>
-                {group.quantity} server{group.quantity === 1 ? "" : "s"}
+                {group.kind === "shared" ? "" : `${group.quantity} server${group.quantity === 1 ? "" : "s"}`}
               </Text>
             </View>
           );
@@ -492,6 +654,17 @@ export function ItemsTable({
               <Text style={[styles.cAmount, { fontSize: fit(money(group.subtotal), 9, 104) }]}>{money(group.subtotal)}</Text>
             </View>
           );
+          // With custom items the lines have headings of their own: the group
+          // heading keeps space for what follows it, the subtotal stays whole.
+          if (lines.some(isHeading)) {
+            return (
+              <View key={group.id}>
+                <View minPresenceAhead={60}>{heading}</View>
+                <ItemLines items={lines} start={first} money={money} />
+                <View wrap={false}>{subtotal}</View>
+              </View>
+            );
+          }
           // A group's heading moves with its first line, and its subtotal with
           // its last, so a page never ends on a heading or starts on a total.
           if (lines.length <= 1) {
@@ -527,10 +700,11 @@ export function ItemsTable({
         <Text style={[styles.cNo, styles.headCell]}>#</Text>
         <Text style={[styles.cDesc, styles.headCell]}>Description</Text>
         <Text style={[styles.cQty, styles.headCell]}>Qty</Text>
+        <Text style={[styles.cUnit, styles.headCell]}>Unit</Text>
         <Text style={[styles.cPrice, styles.headCell]}>Unit price</Text>
         <Text style={[styles.cAmount, styles.headCell]}>Amount</Text>
       </View>
-      <ItemLines items={items} start={0} money={money} />
+      <ItemLines items={shown} start={0} money={money} />
     </View>
   );
 }

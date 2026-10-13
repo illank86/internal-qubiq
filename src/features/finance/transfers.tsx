@@ -7,6 +7,7 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { jakartaToday, money, recordBankTransfer, useBankAccounts, voidBankTransfer } from "./api";
+import { DateInput } from "@/components/date-input";
 
 type Transfer = {
   id: string;
@@ -221,7 +222,7 @@ export function TransferModal({ onClose }: { onClose: () => void }) {
           <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
             Date
           </Typography.Text>
-          <Input type="date" value={on} max={today} onChange={(event) => setOn(event.target.value)} />
+          <DateInput value={on} max={today} onChange={(value) => setOn(value)} />
         </Col>
         <Col span={24}>
           <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>

@@ -1,13 +1,18 @@
-import { Button, Card, Checkbox, Flex, Input, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
-import { Fragment } from "react";
-import { CheckCircleFilled, CopyOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Checkbox, Flex, InputNumber, Space, Tag, Tooltip, Typography, theme } from "antd";
+import { Fragment, useState } from "react";
+import { CheckCircleFilled, CopyOutlined, DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined, ShareAltOutlined } from "@ant-design/icons";
 import { formatMoney } from "@/lib/invoices";
-import { newGroup, type BuilderEdition, type BuilderModule, type GroupDraft } from "@/lib/sales";
+import { newGroup, newSharedGroup, type BuilderEdition, type BuilderModule, type GroupDraft, type ItemCategory } from "@/lib/sales";
+import { CustomItemsEditor } from "./custom-items-editor";
+import { LazyInput } from "./lazy-input";
 
 /**
  * Server groups: one quotation can cover several servers, each group with its
  * own edition and modules and a number of identical servers. Choosing an
  * edition ticks its modules; anything added on top stays when it changes.
+ * Below the modules, additional items: hardware, services, other software.
+ * Project items (kind "shared") cover the whole project rather than one group: a block of their own, kept last.
+ * Each block folds away to a one-line summary.
  */
 export function ServerGroupsEditor({
   groups,
@@ -16,6 +21,9 @@ export function ServerGroupsEditor({
   modules,
   subtotals,
   money,
+  itemCategories,
+  currency,
+  convert,
 }: {
   groups: GroupDraft[];
   onChange: (next: GroupDraft[]) => void;
@@ -23,6 +31,11 @@ export function ServerGroupsEditor({
   modules: BuilderModule[];
   subtotals: number[];
   money: (amount: number) => string;
+  itemCategories: ItemCategory[];
+  /** The quotation currency: new items start in it. */
+  currency: string;
+  /** A custom item's price in the quotation currency; null while a rate is missing. */
+  convert: (price: number, from: string) => number | null;
 }) {
   const categories = [...modules.reduce((map, item) => map.set(item.category, [...(map.get(item.category) ?? []), item]), new Map<string, BuilderModule[]>())];
   // An edition costs what its modules cost.
@@ -30,6 +43,30 @@ export function ServerGroupsEditor({
     modules.filter((item) => edition.moduleIds.includes(item.id) && !item.percent).reduce((sum, item) => sum + item.price, 0);
   const update = (key: string, next: Partial<GroupDraft>) => onChange(groups.map((group) => (group.key === key ? { ...group, ...next } : group)));
   const { token } = theme.useToken();
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) =>
+    setFolded((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const serverGroups = groups.filter((group) => group.kind !== "shared");
+  const shared = groups.find((group) => group.kind === "shared");
+  // Project items stay last: a new server group goes before them.
+  const addServerGroup = (group: GroupDraft) => onChange([...serverGroups, group, ...(shared ? [shared] : [])]);
+  const foldButton = (key: string, label: string) => (
+    <Button
+      type="text"
+      size="small"
+      icon={folded.has(key) ? <RightOutlined /> : <DownOutlined />}
+      onClick={() => toggle(key)}
+      aria-expanded={!folded.has(key)}
+      aria-label={`${folded.has(key) ? "Expand" : "Collapse"} ${label}`}
+    />
+  );
+  /** "3 modules · 2 additional items" — what a folded block holds. */
+  const itemsText = (count: number) => (count ? `${count} additional item${count === 1 ? "" : "s"}` : "no additional items");
   const sectionLabel = { fontSize: 12, textTransform: "uppercase", letterSpacing: 1 } as const;
   // A table per category — module and price | checkbox. The 1px gaps over a
   // border-coloured background draw the rules.
@@ -46,6 +83,64 @@ export function ServerGroupsEditor({
   return (
     <Flex vertical gap={16}>
       {groups.map((group, index) => {
+        const subtotal = money(subtotals[index] ?? 0);
+        const open = !folded.has(group.key);
+        if (group.kind === "shared") {
+          return (
+            <Card
+              key={group.key}
+              size="small"
+              style={{ borderStyle: "dashed" }}
+              title={
+                <Flex align="center" gap={8} wrap>
+                  {foldButton(group.key, group.label || "project items")}
+                  <ShareAltOutlined style={{ color: token.colorPrimary }} />
+                  <LazyInput
+                    value={group.label}
+                    maxLength={120}
+                    onCommit={(label) => update(group.key, { label })}
+                    placeholder="Project items"
+                    aria-label="Name of the project items"
+                    variant="filled"
+                    style={{ fontWeight: 600, maxWidth: 300 }}
+                  />
+                </Flex>
+              }
+              extra={
+                <Space size={4}>
+                  <Typography.Text strong style={{ minWidth: 110, textAlign: "right", display: "inline-block" }}>
+                    {subtotal}
+                  </Typography.Text>
+                  <Tooltip title="Remove project items">
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onChange(groups.filter((item) => item.key !== group.key))} />
+                  </Tooltip>
+                </Space>
+              }
+            >
+              {open ? (
+                <>
+                  <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                    Items for the whole project — project management, commissioning, network equipment, training. Printed after the groups with its own
+                    subtotal; no maintenance is charged on it.
+                  </Typography.Text>
+                  <CustomItemsEditor
+                    items={group.items}
+                    onChange={(items) => update(group.key, { items })}
+                    categories={itemCategories}
+                    currency={currency}
+                    convert={convert}
+                    money={money}
+                  />
+                </>
+              ) : (
+                <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                  {itemsText(group.items.length)}
+                </Typography.Text>
+              )}
+            </Card>
+          );
+        }
+        const number = serverGroups.indexOf(group) + 1;
         const edition = editions.find((item) => item.id === group.editionId);
         const baseCurrency = edition?.currency ?? editions[0]?.currency ?? "USD";
         const chooseEdition = (id: string) => {
@@ -59,12 +154,14 @@ export function ServerGroupsEditor({
             size="small"
             title={
               <Flex align="center" gap={8} wrap>
-                <Typography.Text type="secondary">{index + 1}.</Typography.Text>
-                <Input
+                {foldButton(group.key, group.label || `server group ${number}`)}
+                <Typography.Text type="secondary">{number}.</Typography.Text>
+                <LazyInput
                   value={group.label}
-                  onChange={(event) => update(group.key, { label: event.target.value.slice(0, 120) })}
-                  placeholder={`Server group ${index + 1}`}
-                  aria-label={`Name of server group ${index + 1}`}
+                  maxLength={120}
+                  onCommit={(label) => update(group.key, { label })}
+                  placeholder={`Server group ${number}`}
+                  aria-label={`Name of server group ${number}`}
                   variant="filled"
                   style={{ fontWeight: 600, maxWidth: 300 }}
                 />
@@ -82,18 +179,18 @@ export function ServerGroupsEditor({
                   aria-label="Number of servers"
                 />
                 <Typography.Text strong style={{ minWidth: 110, textAlign: "right", display: "inline-block" }}>
-                  {money(subtotals[index] ?? 0)}
+                  {subtotal}
                 </Typography.Text>
                 <Tooltip title="Duplicate group">
                   <Button
                     type="text"
                     icon={<CopyOutlined />}
                     onClick={() =>
-                      onChange([...groups.slice(0, index + 1), newGroup(editions, groups.length, { ...group, label: `${group.label} (copy)` }), ...groups.slice(index + 1)])
+                      onChange([...groups.slice(0, index + 1), newGroup(editions, serverGroups.length, { ...group, label: `${group.label} (copy)` }), ...groups.slice(index + 1)])
                     }
                   />
                 </Tooltip>
-                {groups.length > 1 ? (
+                {serverGroups.length > 1 ? (
                   <Tooltip title="Remove group">
                     <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onChange(groups.filter((item) => item.key !== group.key))} />
                   </Tooltip>
@@ -101,6 +198,14 @@ export function ServerGroupsEditor({
               </Space>
             }
           >
+            {!open ? (
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                {[edition?.name ? `${edition.name} edition` : null, `${group.moduleIds.length} module${group.moduleIds.length === 1 ? "" : "s"}`, itemsText(group.items.length)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Typography.Text>
+            ) : (
+            <>
             <Typography.Text type="secondary" style={sectionLabel}>
               Edition
             </Typography.Text>
@@ -215,12 +320,32 @@ export function ServerGroupsEditor({
                 );
               })}
             </Flex>
+
+            <CustomItemsEditor
+              items={group.items}
+              onChange={(items) => update(group.key, { items })}
+              categories={itemCategories}
+              currency={currency}
+              convert={convert}
+              money={money}
+            />
+            </>
+            )}
           </Card>
         );
       })}
-      <Button type="dashed" icon={<PlusOutlined />} onClick={() => onChange([...groups, newGroup(editions, groups.length)])} block>
-        Add another server group
-      </Button>
+      <Flex gap={8} wrap>
+        <Button type="dashed" icon={<PlusOutlined />} onClick={() => addServerGroup(newGroup(editions, serverGroups.length))} style={{ flex: "1 1 220px" }}>
+          Add another server group
+        </Button>
+        {!shared ? (
+          <Tooltip title="Items for the whole project: project management, commissioning, network equipment.">
+            <Button type="dashed" icon={<ShareAltOutlined />} onClick={() => onChange([...groups, newSharedGroup()])} style={{ flex: "1 1 220px" }}>
+              Add project items
+            </Button>
+          </Tooltip>
+        ) : null}
+      </Flex>
     </Flex>
   );
 }

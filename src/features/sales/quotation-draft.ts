@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { formatMoney } from "@/lib/invoices";
-import type { SalesCatalog, GroupDraft } from "@/lib/sales";
+import { newKey, type SalesCatalog, type GroupDraft, type CustomItemDraft, type ItemPricing } from "@/lib/sales";
 
 /** Everything the builder starts from: a blank quotation, a quote request, a licence request, or a saved quotation. */
 export type QuotationDraft = {
@@ -12,6 +12,8 @@ export type QuotationDraft = {
   groups: Omit<GroupDraft, "key">[];
   currency: string;
   exchangeRate: number | null;
+  /** One base-currency unit (USD) in each other currency custom items are priced in. */
+  currencyRates: Record<string, number>;
   taxRate: number;
   decimals: number;
   validUntil: string;
@@ -77,12 +79,13 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
         }
       : null,
     groups: request
-      ? [{ label: request.edition_name ? `${request.edition_name} server` : "Server group 1", editionId, moduleIds, quantity: 1 }]
+      ? [{ label: request.edition_name ? `${request.edition_name} server` : "Server group 1", editionId, moduleIds, quantity: 1, items: [], kind: "servers" as const }]
       : license
-        ? [{ label: license.label, editionId: catalog.editions[0]?.id ?? "", moduleIds: catalog.editions[0]?.moduleIds ?? [], quantity: 1 }]
+        ? [{ label: license.label, editionId: catalog.editions[0]?.id ?? "", moduleIds: catalog.editions[0]?.moduleIds ?? [], quantity: 1, items: [], kind: "servers" as const }]
         : [],
     currency: request?.currency ?? "",
     exchangeRate: null,
+    currencyRates: {},
     taxRate: catalog.taxRate,
     decimals: catalog.decimals,
     validUntil: isoDate(new Date(Date.now() + catalog.validityDays * 86_400_000)),
@@ -119,8 +122,12 @@ export async function newQuotationDraft(catalog: SalesCatalog, me: string, reque
 export async function savedQuotationDraft(id: string): Promise<QuotationDraft | null> {
   const [{ data: quotation, error }, { data: items }, { data: groups }] = await Promise.all([
     supabase.from("quotations").select("*, request:quote_requests(reference, message)").eq("id", id).maybeSingle(),
-    supabase.from("quotation_items").select("group_id, module_id").eq("quotation_id", id),
-    supabase.from("quotation_groups").select("id, label, edition_id, quantity").eq("quotation_id", id).order("position"),
+    supabase
+      .from("quotation_items")
+      .select("id, group_id, module_id, position, category_id, category_name, parent_id, pricing, description, detail, unit, entered_quantity, entered_price, entered_currency, per_server")
+      .eq("quotation_id", id)
+      .order("position"),
+    supabase.from("quotation_groups").select("id, kind, label, edition_id, quantity").eq("quotation_id", id).order("position"),
   ]);
   if (error) throw error;
   if (!quotation) return null;
@@ -133,13 +140,41 @@ export async function savedQuotationDraft(id: string): Promise<QuotationDraft | 
     licenseId: null,
     requestNote: request ? { reference: request.reference, message: request.message, total: null } : null,
     groups: (groups ?? []).map((group) => ({
+      kind: group.kind === "shared" ? ("shared" as const) : ("servers" as const),
       label: group.label,
       editionId: group.edition_id ?? "",
       quantity: group.quantity,
       moduleIds: (items ?? []).flatMap((item) => (item.group_id === group.id && item.module_id ? [item.module_id] : [])),
+      // Custom items back as entered: their own price, currency and quantity, and their lines.
+      items: (items ?? [])
+        .filter((item) => item.group_id === group.id && item.category_id && !item.parent_id)
+        .map((item): CustomItemDraft => ({
+          key: newKey(),
+          categoryId: item.category_id!,
+          section: item.category_name ?? "",
+          description: item.description,
+          detail: item.detail ?? "",
+          unit: item.unit ?? "",
+          quantity: Number(item.entered_quantity ?? 1),
+          price: Number(item.entered_price ?? 0),
+          currency: item.entered_currency ?? quotation.currency,
+          pricing: (item.pricing ?? "item") as ItemPricing,
+          parts: (items ?? [])
+            .filter((part) => part.parent_id === item.id)
+            .map((part) => ({
+              key: newKey(),
+              description: part.description,
+              detail: part.detail ?? "",
+              unit: part.unit ?? "",
+              quantity: Number(part.entered_quantity ?? 1),
+              price: Number(part.entered_price ?? 0),
+              currency: part.entered_currency ?? item.entered_currency ?? quotation.currency,
+            })),
+        })),
     })),
     currency: quotation.exchange_rate ? quotation.currency : "",
     exchangeRate: quotation.exchange_rate ? Number(quotation.exchange_rate) : null,
+    currencyRates: (quotation.currency_rates ?? {}) as Record<string, number>,
     taxRate: Number(quotation.tax_rate),
     decimals: quotation.decimal_places,
     validUntil: quotation.valid_until,

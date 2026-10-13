@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "./use-action";
 import { StatRow } from "./drawer-parts";
+import { ItemCategoriesTab } from "./item-categories-tab";
 
 type Edition = Database["public"]["Tables"]["license_editions"]["Row"] & { modules: { module_id: string }[] };
 type Module = Database["public"]["Tables"]["license_modules"]["Row"];
@@ -84,6 +85,7 @@ export function EditionsPage() {
             { key: "editions", label: `Editions${data ? ` (${data.editions.length})` : ""}`, children: <EditionsTab data={data} loading={isLoading} run={run} busy={busy} /> },
             { key: "modules", label: `Modules${data ? ` (${data.modules.length})` : ""}`, children: <ModulesTab data={data} loading={isLoading} run={run} busy={busy} /> },
             { key: "groups", label: "Module groups", children: <GroupsTab data={data} loading={isLoading} run={run} busy={busy} /> },
+            { key: "items", label: "Quotation item categories", children: <ItemCategoriesTab /> },
           ]}
         />
       </Card>

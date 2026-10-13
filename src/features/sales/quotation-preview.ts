@@ -36,6 +36,8 @@ export type PreviewInput = {
   currency: string;
   baseCurrency: string;
   rate: number;
+  /** One base-currency unit in each third currency custom items are priced in. */
+  rates?: Record<string, number>;
   decimals: number;
   taxRate: number;
   taxLabel: string;
@@ -58,8 +60,8 @@ export type PreviewInput = {
  * The quotation as it would print, from what is on screen — nothing saved.
  * Lines are built the way private.price_quotation_groups() builds them: per
  * group the edition's modules (labelled with the edition — it has no line or
- * price of its own), then other one-off modules (each × servers), then
- * percentage modules on the group's one-off total.
+ * price of its own), then other one-off modules (each × servers), then custom
+ * items by category, then percentage modules on the licence.
  */
 export async function renderQuotationPreview(catalog: SalesCatalog, input: PreviewInput): Promise<Blob> {
   const money = {
@@ -68,8 +70,10 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     currency: input.currency,
     taxRate: input.taxRate,
     discount: input.discount ? { partnerPercent: input.discount.partnerPercent, type: input.discount.type, value: input.discount.value } : undefined,
+    baseCurrency: input.baseCurrency,
+    rates: input.rates,
   };
-  const totals = priceGroups(input.groups, catalog.editions, catalog.modules, money);
+  const totals = priceGroups(input.groups, catalog.editions, catalog.modules, money, catalog.categories);
   const scale = 10 ** input.decimals;
   const round = (amount: number) => Math.round(amount * scale) / scale;
   const convert = (amount: number) => round(amount * input.rate);
@@ -84,8 +88,13 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
     amount: number;
     edition_id?: string | null;
     module_id?: string | null;
+    category_id?: string | null;
+    category_name?: string | null;
+    parent_id?: string | null;
+    pricing?: string | null;
+    unit?: string | null;
   }[] = [];
-  const groups = totals.priced.map(({ group, edition, oneOff, subtotal }, index) => {
+  const groups = totals.priced.map(({ group, edition, licence, custom, subtotal }, index) => {
     const id = `group-${index}`;
     const picked = new Set(group.moduleIds);
     // Custom has no set of its own, so no heading.
@@ -109,8 +118,24 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
         module_id: module.id,
       });
     }
+    for (const line of custom.lines) {
+      items.push({
+        id: `${id}-${line.key}`,
+        group_id: id,
+        description: line.description,
+        detail: line.detail,
+        quantity: line.quantity,
+        unit_price: line.unitPrice,
+        amount: line.amount,
+        category_id: line.categoryId,
+        category_name: line.categoryName,
+        parent_id: line.parentKey ? `${id}-${line.parentKey}` : null,
+        pricing: line.pricing,
+        unit: line.unit,
+      });
+    }
     for (const module of catalog.modules.filter((item) => picked.has(item.id) && item.percent)) {
-      const amount = round((oneOff * (module.percent ?? 0)) / 100);
+      const amount = round((licence * (module.percent ?? 0)) / 100);
       items.push({
         id: `${id}-${module.id}`,
         group_id: id,
@@ -121,7 +146,7 @@ export async function renderQuotationPreview(catalog: SalesCatalog, input: Previ
         amount,
       });
     }
-    return { id, label: group.label || `Server group ${index + 1}`, quantity: group.quantity, subtotal };
+    return { id, label: group.label || (group.kind === "shared" ? "Project items" : `Server group ${index + 1}`), quantity: group.quantity, subtotal, kind: group.kind };
   });
 
   const seller = await loadSeller();

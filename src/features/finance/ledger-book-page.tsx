@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Alert, App, Button, Card, Flex, Input, Result, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
+import { Alert, App, Button, Card, Flex, Result, Skeleton, Tabs, Tag, Tooltip, Typography, theme } from "antd";
 import { ArrowLeftOutlined, CheckCircleFilled, CloseCircleFilled, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
 import { PageTitle } from "@/components/app-shell";
 import { usePdfViewer } from "@/components/pdf-viewer-context";
@@ -11,6 +11,7 @@ import { downloadBlob, fileBase, signedOn, ledgerCsv, loadLedgerBook, PART_TITLE
 import { jakartaToday } from "./api";
 import { PAPER, rangeOf, type Preset } from "./report-period";
 import { CheckLine, SignBlock, PaperEmpty as Empty, PaperSheet, PeriodPicker } from "./report-paper";
+import { DateInput } from "@/components/date-input";
 
 /**
  * "Jurnal & Buku Besar" as a page (not a dialog, so the PDF viewer is the only
@@ -97,7 +98,7 @@ export function LedgerBookPage() {
             <PeriodPicker preset={preset} custom={custom} from={from} to={to} onPreset={setPreset} onCustom={setCustom} />
             <Flex gap={6} align="center">
               <Typography.Text type="secondary">Signed on</Typography.Text>
-              <Input type="date" value={signDate} onChange={(event) => setSignDate(event.target.value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
+              <DateInput value={signDate} onChange={(value) => setSignDate(value || jakartaToday())} style={{ width: 150 }} aria-label="Signed on" />
               <Link to="/finance/settings?tab=reports" style={{ fontSize: 12 }}>
                 Who signs?
               </Link>

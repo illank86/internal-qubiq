@@ -7,6 +7,7 @@ import { errorText } from "@/lib/sales";
 import { supabase } from "@/lib/supabase";
 import { documentFolder } from "@/features/sales/api";
 import { accountingFileBlob, jakartaToday, uploadAccountingFile } from "./api";
+import { DateInput } from "@/components/date-input";
 
 type FakturInvoice = {
   id: string;
@@ -171,7 +172,7 @@ export function FakturModal({ invoice, onClose }: { invoice: FakturInvoice; onCl
           <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
             Faktur date
           </Typography.Text>
-          <Input type="date" value={date} max={jakartaToday()} onChange={(event) => setDate(event.target.value)} style={{ maxWidth: 200 }} />
+          <DateInput value={date} max={jakartaToday()} onChange={(value) => setDate(value)} style={{ maxWidth: 200 }} />
         </div>
         <Upload accept="application/pdf" maxCount={1} beforeUpload={(chosen) => { setFile(chosen); return false; }} onRemove={() => setFile(null)}
           fileList={file ? [{ uid: "faktur", name: file.name, status: "done" }] : []}>

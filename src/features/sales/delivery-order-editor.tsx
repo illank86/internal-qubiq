@@ -20,6 +20,7 @@ import {
   type DeliveryOrder,
   type DeliverySignature,
 } from "./delivery-api";
+import { DateInput } from "@/components/date-input";
 
 type Values = Required<Omit<DeliveryDetails, "delivery_date">> & { delivery_date: string };
 
@@ -286,7 +287,7 @@ export function DeliveryOrderEditor({
               </Col>
               <Col xs={24} sm={12}>
                 <Form.Item label="Delivery date" name="delivery_date" rules={[{ required: true, message: "Choose the delivery date" }]}>
-                  <Input type="date" />
+                  <DateInput />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>

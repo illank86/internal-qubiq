@@ -9,6 +9,7 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday, postManualJournal, reverseManualJournal, useAccounts } from "./api";
+import { DateInput } from "@/components/date-input";
 
 type Line = { id: string; debit: number; credit: number; description: string | null; currency: string; amount_fc: number | null; account: { code: string; name: string; name_id: string | null } | null };
 type Entry = {
@@ -197,7 +198,7 @@ function ManualEntryModal({ onClose }: { onClose: () => void }) {
     >
       <Flex vertical gap={12}>
         <Flex gap={8} wrap>
-          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} style={{ width: 170 }} />
+          <DateInput value={date} onChange={(value) => setDate(value)} style={{ width: 170 }} />
           <Input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="What it is, e.g. Capital paid in by the founders" maxLength={500} style={{ flex: 1, minWidth: 220 }} />
         </Flex>
         {lines.map((line) => (

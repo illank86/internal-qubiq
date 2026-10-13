@@ -7,6 +7,7 @@ import { documentFolder } from "@/features/sales/api";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { supabase } from "@/lib/supabase";
 import { WITHHOLDING, invoiceOpenBalance, jakartaToday, money, recordReceipt, uploadAccountingFile, useBankAccounts } from "./api";
+import { DateInput } from "@/components/date-input";
 
 export type PaymentInvoice = {
   id: string;
@@ -218,7 +219,7 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
                 <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
                   Applied on
                 </Typography.Text>
-                <Input type="date" value={receivedOn} min={invoice.issue_date} max={today} onChange={(event) => setReceivedOn(event.target.value)} />
+                <DateInput value={receivedOn} min={invoice.issue_date} max={today} onChange={(value) => setReceivedOn(value)} />
               </Col>
               <Col xs={24} sm={14}>
                 <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
@@ -240,7 +241,7 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
               <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
                 Received on
               </Typography.Text>
-              <Input type="date" value={receivedOn} min={invoice.issue_date} max={today} onChange={(event) => setReceivedOn(event.target.value)} />
+              <DateInput value={receivedOn} min={invoice.issue_date} max={today} onChange={(value) => setReceivedOn(value)} />
             </Col>
             <Col xs={24} sm={14}>
               <Typography.Text strong style={{ display: "block", marginBottom: 4 }}>
@@ -305,7 +306,7 @@ export function RecordPaymentModal({ invoice, open, onClose }: { invoice: Paymen
                       <Input value={bpNumber} onChange={(event) => setBpNumber(event.target.value)} placeholder="“Bukti potong” number" maxLength={60} />
                     </Col>
                     <Col xs={24} sm={7}>
-                      <Input type="date" value={bpDate} onChange={(event) => setBpDate(event.target.value)} aria-label="“Bukti potong” date" />
+                      <DateInput value={bpDate} onChange={(value) => setBpDate(value)} aria-label="“Bukti potong” date" />
                     </Col>
                     <Col xs={24} sm={9}>
                       <Upload

@@ -8,6 +8,7 @@ import { useAction } from "@/features/sales/use-action";
 import { TAX_TYPES, WITHHELD, WITHHOLDING, idr, jakartaToday, money, recordTaxPayment, useBankAccounts } from "./api";
 import { exportExcel } from "./exports";
 import { PpnCard } from "./ppn-card";
+import { DateInput } from "@/components/date-input";
 
 type Report = {
   masa: string;
@@ -252,7 +253,7 @@ function TaxPaymentModal({ masa, initialType, suggested, regime, onClose }: { ma
         <Select value={type} onChange={setType} options={Object.entries(TAX_TYPES).map(([value, label]) => ({ value, label }))} />
         <Input value={period} onChange={(event) => setPeriod(event.target.value)} addonBefore={type === "pph29" ? "Tax year" : "Masa"} placeholder="YYYY-MM" />
         <InputNumber value={amount} onChange={(value) => setAmount(value === null ? null : Number(value))} min={0} suffix="IDR" style={{ width: "100%" }} placeholder="Amount" />
-        <Input type="date" value={paidOn} max={jakartaToday()} onChange={(event) => setPaidOn(event.target.value)} />
+        <DateInput value={paidOn} max={jakartaToday()} onChange={(value) => setPaidOn(value)} />
         <Select value={bank?.id} onChange={setBankId} options={active.map((item) => ({ value: item.id, label: `${item.name} (${item.currency})` }))} placeholder="Paid from" />
         <Input value={billing} onChange={(event) => setBilling(event.target.value)} placeholder="Kode billing" maxLength={40} />
         <Input value={ntpn} onChange={(event) => setNtpn(event.target.value)} placeholder="NTPN (from the payment receipt)" maxLength={40} />

@@ -53,8 +53,8 @@ export function QuotationDrawer({
     enabled: Boolean(quotation),
     queryFn: async () => {
       const [{ data: groups }, { data: items }] = await Promise.all([
-        supabase.from("quotation_groups").select("id, label, quantity, subtotal").eq("quotation_id", quotation!.id).order("position"),
-        supabase.from("quotation_items").select("id, group_id, description, detail, amount, edition_id").eq("quotation_id", quotation!.id).order("position"),
+        supabase.from("quotation_groups").select("id, kind, label, quantity, subtotal").eq("quotation_id", quotation!.id).order("position"),
+        supabase.from("quotation_items").select("id, group_id, description, detail, amount, edition_id, category_name, parent_id, pricing").eq("quotation_id", quotation!.id).order("position"),
       ]);
       return { groups: groups ?? [], items: items ?? [] };
     },
@@ -78,7 +78,7 @@ export function QuotationDrawer({
       `${quotation.number ?? "Draft"} deleted.`,
     );
   const invoice = quotation.invoices.find((candidate) => candidate.status !== "void");
-  const servers = (lines?.groups ?? []).reduce((sum, group) => sum + group.quantity, 0);
+  const servers = (lines?.groups ?? []).filter((group) => group.kind !== "shared").reduce((sum, group) => sum + group.quantity, 0);
   const account = () => navigate(`/sales/quotations/${quotation.id}/customer`);
   const link = { padding: 0, height: "auto" } as const;
 

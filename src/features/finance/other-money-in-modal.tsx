@@ -4,6 +4,7 @@ import { Alert, App, Button, Col, Input, InputNumber, Modal, Row, Select, Typogr
 import { CheckCircleOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { errorText } from "@/lib/sales";
 import { RECEIPT_KIND, WITHHOLDING, jakartaToday, money, recordReceipt, uploadAccountingFile, useAccounts, useBankAccounts, vendorFolder, type ReceiptKind } from "./api";
+import { DateInput } from "@/components/date-input";
 
 type Kind = Exclude<ReceiptKind, "invoice" | "advance_applied">;
 
@@ -163,7 +164,7 @@ export function OtherMoneyInModal({ onClose }: { onClose: () => void }) {
         </Col>
         <Col xs={24} sm={10}>
           {label("Received on")}
-          <Input type="date" value={receivedOn} max={today} onChange={(event) => setReceivedOn(event.target.value)} />
+          <DateInput value={receivedOn} max={today} onChange={(value) => setReceivedOn(value)} />
         </Col>
         <Col xs={24} sm={14}>
           {label("Into bank account")}

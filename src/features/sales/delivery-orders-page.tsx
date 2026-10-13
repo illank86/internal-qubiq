@@ -50,6 +50,7 @@ import {
   type FileKind,
 } from "./delivery-api";
 import { useAction } from "./use-action";
+import { DateInput } from "@/components/date-input";
 
 export type DeliveryRow = DeliveryOrder & { items: Pick<DeliveryItem, "id" | "description" | "detail" | "quantity" | "unit" | "position">[]; files: DeliveryFile[] };
 type Filter = "all" | DeliveryStatus;
@@ -427,7 +428,7 @@ export function UploadReceivedModal({ row, open, onClose, run }: { row: Delivery
               <Input />
             </Form.Item>
             <Form.Item label="Received on" name="received_on" style={{ flex: "0 1 160px" }}>
-              <Input type="date" />
+              <DateInput />
             </Form.Item>
           </Flex>
         ) : null}

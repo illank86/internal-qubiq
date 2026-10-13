@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAction } from "@/features/sales/use-action";
 import { idr, jakartaToday } from "./api";
 import { loadStatements } from "./statement-book";
+import { DateInput } from "@/components/date-input";
 
 type Line = { code: string; name: string; name_id: string | null; type: string; amount: number; deductible?: boolean };
 
@@ -99,9 +100,9 @@ export function ReportsPage() {
         />
         {preset === "custom" ? (
           <Flex gap={6} align="center">
-            <Input type="date" value={custom[0]} onChange={(event) => setCustom([event.target.value, custom[1]])} style={{ width: 150 }} />
+            <DateInput value={custom[0]} onChange={(value) => setCustom([value, custom[1]])} style={{ width: 150 }} />
             <span>–</span>
-            <Input type="date" value={custom[1]} onChange={(event) => setCustom([custom[0], event.target.value])} style={{ width: 150 }} />
+            <DateInput value={custom[1]} onChange={(value) => setCustom([custom[0], value])} style={{ width: 150 }} />
           </Flex>
         ) : (
           <Typography.Text type="secondary">{period}</Typography.Text>

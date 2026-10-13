@@ -29,6 +29,7 @@ import {
   type PayrollLine,
   type PayrollRun,
 } from "./payroll-api";
+import { DateInput } from "@/components/date-input";
 
 const dateLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -438,7 +439,7 @@ function PayModal({ kind, amount, defaultDate, busy, onClose, onPay }: { kind: "
       <Flex vertical gap={12}>
         <div>
           <Typography.Text>Paid on</Typography.Text>
-          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} style={{ display: "block", width: 200 }} />
+          <DateInput value={date} onChange={(value) => setDate(value)} style={{ display: "block", width: 200 }} />
         </div>
         <div>
           <Typography.Text>From</Typography.Text>

@@ -50,7 +50,7 @@ export function ConvertPage() {
       if (loadError) throw loadError;
       if (!quotation) return null;
       const [{ data: groups }, accounts] = await Promise.all([
-        supabase.from("quotation_groups").select("id, label, quantity, subtotal").eq("quotation_id", id).order("position"),
+        supabase.from("quotation_groups").select("id, kind, label, quantity, subtotal").eq("quotation_id", id).order("position"),
         loadCustomerAccounts(() =>
           quotation.customer_id
             ? supabase.from("profiles").select("id, full_name, email, company").eq("id", quotation.customer_id)
@@ -156,7 +156,7 @@ export function ConvertPage() {
                   {group.label}
                   <Typography.Text type="secondary">
                     {" "}
-                    · {group.quantity} server{group.quantity === 1 ? "" : "s"}
+                    {group.kind === "shared" ? "" : ` · ${group.quantity} server${group.quantity === 1 ? "" : "s"}`}
                   </Typography.Text>
                 </span>
                 <Typography.Text strong>{money(group.subtotal)}</Typography.Text>
